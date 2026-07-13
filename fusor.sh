@@ -94,32 +94,35 @@ else
   echo "(Verificación omitida con -n)" >&2
 fi
 
-# ---------- 3) Clasificar por género y país, ordenar y generar ----------
-awk -F'\t' '
+# ---------- 3) Clasificar, filtrar adultos, ordenar y generar ----------
+LC_ALL=C awk -F'\t' '
 BEGIN {
-  # Géneros en el orden de salida deseado (edítalo a tu gusto)
+  # Géneros generales, en orden de salida (Deportes SIEMPRE global, sin país)
   ng = split("Deportes|Cultura|Documentales|Series 24/7|Películas|Noticias|Infantil|Música|Variados", GEN, "|")
-  KW["Deportes"]     = "DEPORT,SPORT,ESPN,TYC,TNT SPORT,FUTBOL,FÚTBOL,FúTBOL,GOL TV,GOLTV,BEIN,DAZN,WIN SPORT,FOX SPORT,NBA,NFL,MLB,UFC,WWE,BOX,F1,FORMULA"
+  KW["Deportes"]     = "DEPORT,SPORT,ESPN,TYC,FUTBOL,FÚTBOL,FúTBOL,GOL TV,GOLTV,BEIN,DAZN,WIN SPORT,NBA,NFL,MLB,UFC,WWE,BOXEO,FORMULA 1,F1,MOTOGP,LIGA"
   KW["Cultura"]      = "CULTUR,ARTE,ENCUENTRO"
-  KW["Documentales"] = "DOCU,DISCOVERY,NAT GEO,NATGEO,NATIONAL GEO,HISTORY,ANIMAL PLANET,H2"
+  KW["Documentales"] = "DOCU,DISCOVERY,NAT GEO,NATGEO,NATIONAL GEO,HISTORY,ANIMAL PLANET"
   KW["Series 24/7"]  = "24/7,24-7,SERIE"
   KW["Películas"]    = "CINE,PELICULA,PELÍCULA,PELíCULA,MOVIE,FILM,HBO,STAR CHANNEL,PARAMOUNT"
   KW["Noticias"]     = "NOTICIA,NEWS,CNN,TELESUR,GLOBOVISION,GLOBOVISIÓN,NTN24"
-  KW["Infantil"]     = "INFANTIL,KIDS,CARTOON,NICK,DISNEY,DISCOVERY KIDS,BABY"
+  KW["Infantil"]     = "INFANTIL,KIDS,CARTOON,NICK,DISNEY,BABY TV"
   KW["Música"]       = "MUSIC,MÚSICA,MúSICA,MUSICA,MTV,HTV,TELEHIT"
 
-  # Países: TOKEN=NombreFinal
-  np = split("VENEZUELA=Venezuela,MEXICO=México,MÉXICO=México,MéXICO=México,COLOMBIA=Colombia,ARGENTINA=Argentina,ESPAÑA=España,ESPAñA=España,ESPANA=España,SPAIN=España,ESTADOS UNIDOS=Estados Unidos,USA=Estados Unidos,PERU=Perú,PERÚ=Perú,PERú=Perú,CHILE=Chile,ECUADOR=Ecuador,URUGUAY=Uruguay,PARAGUAY=Paraguay,BOLIVIA=Bolivia,PANAMA=Panamá,PANAMÁ=Panamá,PANAMá=Panamá,DOMINICANA=Rep. Dominicana,COSTA RICA=Costa Rica,GUATEMALA=Guatemala,HONDURAS=Honduras,SALVADOR=El Salvador,NICARAGUA=Nicaragua,CUBA=Cuba,PUERTO RICO=Puerto Rico,BRASIL=Brasil,BRAZIL=Brasil,PORTUGAL=Portugal,FRANCIA=Francia,FRANCE=Francia,ITALIA=Italia,ITALY=Italia,ALEMANIA=Alemania,GERMANY=Alemania,CANADA=Canadá,CANADÁ=Canadá", PAISDEF, ",")
-  for (i = 1; i <= np; i++) {
-    split(PAISDEF[i], kv, "=")
-    PAIS[kv[1]] = kv[2]
-  }
-  # Códigos de 2 letras (tvg-country o " VE |")
-  nc = split("VE=Venezuela,MX=México,CO=Colombia,AR=Argentina,ES=España,US=Estados Unidos,PE=Perú,CL=Chile,EC=Ecuador,UY=Uruguay,PY=Paraguay,BO=Bolivia,PA=Panamá,DO=Rep. Dominicana,CR=Costa Rica,GT=Guatemala,HN=Honduras,SV=El Salvador,NI=Nicaragua,CU=Cuba,PR=Puerto Rico,BR=Brasil,PT=Portugal,FR=Francia,IT=Italia,DE=Alemania,CA=Canadá", CODDEF, ",")
-  for (i = 1; i <= nc; i++) {
-    split(CODDEF[i], kv, "=")
-    COD[kv[1]] = kv[2]
-  }
+  # Contenido adulto: se elimina de la lista
+  ADULTOS = "ADULTO,ADULT,XXX,PORN,+18,18+,EROTIC,ERÓTIC,ERóTIC,SEXO,PLAYBOY,PENTHOUSE,BRAZZERS,HUSTLER,ONLYFANS,VENUS TV,SEXT"
+
+  # Países por NOMBRE (busca en group-title y nombre del canal)
+  np = split("VENEZUELA=Venezuela,MEXICO=México,MÉXICO=México,MéXICO=México,COLOMBIA=Colombia,ARGENTINA=Argentina,ESPAÑA=España,ESPAñA=España,ESPANA=España,SPAIN=España,ESTADOS UNIDOS=Estados Unidos,PERU=Perú,PERÚ=Perú,PERú=Perú,CHILE=Chile,ECUADOR=Ecuador,URUGUAY=Uruguay,PARAGUAY=Paraguay,BOLIVIA=Bolivia,PANAMA=Panamá,PANAMÁ=Panamá,PANAMá=Panamá,DOMINICANA=Rep. Dominicana,COSTA RICA=Costa Rica,GUATEMALA=Guatemala,HONDURAS=Honduras,SALVADOR=El Salvador,NICARAGUA=Nicaragua,CUBA=Cuba,PUERTO RICO=Puerto Rico,BRASIL=Brasil,BRAZIL=Brasil,PORTUGAL=Portugal,FRANCIA=Francia,FRANCE=Francia,ITALIA=Italia,ITALY=Italia,ALEMANIA=Alemania,GERMANY=Alemania,CANADA=Canadá,CANADÁ=Canadá,LATINO=Latino,LATAM=Latino", PAISDEF, ",")
+  for (i = 1; i <= np; i++) { split(PAISDEF[i], kv, "="); PAIS[kv[1]] = kv[2] }
+
+  # Códigos válidos en tvg-country / tvg-id (lista completa)
+  nc = split("VE=Venezuela,MX=México,CO=Colombia,AR=Argentina,ES=España,US=Estados Unidos,PE=Perú,CL=Chile,EC=Ecuador,UY=Uruguay,PY=Paraguay,BO=Bolivia,PA=Panamá,DO=Rep. Dominicana,CR=Costa Rica,GT=Guatemala,HN=Honduras,SV=El Salvador,NI=Nicaragua,CU=Cuba,PR=Puerto Rico,BR=Brasil,PT=Portugal,FR=Francia,IT=Italia,DE=Alemania,CA=Canadá,GB=Reino Unido,UK=Reino Unido,NL=Países Bajos,TR=Turquía", CODDEF, ",")
+  for (i = 1; i <= nc; i++) { split(CODDEF[i], kv, "="); COD2[kv[1]] = kv[2] }
+
+  # Códigos permitidos como token suelto en el group-title (se excluyen los
+  # ambiguos que son palabras en español: DE, ES, IT, CA, DO, LA)
+  nb = split("VE,MX,CO,AR,US,PE,CL,EC,UY,PY,BO,PA,CR,GT,HN,SV,NI,CU,PR,BR,PT,FR,TR,NL,GB,UK", BARE, ",")
+  for (i = 1; i <= nb; i++) COD[BARE[i]] = COD2[BARE[i]]
 }
 function getattr(s, key,   p, v, q) {
   p = index(s, key "=\"")
@@ -147,39 +150,61 @@ function genero(hay,   i, n, kws, k) {
   }
   return "Variados"
 }
-function pais(ext, hay,   tc, t, i, w, nw, tok) {
-  tc = toupper(getattr(ext, "tvg-country"))
-  gsub(/[ \t]/, "", tc)
-  if (tc in COD) return COD[tc]
+function esAdulto(hay,   i, n, a) {
+  n = split(ADULTOS, a, ",")
+  for (i = 1; i <= n; i++) if (index(hay, a[i]) > 0) return 1
+  return 0
+}
+function pais(ext, gt, hay,   tc, id, t, i, w, nw) {
+  # 1) tvg-country explícito
+  tc = toupper(getattr(ext, "tvg-country")); gsub(/[ \t]/, "", tc)
+  if (tc in COD2) return COD2[tc]
+  # 2) prefijo de tvg-id estilo "ve.tves"
+  id = getattr(ext, "tvg-id")
+  if (match(id, /^[A-Za-z][A-Za-z]\./)) {
+    tc = toupper(substr(id, 1, 2))
+    if (tc in COD2) return COD2[tc]
+  }
+  # 3) nombre del país en group-title o nombre del canal
   for (t in PAIS) if (index(hay, t) > 0) return PAIS[t]
-  # código de 2 letras aislado en el texto: " VE |", "[MX]", "(AR)"
-  nw = split(hay, w, /[^A-Z]+/)
-  for (i = 1; i <= nw; i++) { tok = w[i]; if (length(tok) == 2 && (tok in COD)) return COD[tok] }
+  # 4) "USA" como palabra completa (no dentro de otra palabra)
+  if (match(hay, /(^|[^A-Z])USA([^A-Z]|$)/)) return "Estados Unidos"
+  # 5) código de 2 letras como token, SOLO en el group-title
+  nw = split(gt, w, /[^A-Z]+/)
+  for (i = 1; i <= nw; i++) if (length(w[i]) == 2 && (w[i] in COD)) return COD[w[i]]
   return ""
 }
 {
   url = $1; ext = $2
-  hay = toupper(getattr(ext, "group-title") " " ext)
-  g = genero(hay)
-  p = pais(ext, hay)
-
-  if (p == "") {
-    # Sin país: va a los géneros generales
-    for (i = 1; i <= ng; i++) if (GEN[i] == g) gi = i
-    key = sprintf("0|%02d|%s", gi, g)
-    grupo = g
-  } else if (g == "Deportes") {
-    key = sprintf("1|%s|2", p)          # "País Deportes" después de "País"
-    grupo = p " Deportes"
-  } else {
-    key = sprintf("1|%s|1", p)
-    grupo = p
-  }
-  # nombre del canal para orden alfabético dentro del grupo
+  gt = toupper(getattr(ext, "group-title"))
   c = index(ext, ",")
-  nombre = (c > 0) ? toupper(substr(ext, c + 1)) : url
-  print key "\t" nombre "\t" setgroup(ext, grupo) "\t" url
+  nombre = (c > 0) ? substr(ext, c + 1) : url
+  # SOLO group-title + nombre del canal (nunca logos ni URLs: evitan falsos "US")
+  hay = gt " " toupper(nombre)
+
+  if (esAdulto(hay)) {
+    adultos++
+    key = "2|Adultos +18"; grupo = "Adultos +18"   # al final de la lista
+    print key "\t" toupper(nombre) "\t" setgroup(ext, grupo) "\t" url
+    next
+  }
+
+  g = genero(hay)
+  if (g == "Deportes") {
+    key = "0|01|Deportes"; grupo = "Deportes"      # deportes: categoría global única
+  } else {
+    p = pais(ext, gt, hay)
+    if (p == "") {
+      gi = ng
+      for (i = 1; i <= ng; i++) if (GEN[i] == g) gi = i
+      key = sprintf("0|%02d|%s", gi, g); grupo = g
+    } else {
+      key = "1|" p; grupo = p
+    }
+  }
+  print key "\t" toupper(nombre) "\t" setgroup(ext, grupo) "\t" url
 }
+END { if (adultos) printf "Canales movidos al grupo Adultos +18: %d\n", adultos > "/dev/stderr" }
 ' "$TMP/limpios.tsv" | sort -t "$(printf '\t')" -k1,1 -k2,2 | awk -F'\t' '
 BEGIN { print "#EXTM3U" }
 { print $3; print $4 }
