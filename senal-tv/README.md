@@ -31,7 +31,15 @@ La app consume:
 
 Favoritos / historial / continuar se sincronizan localmente si el backend aún no expone esas rutas.
 
-## Build
+## Build (GitHub Actions)
+
+En cada push/PR sobre `senal-tv/**` (o con **Actions → Build SEÑAL TV APK → Run workflow**):
+
+1. Abre la pestaña **Actions** del repo
+2. Entra en el run **Build SEÑAL TV APK**
+3. Descarga el artefacto **SenalTV-debug** (`app-debug.apk`)
+
+## Build local
 
 ```bash
 cd senal-tv
