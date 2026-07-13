@@ -1,0 +1,29 @@
+name: Fusionar listas M3U
+
+on:
+  push:
+    paths:
+      - 'listas/**'
+      - 'fusor.sh'
+  workflow_dispatch: {}   # botón "Run workflow" para lanzarlo manual
+
+permissions:
+  contents: write
+
+jobs:
+  fusionar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fusionar, verificar y ordenar
+        run: bash fusor.sh listas/*.m3u
+
+      - name: Guardar lista fusionada en el repo
+        run: |
+          git config user.name "m3u-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add lista_fusionada.m3u
+          git diff --cached --quiet || git commit -m "Lista fusionada actualizada"
+          git push
