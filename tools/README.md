@@ -12,3 +12,11 @@ Headless filter for `lista_fusionada.m3u` inspired by
 ```bash
 python3 tools/filter_m3u.py lista_fusionada.m3u -o lista_fusionada.m3u
 ```
+
+## `reclassify_m3u.py`
+
+Smart grouping inspired by m3u-editor + fusor:
+
+```bash
+python3 tools/reclassify_m3u.py lista.m3u -o lista_fusionada.m3u
+```

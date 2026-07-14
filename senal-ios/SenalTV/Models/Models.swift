@@ -37,6 +37,7 @@ enum CatalogRules {
     private static let preferred: [String] = [
         "deportes", "noticias", "cultura", "documentales", "series 24/7",
         "series", "películas", "peliculas", "infantil", "música", "musica",
+        "entretenimiento", "estilo de vida", "religión", "religion",
         "variados", "latino", "españa", "mexico", "méxico", "estados unidos"
     ]
 
