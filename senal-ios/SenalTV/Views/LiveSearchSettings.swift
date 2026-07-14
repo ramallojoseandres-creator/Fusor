@@ -1,55 +1,32 @@
 import SwiftUI
 
-struct LiveView: View {
+struct MoviesView: View {
     @EnvironmentObject private var catalog: CatalogStore
 
     var body: some View {
         NavigationStack {
             ZStack {
                 SenalBackground()
-                VStack(spacing: 0) {
-                    categoryBar
-                    List {
-                        ForEach(catalog.channels(in: catalog.selectedCategory)) { ch in
-                            NavigationLink(value: ch) {
-                                ChannelRow(channel: ch)
-                            }
-                            .listRowBackground(SenalColors.elevated.opacity(0.7))
+                List {
+                    Section("Películas 24/7") {
+                        ForEach(catalog.movieChannels) { ch in
+                            NavigationLink(value: ch) { ChannelRow(channel: ch) }
+                                .listRowBackground(SenalColors.elevated.opacity(0.7))
                         }
                     }
-                    .scrollContentBackground(.hidden)
-                    .listStyle(.plain)
+                    Section("Series 24/7") {
+                        ForEach(catalog.seriesChannels) { ch in
+                            NavigationLink(value: ch) { ChannelRow(channel: ch) }
+                                .listRowBackground(SenalColors.elevated.opacity(0.7))
+                        }
+                    }
                 }
+                .scrollContentBackground(.hidden)
             }
-            .navigationTitle("TV en vivo")
+            .navigationTitle("Cine / Series")
             .navigationDestination(for: Channel.self) { ch in
-                PlayerView(channel: ch, neighbors: catalog.channels(in: ch.group))
+                PlayerView(channel: ch, neighbors: [ch])
             }
-        }
-    }
-
-    private var categoryBar: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(catalog.categories) { cat in
-                    let selected = catalog.selectedCategory == cat.name
-                    Button {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                            catalog.selectedCategory = cat.name
-                        }
-                    } label: {
-                        Text(cat.name)
-                            .font(.caption.weight(.semibold))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(selected ? SenalColors.violet : SenalColors.card)
-                            .foregroundStyle(selected ? .white : SenalColors.muted)
-                            .clipShape(Capsule())
-                    }
-                }
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 10)
         }
     }
 }
@@ -86,37 +63,6 @@ struct ChannelRow: View {
                 .foregroundStyle(SenalColors.teal)
         }
         .padding(.vertical, 4)
-    }
-}
-
-struct MoviesView: View {
-    @EnvironmentObject private var catalog: CatalogStore
-
-    var body: some View {
-        NavigationStack {
-            ZStack {
-                SenalBackground()
-                List {
-                    Section("Películas 24/7") {
-                        ForEach(catalog.movieChannels) { ch in
-                            NavigationLink(value: ch) { ChannelRow(channel: ch) }
-                                .listRowBackground(SenalColors.elevated.opacity(0.7))
-                        }
-                    }
-                    Section("Series 24/7") {
-                        ForEach(catalog.seriesChannels) { ch in
-                            NavigationLink(value: ch) { ChannelRow(channel: ch) }
-                                .listRowBackground(SenalColors.elevated.opacity(0.7))
-                        }
-                    }
-                }
-                .scrollContentBackground(.hidden)
-            }
-            .navigationTitle("Cine / Series")
-            .navigationDestination(for: Channel.self) { ch in
-                PlayerView(channel: ch, neighbors: [ch])
-            }
-        }
     }
 }
 
@@ -172,6 +118,8 @@ struct SettingsView: View {
                         Text("Auth: solo login en el servidor SEÑAL")
                         Text("Catálogo: lista_fusionada.m3u embebida")
                         Text("Streams: directo desde el iPhone al CDN")
+                        Text("Intro: splash TU VENTANA AL MUNDO")
+                        Text("TV en vivo: guía FLUJO sin pausar el vídeo")
                     }
                     Section {
                         Button(role: .destructive) {
