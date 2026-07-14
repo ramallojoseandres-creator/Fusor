@@ -17,7 +17,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -48,11 +51,11 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
-import androidx.compose.material3.Text
 import com.senal.tv.AppContainer
 import com.senal.tv.data.local.AppSettings
 import com.senal.tv.data.model.CatalogItem
 import com.senal.tv.ui.components.FocusableButton
+import com.senal.tv.ui.theme.BrandOrange
 import com.senal.tv.ui.theme.Graphite
 import com.senal.tv.ui.theme.LocalSenalTypography
 import com.senal.tv.ui.theme.Teal
@@ -286,7 +289,7 @@ fun PlayerScreen(
         if (loading || buffering) {
             CircularProgressIndicator(
                 modifier = Modifier.align(Alignment.Center),
-                color = Teal
+                color = BrandOrange
             )
         }
 
@@ -306,10 +309,10 @@ fun PlayerScreen(
                     .padding(28.dp)
             ) {
                 Column(modifier = Modifier.align(Alignment.TopStart)) {
-                    Text("SEÑAL", style = LocalSenalTypography.current.caption, color = Teal)
+                    Text("SEÑAL", style = LocalSenalTypography.current.caption, color = BrandOrange)
                     Text(current.resolveTitle(), style = LocalSenalTypography.current.title, color = TextPrimary)
                     Text(
-                        text = current.resolveNow().ifBlank { current.resolveCategory() },
+                        text = "AHORA  ·  ${current.resolveNow().ifBlank { current.resolveCategory() }}",
                         style = LocalSenalTypography.current.subtitle
                     )
                     if (current.resolveNext().isNotBlank()) {
@@ -322,6 +325,36 @@ fun PlayerScreen(
                     error?.let {
                         Spacer(Modifier.height(10.dp))
                         Text(it, color = Color(0xFFFFB4BC), style = LocalSenalTypography.current.body)
+                    }
+                }
+
+                // Side zap list (reference HUD)
+                if (neighbors.size > 1) {
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .width(280.dp)
+                            .background(Color(0xAA050508), RoundedCornerShape(16.dp))
+                            .padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        val idx = neighbors.indexOfFirst { it.resolveId() == current.resolveId() }
+                        neighbors
+                            .drop((idx - 2).coerceAtLeast(0))
+                            .take(5)
+                            .forEach { ch ->
+                                val selected = ch.resolveId() == current.resolveId()
+                                FocusableButton(
+                                    label = ch.resolveTitle(),
+                                    onClick = {
+                                        current = ch
+                                        requestKey++
+                                        overlayVisible = true
+                                    },
+                                    primary = selected,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
                     }
                 }
 

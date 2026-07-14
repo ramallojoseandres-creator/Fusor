@@ -41,11 +41,13 @@ import com.senal.tv.ui.components.ErrorMessage
 import com.senal.tv.ui.components.FocusableButton
 import com.senal.tv.ui.components.LoadingPulse
 import com.senal.tv.ui.components.SenalBackground
+import com.senal.tv.ui.theme.BrandOrange
 import com.senal.tv.ui.theme.GraphiteCard
 import com.senal.tv.ui.theme.LocalSenalTypography
 import com.senal.tv.ui.theme.Teal
 import com.senal.tv.ui.theme.TextMuted
 import com.senal.tv.ui.theme.TextPrimary
+import com.senal.tv.ui.theme.Violet
 import kotlinx.coroutines.launch
 
 @Composable
@@ -153,7 +155,7 @@ private fun TvTextField(
     onDone: (() -> Unit)? = null
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
-        Text(text = label, style = LocalSenalTypography.current.caption, color = Teal)
+        Text(text = label, style = LocalSenalTypography.current.caption, color = BrandOrange)
         Spacer(Modifier.height(6.dp))
         BasicTextField(
             value = value,
