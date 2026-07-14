@@ -42,6 +42,7 @@ import com.senal.tv.ui.theme.GraphiteCard
 import com.senal.tv.ui.theme.LocalSenalTypography
 import com.senal.tv.ui.theme.Teal
 import com.senal.tv.ui.theme.Violet
+import com.senal.tv.util.CatalogRules
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
@@ -67,7 +68,7 @@ fun LiveTvScreen(
         runCatching { container.catalogRepository.categories("live") }
             .onSuccess {
                 categories = it
-                selected = it.firstOrNull()?.label()
+                selected = CatalogRules.defaultCategory(it)
             }
             .onFailure { error = it.message }
         loading = false

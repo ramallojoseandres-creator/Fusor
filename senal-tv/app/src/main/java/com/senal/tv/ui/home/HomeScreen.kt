@@ -66,6 +66,7 @@ import com.senal.tv.ui.theme.BrandOrange
 import com.senal.tv.ui.theme.LocalSenalTypography
 import com.senal.tv.ui.theme.TextMuted
 import com.senal.tv.ui.theme.TextPrimary
+import com.senal.tv.util.CatalogRules
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -108,8 +109,19 @@ fun HomeScreen(
     }
 
     LaunchedEffect(Unit) {
-        runCatching { container.catalogRepository.page("live", page = 1, limit = 20) }
-            .onSuccess { live = it.resolveItems() }
+        val defaultLiveCategory = runCatching {
+            CatalogRules.defaultCategory(container.catalogRepository.categories("live"))
+        }.getOrNull()
+        runCatching {
+            container.catalogRepository.page(
+                type = "live",
+                category = defaultLiveCategory,
+                page = 1,
+                limit = 20
+            )
+        }.onSuccess {
+            live = CatalogRules.preferredLiveItems(it.resolveItems())
+        }
         runCatching { container.catalogRepository.page("movie", page = 1, limit = 12) }
             .onSuccess { movies = it.resolveItems() }
     }

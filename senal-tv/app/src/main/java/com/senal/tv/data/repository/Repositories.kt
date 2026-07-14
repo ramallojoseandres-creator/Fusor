@@ -19,6 +19,7 @@ import com.senal.tv.data.model.ContentType
 import com.senal.tv.data.model.FavoriteRequest
 import com.senal.tv.data.model.LoginRequest
 import com.senal.tv.data.model.PlaybackResponse
+import com.senal.tv.util.CatalogRules
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.Mutex
@@ -82,29 +83,18 @@ class CatalogRepository(
     suspend fun categories(type: String): List<Category> = withContext(Dispatchers.IO) {
         categoryMutex.withLock {
             memoryCategories[type]?.let { return@withContext it }
-            val cacheKey = "cat-$type"
+            // v3: full discovery + adult demotion (invalidate older incomplete A–Z caches)
+            val cacheKey = "cat-v3-$type"
             cacheDao.getCategory(cacheKey)?.let { cached ->
                 runCatching {
                     NetworkModule.json.decodeFromString<List<Category>>(cached.json)
                 }.getOrNull()?.let {
-                    memoryCategories[type] = it
-                    return@withContext it
+                    val ordered = CatalogRules.sortCategories(it)
+                    memoryCategories[type] = ordered
+                    return@withContext ordered
                 }
             }
-            val response = fetchCatalog(type = type, page = 1, limit = 100)
-            val derived = response.categories?.takeIf { it.isNotEmpty() }
-                ?: response.resolveItems()
-                    .map { it.resolveCategory() }
-                    .filter { it.isNotBlank() }
-                    .distinct()
-                    .sorted()
-                    .map { Category(id = it, name = it) }
-                    .ifEmpty {
-                        listOf(
-                            "Deportes", "Noticias", "Infantil", "USA", "España",
-                            "Latinos", "Música", "4K", "Documentales", "General"
-                        ).map { Category(id = it, name = it) }
-                    }
+            val derived = CatalogRules.sortCategories(discoverCategories(type))
             memoryCategories[type] = derived
             cacheDao.putCategory(
                 CategoryCacheEntity(
@@ -115,6 +105,50 @@ class CatalogRepository(
             )
             derived
         }
+    }
+
+    /**
+     * Prefer server `categories` when present; otherwise page through the catalog
+     * until exhaustion so the sidebar is complete (not only the first 100 rows).
+     */
+    private suspend fun discoverCategories(type: String): List<Category> {
+        val first = fetchCatalog(type = type, page = 1, limit = 200)
+        val fromApi = first.categories?.mapNotNull { cat ->
+            val label = cat.label().trim()
+            if (label.isBlank()) null else Category(id = cat.id ?: label, name = label, title = cat.title)
+        }.orEmpty()
+        if (fromApi.isNotEmpty()) return fromApi
+
+        val labels = LinkedHashSet<String>()
+        fun absorb(response: CatalogResponse) {
+            response.resolveItems().forEach { item ->
+                val label = item.resolveCategory().trim()
+                if (label.isNotBlank()) labels += label
+            }
+        }
+        absorb(first)
+        var page = 1
+        var hasMore = first.resolveHasMore(200)
+        // Safety cap: enough pages for large IPTV catalogs without hanging cold start.
+        while (hasMore && page < 40) {
+            page += 1
+            val next = runCatching {
+                fetchCatalog(type = type, page = page, limit = 200)
+            }.getOrNull() ?: break
+            val items = next.resolveItems()
+            if (items.isEmpty()) break
+            absorb(next)
+            hasMore = next.resolveHasMore(200)
+        }
+
+        return labels
+            .map { Category(id = it, name = it) }
+            .ifEmpty {
+                listOf(
+                    "Deportes", "Noticias", "Infantil", "USA", "España",
+                    "Latinos", "Música", "4K", "Documentales", "General"
+                ).map { Category(id = it, name = it) }
+            }
     }
 
     suspend fun page(
