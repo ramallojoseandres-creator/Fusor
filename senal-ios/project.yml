@@ -3,7 +3,8 @@ options:
   bundleIdPrefix: com.senal
   deploymentTarget:
     iOS: "16.0"
-  xcodeVersion: "15.0"
+  # Keep objectVersion compatible with Xcode 15/16 runners
+  xcodeVersion: "15.4"
   createIntermediateGroups: true
 settings:
   base:
