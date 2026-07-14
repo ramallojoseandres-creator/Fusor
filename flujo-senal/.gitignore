@@ -1,0 +1,7 @@
+dist/
+branding/*.keystore
+vendor/*.apk
+bridge/.venv/
+__pycache__/
+*.pyc
+.DS_Store

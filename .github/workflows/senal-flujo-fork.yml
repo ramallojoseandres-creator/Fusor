@@ -1,0 +1,65 @@
+name: senal-flujo-fork
+
+on:
+  push:
+    paths:
+      - "flujo-senal/**"
+      - ".github/workflows/senal-flujo-fork.yml"
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install apktool + Android build-tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq wget unzip
+          wget -q -O apktool.jar https://github.com/iBotPeaches/Apktool/releases/download/v2.9.3/apktool_2.9.3.jar
+          printf '#!/bin/bash\njava -jar "%s/apktool.jar" "$@"\n' "$PWD" > apktool
+          chmod +x apktool
+          sudo mv apktool /usr/local/bin/apktool
+          sudo mv apktool.jar /usr/local/bin/apktool.jar
+          mkdir -p "$HOME/Android/Sdk/cmdline-tools"
+          # use preinstalled android SDK on ubuntu-latest if present; else install zipalign via cmdline
+          if [ ! -x "$HOME/Android/Sdk/build-tools/34.0.0/zipalign" ]; then
+            yes | sdkmanager "build-tools;34.0.0" || true
+          fi
+          echo "$ANDROID_HOME/build-tools/34.0.0" >> "$GITHUB_PATH" || true
+          # fallback: download build-tools zipalign via commandlinetools
+          if ! command -v zipalign >/dev/null; then
+            wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdtools.zip
+            unzip -q cmdtools.zip -d $HOME/Android/Sdk/cmdline-tools
+            mv $HOME/Android/Sdk/cmdline-tools/cmdline-tools $HOME/Android/Sdk/cmdline-tools/latest
+            yes | $HOME/Android/Sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/Android/Sdk "build-tools;34.0.0"
+            echo "$HOME/Android/Sdk/build-tools/34.0.0" >> "$GITHUB_PATH"
+          fi
+
+      - name: Fetch FLUJO vendor APK
+        run: |
+          mkdir -p flujo-senal/vendor
+          curl -fsSL -o flujo-senal/vendor/flujo-tv-862.apk \
+            "https://vpnparamagistv.com/flujo-tv-862.apk"
+          ls -lh flujo-senal/vendor/flujo-tv-862.apk
+
+      - name: Patch and build SEÑAL APK
+        run: python3 flujo-senal/scripts/patch_and_build.py
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SenalTV-flujo-fork
+          path: flujo-senal/dist/SenalTV.apk
