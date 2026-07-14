@@ -361,7 +361,7 @@ fun LiveTvScreen(
                 }
             }
 
-            Spacer(Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
             // —— Canales de la categoría ——
             Column(
@@ -524,7 +524,7 @@ private fun GuideChannelRow(
                     .clip(RoundedCornerShape(6.dp))
                     .background(Graphite)
             )
-            Spacer(Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(10.dp))
             Column(Modifier = Modifier.weight(1f)) {
                 Text(
                     text = item.resolveTitle(),
