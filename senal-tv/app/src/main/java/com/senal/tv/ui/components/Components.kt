@@ -2,9 +2,7 @@ package com.senal.tv.ui.components
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -77,15 +75,12 @@ fun rememberFlujoFocusModifier(focused: Boolean, big: Boolean = true): Modifier 
     }
     val scale by animateFloatAsState(
         targetValue = target,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMediumLow
-        ),
+        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
         label = "flujoFocus"
     )
     val glow by animateFloatAsState(
         targetValue = if (focused) 1f else 0f,
-        animationSpec = tween(180, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
         label = "flujoGlow"
     )
     return Modifier
