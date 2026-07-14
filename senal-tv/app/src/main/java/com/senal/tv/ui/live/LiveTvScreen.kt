@@ -481,6 +481,7 @@ private fun GuideChannelRow(
         else -> Color.White.copy(alpha = 0.06f)
     }
     val fg = if (focused) Color.White else TextPrimary
+    val epg = item.resolveNow().ifBlank { "No información" }
 
     Surface(
         onClick = onClick,
@@ -501,12 +502,17 @@ private fun GuideChannelRow(
                 if (it.isFocused) onFocused()
             }
             .then(
-                if (selected && !focused) Modifier.border(1.dp, BrandOrange.copy(alpha = 0.7f), RoundedCornerShape(10.dp))
-                else Modifier
+                if (selected && !focused) {
+                    Modifier.border(1.dp, BrandOrange.copy(alpha = 0.7f), RoundedCornerShape(10.dp))
+                } else {
+                    Modifier
+                }
             )
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
@@ -525,7 +531,7 @@ private fun GuideChannelRow(
                     .background(Graphite)
             )
             Spacer(modifier = Modifier.width(10.dp))
-            Column(Modifier = Modifier.weight(1f)) {
+            androidx.compose.foundation.layout.Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = item.resolveTitle(),
                     color = fg,
@@ -535,7 +541,7 @@ private fun GuideChannelRow(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = item.resolveNow().ifBlank { "No información" },
+                    text = epg,
                     color = if (focused) Color.White.copy(alpha = 0.85f) else TextMuted,
                     fontSize = 11.sp,
                     maxLines = 1,
