@@ -45,7 +45,7 @@ fun SettingsScreen(
             color = TextMuted
         )
         Text(
-            "Catálogo: lista_fusionada.m3u embebida · streams directos",
+            "Catálogo: lista filtrada (m3u-editor health) · streams directos",
             style = LocalSenalTypography.current.caption,
             color = Teal
         )

@@ -8,6 +8,7 @@ struct PlayerView: View {
 
     @StateObject private var model: PlayerModel
     @State private var showControls = true
+    @State private var hideToken = UUID()
 
     init(channel: Channel, neighbors: [Channel]) {
         self.channel = channel
@@ -18,16 +19,18 @@ struct PlayerView: View {
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            VideoPlayer(player: model.player)
+            // Sin controles nativos de AVKit (play/pausa, etc.).
+            SilentVideoView(player: model.player)
                 .ignoresSafeArea()
                 .onTapGesture {
-                    withAnimation { showControls.toggle() }
+                    withAnimation(.easeInOut(duration: 0.2)) { showControls = true }
+                    scheduleHide()
                 }
 
             if model.isBuffering {
                 ProgressView()
                     .scaleEffect(1.4)
-                    .tint(.white)
+                    .tint(SenalColors.orange)
             }
 
             if let err = model.error {
@@ -38,7 +41,7 @@ struct PlayerView: View {
                         .padding()
                     Button("Reintentar") { model.retry() }
                         .buttonStyle(.borderedProminent)
-                        .tint(SenalColors.violet)
+                        .tint(SenalColors.orange)
                 }
                 .padding()
                 .background(.black.opacity(0.55))
@@ -72,14 +75,23 @@ struct PlayerView: View {
                     Spacer()
 
                     HStack(spacing: 28) {
-                        Button { model.playNeighbor(-1) } label: {
+                        Button {
+                            model.playNeighbor(-1)
+                            flashControls()
+                        } label: {
                             Label("CH−", systemImage: "chevron.left.circle.fill")
                         }
-                        Button { model.togglePlay() } label: {
+                        Button {
+                            model.togglePlay()
+                            flashControls()
+                        } label: {
                             Image(systemName: model.isPlaying ? "pause.circle.fill" : "play.circle.fill")
                                 .font(.system(size: 44))
                         }
-                        Button { model.playNeighbor(1) } label: {
+                        Button {
+                            model.playNeighbor(1)
+                            flashControls()
+                        } label: {
                             Label("CH+", systemImage: "chevron.right.circle.fill")
                         }
                     }
@@ -94,9 +106,30 @@ struct PlayerView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear { model.start() }
+        .onAppear {
+            model.start()
+            flashControls()
+        }
         .onDisappear { model.stop() }
+        .onChange(of: model.current.id) { _ in
+            flashControls()
+        }
         .statusBarHidden(true)
+    }
+
+    private func flashControls() {
+        withAnimation(.easeInOut(duration: 0.2)) { showControls = true }
+        scheduleHide()
+    }
+
+    private func scheduleHide() {
+        let token = UUID()
+        hideToken = token
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            guard hideToken == token else { return }
+            withAnimation(.easeOut(duration: 0.35)) { showControls = false }
+        }
     }
 }
 

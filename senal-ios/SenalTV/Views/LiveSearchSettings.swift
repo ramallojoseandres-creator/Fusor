@@ -116,7 +116,7 @@ struct SettingsView: View {
                     }
                     Section("Datos") {
                         Text("Auth: solo login en el servidor SEÑAL")
-                        Text("Catálogo: lista_fusionada.m3u embebida")
+                        Text("Catálogo filtrado (health-check) embebido")
                         Text("Streams: directo desde el iPhone al CDN")
                         Text("Intro: splash TU VENTANA AL MUNDO")
                         Text("TV en vivo: guía FLUJO sin pausar el vídeo")

@@ -12,27 +12,32 @@ import androidx.compose.ui.unit.sp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.darkColorScheme
 
-/** Near-black canvas used in Magis-style IPTV UIs. */
-val Graphite = Color(0xFF050508)
-val GraphiteElevated = Color(0xFF121218)
-val GraphiteCard = Color(0xFF18181F)
+/**
+ * Palette sampled from the SEÑAL intro (splash.mp4):
+ * deep navy void + cyan signal rings + silver highlight.
+ */
+val Graphite = Color(0xFF000810)
+val GraphiteElevated = Color(0xFF0A1820)
+val GraphiteCard = Color(0xFF102028)
 
-/** Brand / focus accents from reference UX (orange) + brief accents. */
-val BrandOrange = Color(0xFFDC4800)
-val BrandOrangeHot = Color(0xFFFF6A00)
-val Violet = Color(0xFF7C3AED)
-val Teal = Color(0xFF14B8A6)
-val TilePurple = Color(0xFF8B5CF6)
-val TileCyan = Color(0xFF22D3EE)
-val TileGreen = Color(0xFF22C55E)
-val TileCoral = Color(0xFFFF6B7A)
-val FocusWhite = Color(0xFFFFFFFF)
-val TextPrimary = Color(0xFFF7F7FB)
-val TextMuted = Color(0xFFA8AAB8)
-val Danger = Color(0xFFFF6B7A)
+/** Primary accent = ring cyan from intro. */
+val BrandOrange = Color(0xFF1A9BC4)
+val BrandOrangeHot = Color(0xFF3EC4E8)
+val SignalCyan = BrandOrange
+val SignalCyanHot = BrandOrangeHot
+val Violet = Color(0xFF7EB8C8)
+val Teal = Color(0xFF2AA8C0)
+val TilePurple = Color(0xFF3A6A80)
+val TileCyan = Color(0xFF3EC4E8)
+val TileGreen = Color(0xFF4DB8A0)
+val TileCoral = Color(0xFF6A9BB0)
+val FocusWhite = Color(0xFFE8F4F8)
+val TextPrimary = Color(0xFFE8F0F4)
+val TextMuted = Color(0xFF8AA0AE)
+val Danger = Color(0xFFFF8A80)
 
 val SplashGradient = Brush.radialGradient(
-    colors = listOf(Color(0xFF1A1208), Graphite, Color(0xFF050508))
+    colors = listOf(Color(0xFF001828), Graphite, Color(0xFF000408))
 )
 
 data class SenalTypography(

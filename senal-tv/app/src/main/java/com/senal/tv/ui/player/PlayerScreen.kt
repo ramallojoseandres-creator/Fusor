@@ -272,9 +272,10 @@ fun PlayerScreen(
         }
     }
 
-    LaunchedEffect(overlayVisible) {
+    // HUD (CH±, título, categoría, botones): visible 5s al iniciar / al mostrar, luego se oculta.
+    LaunchedEffect(overlayVisible, current.resolveId(), requestKey) {
         if (overlayVisible) {
-            delay(4_500)
+            delay(5_000)
             overlayVisible = false
         }
     }

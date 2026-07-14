@@ -58,7 +58,12 @@ cp -R build/DerivedData/Build/Products/Release-iphoneos/SenalTV.app dist/Payload
 
 ## Actualizar canales
 
+Filtrar enlaces muertos (health-check estilo [kamalsoft/m3u-editor](https://github.com/kamalsoft/m3u-editor)) y embeber:
+
 ```bash
-cp lista_fusionada.m3u senal-ios/SenalTV/Resources/
+python3 tools/filter_m3u.py lista_fusionada.m3u -o lista_fusionada.m3u
+cp lista_fusionada.m3u senal-ios/SenalTV/Catalog/playlist.m3u
+cp lista_fusionada.m3u senal-ios/SenalTV/Resources/lista_fusionada.m3u
+gzip -c -9 lista_fusionada.m3u > senal-ios/SenalTV/Catalog/playlist.dat
 gzip -c -9 lista_fusionada.m3u > senal-ios/SenalTV/Resources/lista_fusionada.m3u.gz
 ```

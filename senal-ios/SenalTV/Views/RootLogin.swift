@@ -53,7 +53,7 @@ struct LoginView: View {
                             endPoint: .trailing
                         )
                     )
-                    .shadow(color: SenalColors.violet.opacity(0.5), radius: 18)
+                    .shadow(color: SenalColors.orange.opacity(0.45), radius: 18)
 
                 Text("Acceso de usuario · catálogo en el iPhone")
                     .font(.subheadline)

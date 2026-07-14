@@ -19,7 +19,7 @@ Aplicación IPTV premium para **Android TV**, **Google TV**, **Fire TV Stick**, 
 
 ```
 Servidor SEÑAL  →  solo POST /api/auth/login (JWT)
-APK assets      →  catalog/lista_fusionada.m3u.gz  (~9.8k canales)
+APK assets      →  catalog/lista_fusionada.m3u.gz  (filtrada / health-check)
 Cliente         →  ExoPlayer abre la URL del canal directamente
 ```
 
@@ -37,13 +37,14 @@ Base URL: `BuildConfig.API_BASE_URL` → `http://185.192.20.245:3000/`
 
 ## Actualizar la lista embebida
 
-Cuando `fusor.sh` regenera `lista_fusionada.m3u` en la raíz del repo:
+Filtrar enlaces muertos (health-check estilo [kamalsoft/m3u-editor](https://github.com/kamalsoft/m3u-editor)):
 
 ```bash
+python3 tools/filter_m3u.py lista_fusionada.m3u -o lista_fusionada.m3u
 gzip -c -9 lista_fusionada.m3u > senal-tv/app/src/main/assets/catalog/lista_fusionada.m3u.gz
 ```
 
-Luego rebuild del APK.
+Cuando `fusor.sh` regenera `lista_fusionada.m3u` en la raíz del repo, vuelve a filtrar y empaquetar como arriba.
 
 ## Build (GitHub Actions)
 
