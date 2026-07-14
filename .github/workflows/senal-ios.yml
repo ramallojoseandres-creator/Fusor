@@ -101,12 +101,17 @@ jobs:
             cp -f SenalTV/Catalog/playlist.dat "$APP/playlist.dat"
             cp -f SenalTV/Catalog/playlist.m3u "$APP/playlist.m3u" || true
           fi
+          # Splash video must ship for opening motion
+          if [ ! -f "$APP/splash.mp4" ] && [ -f SenalTV/Resources/splash.mp4 ]; then
+            echo "Injecting splash.mp4"
+            cp -f SenalTV/Resources/splash.mp4 "$APP/splash.mp4"
+          fi
           if ! find "$APP" \( -iname 'playlist.dat' -o -iname 'playlist.m3u' -o -iname 'lista_fusionada.m3u*' \) | grep -q .; then
             echo "ERROR: playlist missing from .app"
             find "$APP" -type f
             exit 1
           fi
-          find "$APP" \( -iname 'playlist.*' -o -iname 'lista_*' \) -ls
+          find "$APP" \( -iname 'playlist.*' -o -iname 'lista_*' -o -iname 'splash.mp4' \) -ls
           plutil -p "$APP/Info.plist" | grep -A20 AppTransport || plutil -p "$APP/Info.plist" | head -40
           rm -rf dist/Payload
           mkdir -p dist/Payload
