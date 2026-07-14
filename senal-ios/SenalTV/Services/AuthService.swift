@@ -61,9 +61,10 @@ final class SessionStore: ObservableObject {
     }
 }
 
+/// Login via Network.framework TCP (bypasses ATS / LiveContainer URLSession block).
 enum AuthService {
-    /// Servidor solo para usuarios — no sirve catálogo.
-    static let baseURL = URL(string: "http://185.192.20.245:3000/")!
+    static let host = "185.192.20.245"
+    static let port: UInt16 = 3000
 
     struct LoginBody: Encodable {
         let username: String
@@ -82,11 +83,7 @@ enum AuthService {
     }
 
     static func login(username: String, password: String, deviceId: String) async throws -> String {
-        var req = URLRequest(url: baseURL.appendingPathComponent("api/auth/login"))
-        req.httpMethod = "POST"
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.setValue("application/json", forHTTPHeaderField: "Accept")
-        req.httpBody = try JSONEncoder().encode(
+        let body = try JSONEncoder().encode(
             LoginBody(
                 username: username,
                 password: password,
@@ -95,15 +92,24 @@ enum AuthService {
             )
         )
 
-        let (data, response) = try await URLSession.shared.data(for: req)
-        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
-        let decoded = try? JSONDecoder().decode(LoginResponse.self, from: data)
+        var request = Data()
+        func append(_ s: String) { request.append(contentsOf: s.utf8) }
+        append("POST /api/auth/login HTTP/1.1\r\n")
+        append("Host: \(host):\(port)\r\n")
+        append("Content-Type: application/json\r\n")
+        append("Accept: application/json\r\n")
+        append("Connection: close\r\n")
+        append("Content-Length: \(body.count)\r\n")
+        append("\r\n")
+        request.append(body)
+
+        let responseData = try await RawHTTP.post(host: host, port: port, request: request)
+        let decoded = try? JSONDecoder().decode(LoginResponse.self, from: responseData)
         if let jwt = decoded?.resolved, !jwt.isEmpty {
             return jwt
         }
-        let msg = decoded?.error ?? "Error de acceso (\(code))"
-        throw NSError(domain: "SenalAuth", code: code, userInfo: [
-            NSLocalizedDescriptionKey: msg
+        throw NSError(domain: "SenalAuth", code: 1, userInfo: [
+            NSLocalizedDescriptionKey: decoded?.error ?? "Error de acceso"
         ])
     }
 }
