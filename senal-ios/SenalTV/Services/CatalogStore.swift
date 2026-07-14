@@ -65,21 +65,95 @@ final class CatalogStore: ObservableObject {
 
 enum PlaylistParser {
     static func parseBundled() throws -> [Channel] {
-        guard let url = Bundle.main.url(forResource: "lista_fusionada", withExtension: "m3u")
-                ?? Bundle.main.url(forResource: "lista_fusionada", withExtension: "m3u.gz") else {
-            throw NSError(domain: "SenalPlaylist", code: 1, userInfo: [
-                NSLocalizedDescriptionKey: "Falta lista_fusionada.m3u(.gz) en el bundle"
-            ])
-        }
+        let url = try locatePlaylist()
         let data = try Data(contentsOf: url)
+        let name = url.lastPathComponent.lowercased()
         let text: String
-        if url.pathExtension == "gz" {
+        if name.hasSuffix(".gz") || name.hasSuffix(".dat") {
+            // .dat is gzipped m3u shipped for reliable Copy Bundle Resources
             text = try String(decoding: gunzip(data), as: UTF8.self)
         } else {
             text = String(decoding: data, as: UTF8.self)
         }
-        return parse(text: text)
+        let channels = parse(text: text)
+        if channels.isEmpty {
+            throw NSError(domain: "SenalPlaylist", code: 2, userInfo: [
+                NSLocalizedDescriptionKey: "Lista vacía en \(url.lastPathComponent)"
+            ])
+        }
+        return channels
     }
+
+    /// Find playlist in guest bundle (LiveContainer-safe path probing).
+    private static func locatePlaylist() throws -> URL {
+        let candidates: [(String, String?)] = [
+            ("playlist", "dat"),
+            ("playlist", "m3u"),
+            ("lista_fusionada", "m3u"),
+            ("lista_fusionada", "m3u.gz"),
+            ("lista_fusionada.m3u", nil),
+            ("playlist.dat", nil),
+        ]
+
+        var bundles: [Bundle] = [Bundle.main, Bundle(for: BundleToken.self)]
+        bundles.append(contentsOf: Bundle.allBundles)
+        bundles.append(contentsOf: Bundle.allFrameworks)
+
+        for bundle in bundles {
+            for (resource, ext) in candidates {
+                if let ext,
+                   let url = bundle.url(forResource: resource, withExtension: ext) {
+                    return url
+                }
+                if ext == nil {
+                    let direct = bundle.bundleURL.appendingPathComponent(resource)
+                    if FileManager.default.fileExists(atPath: direct.path) {
+                        return direct
+                    }
+                    if let res = bundle.resourceURL?.appendingPathComponent(resource),
+                       FileManager.default.fileExists(atPath: res.path) {
+                        return res
+                    }
+                }
+            }
+
+            // Brute-force scan of bundle (covers LiveContainer odd layouts)
+            if let urls = bundle.urls(forResourcesWithExtension: "dat", subdirectory: nil) {
+                if let hit = urls.first(where: { $0.lastPathComponent.lowercased().contains("playlist")
+                    || $0.lastPathComponent.lowercased().contains("lista") }) {
+                    return hit
+                }
+            }
+            if let urls = bundle.urls(forResourcesWithExtension: "m3u", subdirectory: nil) {
+                if let hit = urls.first {
+                    return hit
+                }
+            }
+            if let urls = bundle.urls(forResourcesWithExtension: "gz", subdirectory: nil) {
+                if let hit = urls.first(where: { $0.lastPathComponent.lowercased().contains("lista")
+                    || $0.lastPathComponent.lowercased().contains("playlist") }) {
+                    return hit
+                }
+            }
+        }
+
+        // Last resort: walk Bundle.main file tree
+        if let enumerator = FileManager.default.enumerator(at: Bundle.main.bundleURL, includingPropertiesForKeys: nil) {
+            for case let fileURL as URL in enumerator {
+                let n = fileURL.lastPathComponent.lowercased()
+                if n == "playlist.dat" || n == "playlist.m3u"
+                    || n == "lista_fusionada.m3u" || n == "lista_fusionada.m3u.gz" {
+                    return fileURL
+                }
+            }
+        }
+
+        throw NSError(domain: "SenalPlaylist", code: 1, userInfo: [
+            NSLocalizedDescriptionKey: "Falta lista_fusionada / playlist en el bundle"
+        ])
+    }
+
+    private final class BundleToken {}
 
     static func parse(text: String) -> [Channel] {
         var pending: ExtInf?

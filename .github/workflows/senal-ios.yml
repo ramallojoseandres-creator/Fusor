@@ -93,20 +93,36 @@ jobs:
           APP=$(find dist/DerivedData/Build/Products -name 'SenalTV.app' -type d | head -1)
           test -n "$APP"
           echo "Using app: $APP"
+          echo "=== App bundle contents ==="
+          ls -lah "$APP"
+          # MUST contain playlist (was missing in 1.5.2 builds)
+          if ! find "$APP" -iname 'playlist.dat' -o -iname 'playlist.m3u' -o -iname 'lista_fusionada.m3u*' | grep -q .; then
+            echo "ERROR: playlist missing from .app — Copy Bundle Resources failed"
+            find "$APP" -type f
+            exit 1
+          fi
+          find "$APP" \( -iname 'playlist.*' -o -iname 'lista_*' \) -ls
           plutil -p "$APP/Info.plist" | grep -A20 AppTransport || plutil -p "$APP/Info.plist" | head -40
           rm -rf dist/Payload
           mkdir -p dist/Payload
           cp -R "$APP" dist/Payload/
-          # Ensure bundle looks installable
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' dist/Payload/SenalTV.app/Info.plist
-          /usr/libexec/PlistBuddy -c 'Print :NSAppTransportSecurity:NSAllowsArbitraryLoads' dist/Payload/SenalTV.app/Info.plist
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' dist/Payload/SenalTV.app/Info.plist || true
           (
             cd dist
             rm -f SenalTV-LiveContainer.ipa
             zip -qry SenalTV-LiveContainer.ipa Payload
           )
           ls -lh dist/SenalTV-LiveContainer.ipa
-          unzip -l dist/SenalTV-LiveContainer.ipa | head -40
+          # IPA itself must be larger than empty app (~1MB+)
+          SIZE=$(stat -f%z dist/SenalTV-LiveContainer.ipa 2>/dev/null || stat -c%s dist/SenalTV-LiveContainer.ipa)
+          echo "IPA bytes: $SIZE"
+          if [ "$SIZE" -lt 500000 ]; then
+            echo "ERROR: IPA too small ($SIZE) — playlist likely missing"
+            unzip -l dist/SenalTV-LiveContainer.ipa
+            exit 1
+          fi
+          unzip -l dist/SenalTV-LiveContainer.ipa | head -60
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4

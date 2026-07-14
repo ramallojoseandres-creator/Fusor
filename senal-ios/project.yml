@@ -3,7 +3,6 @@ options:
   bundleIdPrefix: com.senal
   deploymentTarget:
     iOS: "16.0"
-  # Keep objectVersion compatible with Xcode 15/16 runners
   xcodeVersion: "15.4"
   createIntermediateGroups: true
 settings:
@@ -11,8 +10,8 @@ settings:
     SWIFT_VERSION: "5.9"
     TARGETED_DEVICE_FAMILY: "1,2"
     IPHONEOS_DEPLOYMENT_TARGET: "16.0"
-    MARKETING_VERSION: "1.5.2"
-    CURRENT_PROJECT_VERSION: "17"
+    MARKETING_VERSION: "1.5.3"
+    CURRENT_PROJECT_VERSION: "18"
     DEVELOPMENT_TEAM: ""
     CODE_SIGN_STYLE: Automatic
     GENERATE_INFOPLIST_FILE: YES
@@ -29,12 +28,22 @@ targets:
       - path: SenalTV
         excludes:
           - "Resources/**"
+          - "Catalog/**"
           - "**/*.m3u"
           - "**/*.m3u.gz"
+          - "**/*.dat"
           - "**/.DS_Store"
           - "Info.plist"
     resources:
-      - path: SenalTV/Resources
+      # Explicit files so Xcode always copies them into the .app
+      - path: SenalTV/Catalog/playlist.dat
+        buildPhase: resources
+      - path: SenalTV/Catalog/playlist.m3u
+        buildPhase: resources
+      - path: SenalTV/Resources/lista_fusionada.m3u
+        buildPhase: resources
+      - path: SenalTV/Resources/lista_fusionada.m3u.gz
+        buildPhase: resources
       - path: SenalTV/Assets.xcassets
     settings:
       base:
