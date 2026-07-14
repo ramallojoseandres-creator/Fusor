@@ -1,0 +1,12 @@
+{
+  "data" : [
+    {
+      "filename" : "playlist.dat",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}
