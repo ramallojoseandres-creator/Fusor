@@ -185,6 +185,8 @@ final class PlayerModel: ObservableObject {
         error = nil
         isBuffering = true
 
+        SenalAudio.prepare(player)
+
         var headers: [String: String] = [:]
         if let ua = channel.userAgent, !ua.isEmpty {
             headers["User-Agent"] = ua
@@ -200,7 +202,11 @@ final class PlayerModel: ObservableObject {
             asset = AVURLAsset(url: channel.url, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
         }
         let item = AVPlayerItem(asset: asset)
+        // Prefer first audio+video when the mux offers several tracks.
+        item.preferredForwardBufferDuration = 4
         player.replaceCurrentItem(with: item)
+        player.isMuted = false
+        player.volume = 1.0
         player.play()
         isPlaying = true
 
@@ -209,6 +215,8 @@ final class PlayerModel: ObservableObject {
                 guard let self else { return }
                 switch item.status {
                 case .readyToPlay:
+                    SenalAudio.prepare(self.player)
+                    self.player.play()
                     self.isBuffering = false
                     self.error = nil
                 case .failed:

@@ -285,6 +285,7 @@ final class GuidePreviewModel: ObservableObject {
 
     func play(_ channel: Channel) {
         if current?.id == channel.id, player?.currentItem != nil {
+            SenalAudio.prepare(player)
             player?.play()
             return
         }
@@ -309,6 +310,7 @@ final class GuidePreviewModel: ObservableObject {
         } else {
             player?.replaceCurrentItem(with: item)
         }
+        SenalAudio.prepare(player)
         player?.play()
 
         obs?.invalidate()
@@ -317,6 +319,8 @@ final class GuidePreviewModel: ObservableObject {
                 guard let self else { return }
                 switch item.status {
                 case .readyToPlay:
+                    SenalAudio.prepare(self.player)
+                    self.player?.play()
                     self.isBuffering = false
                     self.error = nil
                 case .failed:

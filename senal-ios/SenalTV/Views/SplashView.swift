@@ -94,7 +94,7 @@ final class SplashPlayerModel: ObservableObject {
         }
         let item = AVPlayerItem(url: url)
         let p = AVPlayer(playerItem: item)
-        p.isMuted = false
+        SenalAudio.prepare(p)
         player = p
         endObs = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime,
