@@ -68,7 +68,7 @@ struct LiveView: View {
                 preview.play(first)
             }
         }
-        .onChange(of: selectedCategory) { _, newValue in
+        .onChange(of: selectedCategory) { newValue in
             catalog.selectedCategory = newValue
             // No pausamos el vídeo; solo esperamos la nueva selección de canal.
             if let first = catalog.channels(in: newValue).first, preview.current == nil {
@@ -76,7 +76,7 @@ struct LiveView: View {
                 preview.play(first)
             }
         }
-        .onChange(of: focusedId) { _, newId in
+        .onChange(of: focusedId) { newId in
             guard let newId else { return }
             focusTask?.cancel()
             focusTask = Task {
@@ -86,17 +86,20 @@ struct LiveView: View {
                     await MainActor.run { preview.play(ch) }
                 }
             }
-        }
-        .fullScreenCover(item: $fullscreen) { ch in
-            NavigationStack {
+        }        .fullScreenCover(item: $fullscreen) { ch in
+            ZStack(alignment: .topLeading) {
                 PlayerView(channel: ch, neighbors: channels)
-                    .toolbar {
-                        ToolbarItem(placement: .topBarLeading) {
-                            Button("Cerrar") { fullscreen = nil }
-                                .foregroundStyle(.white)
-                        }
-                    }
+                Button {
+                    fullscreen = nil
+                } label: {
+                    Label("Cerrar", systemImage: "xmark.circle.fill")
+                        .labelStyle(.iconOnly)
+                        .font(.title)
+                        .foregroundStyle(.white)
+                        .padding(16)
+                }
             }
+            .ignoresSafeArea()
         }
     }
 
