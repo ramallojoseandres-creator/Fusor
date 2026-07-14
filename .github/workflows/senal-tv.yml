@@ -12,7 +12,7 @@ on:
   workflow_dispatch: {}
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: senal-tv-${{ github.ref }}
@@ -61,25 +61,38 @@ jobs:
           chmod +x gradlew
           ./gradlew :app:assembleDebug --no-daemon --stacktrace
 
+      - name: Prepare APK
+        run: |
+          mkdir -p dist
+          cp senal-tv/app/build/outputs/apk/debug/app-debug.apk dist/SenalTV.apk
+          # Validate package can be parsed
+          unzip -t dist/SenalTV.apk >/dev/null
+          ls -lh dist/SenalTV.apk
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SenalTV-debug
-          path: senal-tv/app/build/outputs/apk/debug/app-debug.apk
+          name: SenalTV-apk
+          path: dist/SenalTV.apk
           if-no-files-found: error
           retention-days: 30
+          compression-level: 0
 
-      - name: Rename APK for download clarity
-        if: github.event_name != 'pull_request'
-        run: |
-          mkdir -p dist
-          cp senal-tv/app/build/outputs/apk/debug/app-debug.apk \
-            "dist/SEÑAL-TV-${{ github.sha }}.apk"
-
-      - name: Upload named APK
-        if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
+      - name: Publish GitHub Release with APK
+        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/cursor/senal-tv-android-807c' || github.event_name == 'workflow_dispatch')
+        uses: softprops/action-gh-release@v2
         with:
-          name: SenalTV-debug-named
-          path: dist/*.apk
-          retention-days: 30
+          tag_name: senal-tv-${{ github.run_number }}
+          name: SEÑAL TV build ${{ github.run_number }}
+          body: |
+            APK debug listo para instalar en Android TV / Fire TV.
+
+            1. Descarga **SenalTV.apk** (no el .zip de Actions)
+            2. Cópialo al TV (Downloader, USB, adb, etc.)
+            3. Instálalo permitiendo orígenes desconocidos
+          files: dist/SenalTV.apk
+          draft: false
+          prerelease: true
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

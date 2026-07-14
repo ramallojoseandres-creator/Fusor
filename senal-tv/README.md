@@ -33,11 +33,11 @@ Favoritos / historial / continuar se sincronizan localmente si el backend aún n
 
 ## Build (GitHub Actions)
 
-En cada push/PR sobre `senal-tv/**` (o con **Actions → Build SEÑAL TV APK → Run workflow**):
+1. Abre **Actions** → **Build SEÑAL TV APK** (o descarga desde **Releases**)
+2. Si usas Actions: descarga el artefacto **SenalTV-apk**, **descomprime el ZIP** y usa solo `SenalTV.apk`
+3. No instales el `.zip` en el TV (provoca “error durante el análisis del paquete”)
 
-1. Abre la pestaña **Actions** del repo
-2. Entra en el run **Build SEÑAL TV APK**
-3. Descarga el artefacto **SenalTV-debug** (`app-debug.apk`)
+Preferible: **Releases** → descarga directa de `SenalTV.apk`
 
 ## Build local
 
