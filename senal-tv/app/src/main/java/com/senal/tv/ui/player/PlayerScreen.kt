@@ -46,8 +46,11 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.hls.HlsMediaSource
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
@@ -64,6 +67,7 @@ import com.senal.tv.ui.theme.TextPrimary
 import com.senal.tv.ui.theme.Violet
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -178,13 +182,33 @@ fun PlayerScreen(
         runCatching { container.catalogRepository.playback(current.resolveId()) }
             .onSuccess { playback ->
                 val url = playback.resolveUrl()
+                    ?: current.resolveStreamUrl()
                 if (url.isNullOrBlank()) {
                     error = playback.error ?: "Sin URL de reproducción"
                     loading = false
                     return@onSuccess
                 }
                 val start = if (current.resolveId() == item.resolveId()) startPositionMs else C.TIME_UNSET
-                player.setMediaItem(MediaItem.fromUri(url), start)
+                val headers = playback.headers.orEmpty().toMutableMap()
+                current.userAgent?.takeIf { it.isNotBlank() }?.let {
+                    headers.putIfAbsent("User-Agent", it)
+                }
+                val mediaItem = MediaItem.fromUri(url)
+                if (headers.isNotEmpty()) {
+                    val httpFactory = DefaultHttpDataSource.Factory()
+                        .setAllowCrossProtocolRedirects(true)
+                        .setConnectTimeoutMs(12_000)
+                        .setReadTimeoutMs(20_000)
+                        .setDefaultRequestProperties(headers)
+                    val source = if (url.contains(".m3u8", ignoreCase = true)) {
+                        HlsMediaSource.Factory(httpFactory).createMediaSource(mediaItem)
+                    } else {
+                        DefaultMediaSourceFactory(httpFactory).createMediaSource(mediaItem)
+                    }
+                    player.setMediaSource(source, start)
+                } else {
+                    player.setMediaItem(mediaItem, start)
+                }
                 player.prepare()
                 player.play()
                 container.libraryRepository.markHistory(current)

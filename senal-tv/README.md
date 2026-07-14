@@ -5,39 +5,51 @@ Aplicación IPTV premium para **Android TV**, **Google TV**, **Fire TV Stick**, 
 ## Características
 
 - Navegación 100% D-Pad (Leanback / Compose TV)
-- Login JWT contra API REST SEÑAL
-- TV en vivo con categorías + paginación infinita
-- Películas y series con lazy loading
-- Búsqueda instantánea
-- Favoritos, historial y continuar viendo (locales, sin duplicados)
-- Reproductor Media3/ExoPlayer con overlay moderno, CH+/CH−, audio, subtítulos, aspecto, velocidad y reconexión automática
+- Login JWT contra API SEÑAL **solo para usuarios** (alta / sesión)
+- Catálogo **embebido** desde `lista_fusionada.m3u` (no viaja servidor → app)
+- Playback directo desde las URLs de la lista (app → stream CDN)
+- TV en vivo con categorías + paginación
+- Películas / series 24/7 (grupos de la lista)
+- Búsqueda local instantánea
+- Favoritos, historial y continuar viendo (Room, locales)
+- Reproductor Media3/ExoPlayer con overlay, CH+/CH−, audio, subtítulos, User-Agent de la lista
 - Solo landscape · Android 7+ (API 24)
-- Cache de logos/posters (Coil) y de categorías/EPG
+
+## Arquitectura de datos
+
+```
+Servidor SEÑAL  →  solo POST /api/auth/login (JWT)
+APK assets      →  catalog/lista_fusionada.m3u.gz  (~9.8k canales)
+Cliente         →  ExoPlayer abre la URL del canal directamente
+```
+
+No se llama a `/api/catalog`, `/api/search` ni `/api/playback`.
 
 ## Seguridad
 
-No almacena usuario/contraseña Xtream. Solo JWT, preferencias, favoritos e historial.
+No almacena usuario/contraseña Xtream. Solo JWT de sesión, preferencias, favoritos e historial.
 
-## API
+## API (auth)
 
-Base URL configurable en `BuildConfig.API_BASE_URL` (por defecto `http://185.192.20.245:3000/`).
+Base URL: `BuildConfig.API_BASE_URL` → `http://185.192.20.245:3000/`
 
-La app consume:
+- `POST /api/auth/login` `{username, password, deviceId, deviceName}`
 
-- `POST /api/auth/login`
-- `GET /api/catalog?type=live|movie|series` (compatible con el servidor actual)
-- `GET /api/search`
-- `POST /api/playback/{id}`
+## Actualizar la lista embebida
 
-Favoritos / historial / continuar se sincronizan localmente si el backend aún no expone esas rutas.
+Cuando `fusor.sh` regenera `lista_fusionada.m3u` en la raíz del repo:
+
+```bash
+gzip -c -9 lista_fusionada.m3u > senal-tv/app/src/main/assets/catalog/lista_fusionada.m3u.gz
+```
+
+Luego rebuild del APK.
 
 ## Build (GitHub Actions)
 
-1. Abre **Actions** → **Build SEÑAL TV APK** (o descarga desde **Releases**)
-2. Si usas Actions: descarga el artefacto **SenalTV-apk**, **descomprime el ZIP** y usa solo `SenalTV.apk`
-3. No instales el `.zip` en el TV (provoca “error durante el análisis del paquete”)
-
-Preferible: **Releases** → descarga directa de `SenalTV.apk`
+1. **Actions** → **Build SEÑAL TV APK** (o **Releases**)
+2. Si usas Actions: descarga el artefacto **SenalTV-apk**, descomprime el ZIP y usa `SenalTV.apk`
+3. No instales el `.zip` en el TV
 
 ## Build local
 

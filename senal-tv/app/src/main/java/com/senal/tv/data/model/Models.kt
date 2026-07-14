@@ -110,7 +110,11 @@ data class CatalogItem(
     val currentProgram: String? = null,
     val nextProgram: String? = null,
     val nowPlaying: ProgramInfo? = null,
-    val nextPlaying: ProgramInfo? = null
+    val nextPlaying: ProgramInfo? = null,
+    /** Direct stream from local M3U (no server playback hop). */
+    val url: String? = null,
+    val streamUrl: String? = null,
+    val userAgent: String? = null
 ) {
     fun resolveId(): String = id ?: mongoId ?: streamId ?: name.hashCode().toString()
     fun resolveTitle(): String = title ?: name ?: "Sin título"
@@ -120,6 +124,7 @@ data class CatalogItem(
     fun resolveCategory(): String = category ?: group ?: "General"
     fun resolveSynopsis(): String = synopsis ?: plot ?: description.orEmpty()
     fun resolveGenre(): String = genre ?: genres?.joinToString(", ").orEmpty()
+    fun resolveStreamUrl(): String? = streamUrl ?: url
     fun resolveDurationMinutes(): Int? {
         duration?.let { return if (it > 300) it / 60 else it }
         durationSeconds?.let { return it / 60 }

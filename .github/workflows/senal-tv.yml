@@ -4,10 +4,12 @@ on:
   push:
     paths:
       - "senal-tv/**"
+      - "lista_fusionada.m3u"
       - ".github/workflows/senal-tv.yml"
   pull_request:
     paths:
       - "senal-tv/**"
+      - "lista_fusionada.m3u"
       - ".github/workflows/senal-tv.yml"
   workflow_dispatch: {}
 
@@ -54,6 +56,17 @@ jobs:
           key: gradle-senal-${{ runner.os }}-${{ hashFiles('senal-tv/**/*.gradle*', 'senal-tv/gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: |
             gradle-senal-${{ runner.os }}-
+
+      - name: Sync embedded M3U catalog from repo root
+        run: |
+          mkdir -p senal-tv/app/src/main/assets/catalog
+          if [ -f lista_fusionada.m3u ]; then
+            gzip -c -9 lista_fusionada.m3u > senal-tv/app/src/main/assets/catalog/lista_fusionada.m3u.gz
+            ls -lh senal-tv/app/src/main/assets/catalog/lista_fusionada.m3u.gz
+          else
+            echo "lista_fusionada.m3u missing — using committed asset"
+            ls -lh senal-tv/app/src/main/assets/catalog/ || true
+          fi
 
       - name: Build debug APK
         working-directory: senal-tv

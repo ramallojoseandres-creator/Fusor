@@ -2,32 +2,29 @@ package com.senal.tv.data.repository
 
 import com.senal.tv.data.api.NetworkModule
 import com.senal.tv.data.api.SenalApi
-import com.senal.tv.data.local.CacheDao
-import com.senal.tv.data.local.CategoryCacheEntity
 import com.senal.tv.data.local.ContinueDao
 import com.senal.tv.data.local.ContinueEntity
-import com.senal.tv.data.local.EpgCacheEntity
 import com.senal.tv.data.local.FavoriteDao
 import com.senal.tv.data.local.FavoriteEntity
 import com.senal.tv.data.local.HistoryDao
 import com.senal.tv.data.local.HistoryEntity
+import com.senal.tv.data.local.LocalPlaylistStore
 import com.senal.tv.data.local.TokenStore
 import com.senal.tv.data.model.CatalogItem
 import com.senal.tv.data.model.CatalogResponse
 import com.senal.tv.data.model.Category
 import com.senal.tv.data.model.ContentType
-import com.senal.tv.data.model.FavoriteRequest
 import com.senal.tv.data.model.LoginRequest
 import com.senal.tv.data.model.PlaybackResponse
-import com.senal.tv.util.CatalogRules
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.encodeToString
 import retrofit2.HttpException
 
+/**
+ * Solo autentica contra el servidor SEÑAL (creación / acceso de usuarios).
+ * El catálogo y las URLs de stream NO pasan por el servidor.
+ */
 class AuthRepository(
     private val api: SenalApi,
     private val tokenStore: TokenStore
@@ -72,83 +69,15 @@ class AuthRepository(
     }
 }
 
+/**
+ * Catálogo 100 % local desde la lista M3U embebida en la APK.
+ * Búsqueda y playback resuelven URLs locales — sin round-trip al servidor.
+ */
 class CatalogRepository(
-    private val api: SenalApi,
-    private val cacheDao: CacheDao
+    private val playlist: LocalPlaylistStore
 ) {
-    private val categoryMutex = Mutex()
-    private val memoryCategories = mutableMapOf<String, List<Category>>()
-    private val memoryPages = mutableMapOf<String, CatalogResponse>()
-
     suspend fun categories(type: String): List<Category> = withContext(Dispatchers.IO) {
-        categoryMutex.withLock {
-            memoryCategories[type]?.let { return@withContext it }
-            // v3: full discovery + adult demotion (invalidate older incomplete A–Z caches)
-            val cacheKey = "cat-v3-$type"
-            cacheDao.getCategory(cacheKey)?.let { cached ->
-                runCatching {
-                    NetworkModule.json.decodeFromString<List<Category>>(cached.json)
-                }.getOrNull()?.let {
-                    val ordered = CatalogRules.sortCategories(it)
-                    memoryCategories[type] = ordered
-                    return@withContext ordered
-                }
-            }
-            val derived = CatalogRules.sortCategories(discoverCategories(type))
-            memoryCategories[type] = derived
-            cacheDao.putCategory(
-                CategoryCacheEntity(
-                    key = cacheKey,
-                    json = NetworkModule.json.encodeToString(derived),
-                    updatedAt = System.currentTimeMillis()
-                )
-            )
-            derived
-        }
-    }
-
-    /**
-     * Prefer server `categories` when present; otherwise page through the catalog
-     * until exhaustion so the sidebar is complete (not only the first 100 rows).
-     */
-    private suspend fun discoverCategories(type: String): List<Category> {
-        val first = fetchCatalog(type = type, page = 1, limit = 200)
-        val fromApi = first.categories?.mapNotNull { cat ->
-            val label = cat.label().trim()
-            if (label.isBlank()) null else Category(id = cat.id ?: label, name = label, title = cat.title)
-        }.orEmpty()
-        if (fromApi.isNotEmpty()) return fromApi
-
-        val labels = LinkedHashSet<String>()
-        fun absorb(response: CatalogResponse) {
-            response.resolveItems().forEach { item ->
-                val label = item.resolveCategory().trim()
-                if (label.isNotBlank()) labels += label
-            }
-        }
-        absorb(first)
-        var page = 1
-        var hasMore = first.resolveHasMore(200)
-        // Safety cap: enough pages for large IPTV catalogs without hanging cold start.
-        while (hasMore && page < 40) {
-            page += 1
-            val next = runCatching {
-                fetchCatalog(type = type, page = page, limit = 200)
-            }.getOrNull() ?: break
-            val items = next.resolveItems()
-            if (items.isEmpty()) break
-            absorb(next)
-            hasMore = next.resolveHasMore(200)
-        }
-
-        return labels
-            .map { Category(id = it, name = it) }
-            .ifEmpty {
-                listOf(
-                    "Deportes", "Noticias", "Infantil", "USA", "España",
-                    "Latinos", "Música", "4K", "Documentales", "General"
-                ).map { Category(id = it, name = it) }
-            }
+        playlist.categories(type)
     }
 
     suspend fun page(
@@ -157,82 +86,26 @@ class CatalogRepository(
         page: Int = 1,
         limit: Int = 60
     ): CatalogResponse = withContext(Dispatchers.IO) {
-        val key = "$type|${category.orEmpty()}|$page|$limit"
-        memoryPages[key]?.let { return@withContext it }
-        val response = fetchCatalog(type, category, page, limit)
-        response.resolveItems().forEach { item ->
-            cacheDao.putEpg(
-                EpgCacheEntity(
-                    channelId = item.resolveId(),
-                    nowTitle = item.resolveNow().ifBlank { null },
-                    nextTitle = item.resolveNext().ifBlank { null },
-                    updatedAt = System.currentTimeMillis()
-                )
-            )
-        }
-        memoryPages[key] = response
-        // keep memory bounded
-        if (memoryPages.size > 80) {
-            memoryPages.keys.take(20).forEach { memoryPages.remove(it) }
-        }
-        response
+        playlist.page(type = type, category = category, page = page, limit = limit)
     }
 
     suspend fun search(query: String): List<CatalogItem> = withContext(Dispatchers.IO) {
-        if (query.isBlank()) return@withContext emptyList()
-        runCatching { api.search(query.trim()).resolveAll() }
-            .recoverCatching {
-                fetchCatalog(type = "live", q = query, limit = 30).resolveItems() +
-                    fetchCatalog(type = "movie", q = query, limit = 30).resolveItems() +
-                    fetchCatalog(type = "series", q = query, limit = 30).resolveItems()
-            }
-            .getOrDefault(emptyList())
-            .distinctBy { it.resolveId() }
+        playlist.search(query)
     }
 
     suspend fun playback(id: String): PlaybackResponse = withContext(Dispatchers.IO) {
-        api.playback(id)
+        playlist.playback(id)
     }
 
     fun clearMemory() {
-        memoryCategories.clear()
-        memoryPages.clear()
-    }
-
-    private suspend fun fetchCatalog(
-        type: String,
-        category: String? = null,
-        page: Int? = null,
-        limit: Int? = null,
-        q: String? = null
-    ): CatalogResponse {
-        return try {
-            api.catalog(
-                type = type,
-                category = category,
-                page = page,
-                limit = limit,
-                offset = if (page != null && limit != null) (page - 1) * limit else null,
-                q = q
-            )
-        } catch (pathMissing: HttpException) {
-            if (pathMissing.code() == 404) {
-                api.catalogByPath(type = type, category = category, page = page, limit = limit)
-            } else {
-                throw pathMissing
-            }
-        } catch (_: Exception) {
-            // try documented path style as secondary
-            api.catalogByPath(type = type, category = category, page = page, limit = limit)
-        }
+        playlist.clearMemory()
     }
 }
 
 class LibraryRepository(
     private val favoriteDao: FavoriteDao,
     private val historyDao: HistoryDao,
-    private val continueDao: ContinueDao,
-    private val api: SenalApi
+    private val continueDao: ContinueDao
 ) {
     fun favorites(): Flow<List<FavoriteEntity>> = favoriteDao.observe()
     fun history(): Flow<List<HistoryEntity>> = historyDao.observe()
@@ -253,9 +126,6 @@ class LibraryRepository(
                     category = item.resolveCategory()
                 )
             )
-            runCatching {
-                api.addFavorite(FavoriteRequest(id, item.contentType().name.lowercase()))
-            }
             true
         }
     }

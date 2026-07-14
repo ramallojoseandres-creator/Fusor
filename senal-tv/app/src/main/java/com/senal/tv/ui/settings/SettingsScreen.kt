@@ -36,14 +36,23 @@ fun SettingsScreen(
         modifier = Modifier.fillMaxSize().padding(end = 24.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        SectionHeader("AJUSTES", "Preferencias locales · sin guardar credenciales Xtream")
+        SectionHeader("AJUSTES", "Lista M3U embebida · servidor solo para usuarios")
         Text("Aspecto: ${settings.preferredAspect}", style = LocalSenalTypography.current.body)
         Text("Velocidad: ${settings.playbackSpeed}x", style = LocalSenalTypography.current.body)
-        Text("API: ${BuildConfig.API_BASE_URL}", style = LocalSenalTypography.current.caption, color = TextMuted)
         Text(
-            "Seguridad: solo JWT, favoritos, historial y preferencias",
+            "Auth: ${BuildConfig.API_BASE_URL} (solo login)",
+            style = LocalSenalTypography.current.caption,
+            color = TextMuted
+        )
+        Text(
+            "Catálogo: lista_fusionada.m3u embebida · streams directos",
             style = LocalSenalTypography.current.caption,
             color = Teal
+        )
+        Text(
+            "Seguridad: JWT + favoritos/historial locales",
+            style = LocalSenalTypography.current.caption,
+            color = TextMuted
         )
         Spacer(Modifier.height(8.dp))
         FocusableButton(
