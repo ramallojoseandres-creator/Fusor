@@ -81,6 +81,7 @@ struct LoginView: View {
                         .foregroundStyle(.red.opacity(0.9))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 Button {

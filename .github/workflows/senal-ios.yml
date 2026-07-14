@@ -89,15 +89,17 @@ jobs:
         working-directory: senal-ios
         run: |
           set -euo pipefail
+          # Verify ATS is in the built Info.plist
           APP=$(find dist/DerivedData/Build/Products -name 'SenalTV.app' -type d | head -1)
           test -n "$APP"
           echo "Using app: $APP"
+          plutil -p "$APP/Info.plist" | grep -A20 AppTransport || plutil -p "$APP/Info.plist" | head -40
           rm -rf dist/Payload
           mkdir -p dist/Payload
           cp -R "$APP" dist/Payload/
           # Ensure bundle looks installable
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' dist/Payload/SenalTV.app/Info.plist
-          /usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' dist/Payload/SenalTV.app/Info.plist || true
+          /usr/libexec/PlistBuddy -c 'Print :NSAppTransportSecurity:NSAllowsArbitraryLoads' dist/Payload/SenalTV.app/Info.plist
           (
             cd dist
             rm -f SenalTV-LiveContainer.ipa
