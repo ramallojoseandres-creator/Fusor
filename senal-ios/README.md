@@ -1,61 +1,64 @@
-# SEÑAL para iPhone (IPA)
+# SEÑAL para iPhone + LiveContainer
 
-Cliente **iOS 16+** con la misma arquitectura que Android:
+Misma lógica que Android: **servidor solo login**, canales en la app (`lista_fusionada.m3u`).
 
-| Capa | Rol |
-|------|-----|
-| Servidor SEÑAL | Solo login JWT (`POST /api/auth/login`) |
-| Bundle de la app | `lista_fusionada.m3u` embebida (~9.8k canales) |
-| iPhone | AVPlayer abre el stream directo |
+## Sí: con LiveContainer puedes usarlo
 
-## Importante sobre el IPA
+LiveContainer **no necesita** un IPA firmado por App Store. Tú importas el IPA y LiveContainer lo firma en el dispositivo con el certificado de AltStore/SideStore (modo JIT-Less).
 
-Apple **exige firma** para instalar en un iPhone real. Este entorno (Linux) **no puede** generar un `.ipa` firmado e instalable sin:
+### 1) Requisitos en el iPhone
 
-1. Un Mac con Xcode, **y**
-2. Tu Apple ID (gratis, con recarga cada 7 días) **o** cuenta Developer de pago ($99/año) / TestFlight.
+- LiveContainer instalado ([guía oficial](https://livecontainer.github.io/docs/installation))
+- AltStore 2.2.1+ o SideStore 0.6.2+
+- En LiveContainer → **Settings** → **Import Certificate from AltStore/SideStore**
+- **JIT-Less Mode Diagnose** → Test Passed
 
-Aquí entregamos el **código fuente + workflow** listo para firmar en tu máquina o en GitHub Actions con secretos.
+### 2) Bajarte el IPA
 
-## Instalar en tu iPhone (recomendado: Xcode)
+1. GitHub → **Actions** → **Build SEÑAL iOS IPA (LiveContainer)** → Run workflow  
+   **o** descarga el artefacto `SenalTV-LiveContainer-ipa` del último run
+2. También puede salir en **Releases** como `SenalTV-LiveContainer.ipa`
+3. Pasa el `.ipa` al iPhone (AirDrop, Files, iCloud, Safari…)
 
-1. En un Mac: instala Xcode 15+.
-2. En la carpeta `senal-ios/`:
+### 3) Instalar dentro de LiveContainer
 
-```bash
-brew install xcodegen
-xcodegen generate
-open SenalTV.xcodeproj
+1. Abre **LiveContainer**
+2. Pestaña **My Apps** → botón **+** (arriba derecha)
+3. Elige `SenalTV-LiveContainer.ipa`
+4. Selecciónala para el próximo lanzamiento → ábrela
+
+También puedes compartir el IPA desde Archivos → **Abrir con LiveContainer** (a veces está bajo “Más”).
+
+URL de instalación (si tienes el IPA en un link directo):
+
+```text
+livecontainer://install?url=https://…/SenalTV-LiveContainer.ipa
 ```
 
-3. En Xcode: selecciona el target **SenalTV** → **Signing & Capabilities** → marca *Automatically manage signing* → elige tu **Team** (Apple ID).
-4. Conecta el iPhone por cable, confía en el ordenador.
-5. Pulsa Run ▶️. La primera vez: en el iPhone → Ajustes → General → VPN y gestión de dispositivos → confiar en tu certificado.
+### Notas
 
-Así queda instalada como app nativa (equivalente a un IPA firmado con tu cuenta).
+- No consumes un “slot” extra de Apple ID por cada app: viven dentro de LiveContainer.
+- Si el certificado de AltStore/SideStore se renueva, vuelve a importarlo en LiveContainer.
+- Login SEÑAL sigue haciendo falta (usuarios); el catálogo no sale del servidor.
 
-## Generar IPA (Ad Hoc / Development)
+## Build local (Mac) → IPA LiveContainer
 
 ```bash
 cd senal-ios
+brew install xcodegen
 xcodegen generate
-xcodebuild -scheme SenalTV -configuration Release \
+xcodebuild -scheme SenalTV -configuration Release -sdk iphoneos \
   -destination 'generic/platform=iOS' \
-  -archivePath build/SenalTV.xcarchive archive
-# Export con un ExportOptions.plist firmado por tu equipo
+  -derivedDataPath build/DerivedData \
+  CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO build
+mkdir -p dist/Payload
+cp -R build/DerivedData/Build/Products/Release-iphoneos/SenalTV.app dist/Payload/
+(cd dist && zip -qry SenalTV-LiveContainer.ipa Payload)
 ```
-
-GitHub Actions (`senal-ios.yml`) arma el proyecto en macOS; la exportación firmada solo funciona si configuras los secretos `IOS_CERTIFICATE`, `IOS_PROVISIONING_PROFILE`, `IOS_TEAM_ID`.
-
-## Alternativas sin Mac propio
-
-- **GitHub Codespaces / MacStadium / Mac en la nube** + los pasos de Xcode.
-- **AltStore / Sideloadly**: firman el IPA con tu Apple ID desde un PC (sigue haciendo falta un IPA firmable o el `.app` empaquetado).
 
 ## Actualizar canales
 
 ```bash
 cp lista_fusionada.m3u senal-ios/SenalTV/Resources/
-# opcional gzip
 gzip -c -9 lista_fusionada.m3u > senal-ios/SenalTV/Resources/lista_fusionada.m3u.gz
 ```

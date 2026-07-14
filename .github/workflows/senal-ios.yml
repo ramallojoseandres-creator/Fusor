@@ -1,4 +1,4 @@
-name: Build SEÑAL iOS
+name: Build SEÑAL iOS IPA (LiveContainer)
 
 on:
   push:
@@ -21,9 +21,9 @@ concurrency:
 
 jobs:
   build:
-    name: Generate Xcode project + compile
+    name: Build IPA for LiveContainer
     runs-on: macos-14
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
@@ -45,59 +45,72 @@ jobs:
         working-directory: senal-ios
         run: xcodegen generate
 
-      - name: Build (unsigned simulator — verifies compile)
-        working-directory: senal-ios
-        run: |
-          xcodebuild \
-            -scheme SenalTV \
-            -destination 'platform=iOS Simulator,name=iPhone 15' \
-            -configuration Debug \
-            CODE_SIGNING_ALLOWED=NO \
-            build
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
 
-      - name: Archive (device, signing optional)
+      - name: Build device .app (no Apple signing — LiveContainer re-signs)
         working-directory: senal-ios
-        continue-on-error: true
-        env:
-          IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
         run: |
           set -euo pipefail
-          mkdir -p dist
-          if [ -n "${IOS_TEAM_ID:-}" ]; then
-            echo "Team secret present — attempting signed archive"
-            xcodebuild \
-              -scheme SenalTV \
-              -configuration Release \
-              -destination 'generic/platform=iOS' \
-              -archivePath dist/SenalTV.xcarchive \
-              DEVELOPMENT_TEAM="$IOS_TEAM_ID" \
-              CODE_SIGN_STYLE=Automatic \
-              archive
-          else
-            echo "No IOS_TEAM_ID secret — building unsigned .app for packaging reference"
-            xcodebuild \
-              -scheme SenalTV \
-              -configuration Release \
-              -destination 'generic/platform=iOS' \
-              CODE_SIGNING_ALLOWED=NO \
-              CODE_SIGN_IDENTITY="" \
-              BUILD_DIR="$PWD/dist/DerivedData" \
-              build
-            APP=$(find dist/DerivedData -name 'SenalTV.app' -type d | head -1 || true)
-            if [ -n "$APP" ]; then
-              mkdir -p dist/Payload
-              cp -R "$APP" dist/Payload/
-              (cd dist && zip -qry SenalTV-UNSIGNED.ipa Payload)
-              echo "Created UNSIGNED ipa (will NOT install on stock iPhone without resign)."
-            fi
-          fi
+          mkdir -p dist/DerivedData
+          xcodebuild \
+            -scheme SenalTV \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$PWD/dist/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            ONLY_ACTIVE_ARCH=NO \
+            build
 
-      - name: Upload artifacts
+      - name: Package LiveContainer IPA
+        working-directory: senal-ios
+        run: |
+          set -euo pipefail
+          APP=$(find dist/DerivedData/Build/Products -name 'SenalTV.app' -type d | head -1)
+          test -n "$APP"
+          echo "Using app: $APP"
+          rm -rf dist/Payload
+          mkdir -p dist/Payload
+          cp -R "$APP" dist/Payload/
+          # Ensure bundle looks installable
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' dist/Payload/SenalTV.app/Info.plist
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' dist/Payload/SenalTV.app/Info.plist || true
+          (
+            cd dist
+            rm -f SenalTV-LiveContainer.ipa
+            zip -qry SenalTV-LiveContainer.ipa Payload
+          )
+          ls -lh dist/SenalTV-LiveContainer.ipa
+          unzip -l dist/SenalTV-LiveContainer.ipa | head -40
+
+      - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SenalTV-iOS
-          path: |
-            senal-ios/SenalTV.xcodeproj
-            senal-ios/dist/**
-          if-no-files-found: warn
+          name: SenalTV-LiveContainer-ipa
+          path: senal-ios/dist/SenalTV-LiveContainer.ipa
+          if-no-files-found: error
           retention-days: 30
+          compression-level: 0
+
+      - name: Publish Release IPA (main / workflow_dispatch only)
+        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: senal-ios-${{ github.run_number }}
+          name: SEÑAL iOS ${{ github.run_number }} (LiveContainer)
+          body: |
+            IPA para **LiveContainer** (sin firma App Store).
+
+            1. En LiveContainer: Settings → Import Certificate from AltStore/SideStore (JIT-Less)
+            2. My Apps → **+** → elige `SenalTV-LiveContainer.ipa`
+            3. Ábrela desde LiveContainer
+
+            Catálogo M3U embebido · login solo contra servidor SEÑAL.
+          files: senal-ios/dist/SenalTV-LiveContainer.ipa
+          draft: false
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
