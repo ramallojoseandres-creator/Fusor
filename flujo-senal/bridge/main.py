@@ -11,6 +11,7 @@ Upstream: SENAL_BASE_URL (default http://185.192.20.245:3000)
 from __future__ import annotations
 
 import os
+import re
 import time
 import uuid
 from typing import Any
@@ -21,8 +22,54 @@ from fastapi.responses import JSONResponse
 
 SENAL = os.environ.get("SENAL_BASE_URL", "http://185.192.20.245:3000").rstrip("/")
 PORT = int(os.environ.get("PORT", "8080"))
+ADULT_RE = re.compile(
+    r"(?i)(\+| )?18\+?|adult|adulto|adultos|xxx|porn|porno|erotic|erotica|nsfw"
+)
+PREFERRED_ORDER = [
+    "deportes",
+    "sports",
+    "noticias",
+    "news",
+    "cine",
+    "peliculas",
+    "películas",
+    "series",
+    "infantil",
+    "kids",
+    "latino",
+    "latinos",
+    "españa",
+    "espana",
+    "mexico",
+    "méxico",
+    "usa",
+    "documentales",
+    "musica",
+    "música",
+    "4k",
+    "general",
+]
 
 app = FastAPI(title="SEÑAL Magis-compat bridge", version="1.0.0")
+
+
+def is_adult_label(label: str | None) -> bool:
+    return bool(label and ADULT_RE.search(label))
+
+
+def preferred_index(label: str) -> int:
+    key = label.strip().lower()
+    for i, pref in enumerate(PREFERRED_ORDER):
+        if key == pref or pref in key:
+            return i
+    return len(PREFERRED_ORDER) + 1
+
+
+def sort_category_names(names: list[str]) -> list[str]:
+    normal = [n for n in names if not is_adult_label(n)]
+    adults = [n for n in names if is_adult_label(n)]
+    normal.sort(key=lambda n: (preferred_index(n), n.lower()))
+    return normal + adults
 
 
 def ok(data: Any = None, msg: str = "success") -> dict[str, Any]:
@@ -82,6 +129,55 @@ def catalog_items(payload: dict[str, Any]) -> list[dict[str, Any]]:
         if isinstance(val, list):
             return val
     return []
+
+
+def has_more(payload: dict[str, Any], page_size: int, got: int) -> bool:
+    if isinstance(payload.get("hasMore"), bool):
+        return bool(payload["hasMore"])
+    if payload.get("nextPage") is not None:
+        return True
+    total = payload.get("total")
+    page = payload.get("page") or 1
+    limit = payload.get("limit") or page_size
+    if isinstance(total, int) and isinstance(page, int) and isinstance(limit, int):
+        return page * limit < total
+    return got >= page_size
+
+
+async def fetch_all_live(authorization: str | None) -> list[dict[str, Any]]:
+    """Page through SEÑAL live catalog so categories are complete."""
+    items: list[dict[str, Any]] = []
+    page = 1
+    page_size = 200
+    while page <= 40:
+        r = await senal(
+            "GET",
+            "/api/catalog",
+            authorization,
+            params={"type": "live", "page": page, "limit": page_size},
+        )
+        if r.status_code >= 400:
+            if page == 1:
+                raise RuntimeError(f"catalog live HTTP {r.status_code}")
+            break
+        payload = r.json()
+        batch = catalog_items(payload)
+        if not batch:
+            break
+        items.extend(batch)
+        if not has_more(payload, page_size, len(batch)):
+            break
+        page += 1
+    # de-dupe by id
+    seen: set[str] = set()
+    unique: list[dict[str, Any]] = []
+    for it in items:
+        cid = str(it.get("id") or it.get("_id") or it.get("streamId") or it.get("name") or "")
+        if not cid or cid in seen:
+            continue
+        seen.add(cid)
+        unique.append(it)
+    return unique
 
 
 def map_channel(item: dict[str, Any], idx: int) -> dict[str, Any]:
@@ -222,35 +318,37 @@ async def logout():
 @app.api_route("/api/v7/site/live", methods=["GET", "POST"])
 @app.api_route("/api/v7/site/liveTag", methods=["GET", "POST"])
 async def site_live(authorization: str | None = Header(default=None)):
-    r = await senal("GET", "/api/catalog?type=live&limit=500", authorization)
-    if r.status_code >= 400:
-        return fail(f"catalog live HTTP {r.status_code}")
-    payload = r.json()
-    items = catalog_items(payload)
+    try:
+        items = await fetch_all_live(authorization)
+    except RuntimeError as err:
+        return fail(str(err))
     channels = [map_channel(it, i + 1) for i, it in enumerate(items)]
 
     # Magis often expects categories → channels
     buckets: dict[str, list] = {}
     for ch in channels:
         buckets.setdefault(ch["category"], []).append(ch)
+    # Adult last; prefer Deportes/Noticias/… first (never open on Adultos)
+    ordered_names = sort_category_names(list(buckets.keys()))
     categories = [
         {
             "id": name,
             "categoryId": name,
             "name": name,
             "title": name,
-            "list": chans,
-            "channels": chans,
-            "data": chans,
+            "list": buckets[name],
+            "channels": buckets[name],
+            "data": buckets[name],
         }
-        for name, chans in buckets.items()
+        for name in ordered_names
     ]
+    ordered_channels = [ch for name in ordered_names for ch in buckets[name]]
     data = {
         "list": categories,
         "categories": categories,
-        "channels": channels,
-        "items": channels,
-        "total": len(channels),
+        "channels": ordered_channels,
+        "items": ordered_channels,
+        "total": len(ordered_channels),
     }
     return ok(data)
 
@@ -265,22 +363,31 @@ async def site_live(authorization: str | None = Header(default=None)):
 @app.api_route("/api/v7/site/sub", methods=["GET", "POST"])
 @app.api_route("/api/v7/site/app", methods=["GET", "POST"])
 async def site_recommend(authorization: str | None = Header(default=None)):
-    # Mix live + movies for home rails
-    live = await senal("GET", "/api/catalog?type=live&limit=40", authorization)
+    # Mix live + movies for home rails (skip adult in live preview)
+    live = await senal(
+        "GET",
+        "/api/catalog",
+        authorization,
+        params={"type": "live", "page": 1, "limit": 80},
+    )
     movies = await senal("GET", "/api/catalog?type=movie&limit=40", authorization)
     series = await senal("GET", "/api/catalog?type=series&limit=40", authorization)
 
-    def safe_items(resp: httpx.Response, kind: str):
+    def safe_vod(resp: httpx.Response):
         if resp.status_code >= 400:
             return []
         items = catalog_items(resp.json())
-        if kind == "live":
-            return [map_channel(it, i + 1) for i, it in enumerate(items)]
         return [map_vod(it, i + 1) for i, it in enumerate(items)]
 
-    live_items = safe_items(live, "live")
-    movie_items = safe_items(movies, "vod")
-    series_items = safe_items(series, "vod")
+    live_raw = []
+    if live.status_code < 400:
+        live_raw = [
+            it for it in catalog_items(live.json())
+            if not is_adult_label(str(it.get("category") or it.get("group") or ""))
+        ][:40]
+    live_items = [map_channel(it, i + 1) for i, it in enumerate(live_raw)]
+    movie_items = safe_vod(movies)
+    series_items = safe_vod(series)
 
     blocks = [
         {"id": "live", "name": "En vivo", "title": "En vivo", "type": "live", "list": live_items, "data": live_items},
