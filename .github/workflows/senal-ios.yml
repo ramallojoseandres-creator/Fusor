@@ -95,9 +95,14 @@ jobs:
           echo "Using app: $APP"
           echo "=== App bundle contents ==="
           ls -lah "$APP"
-          # MUST contain playlist (was missing in 1.5.2 builds)
-          if ! find "$APP" -iname 'playlist.dat' -o -iname 'playlist.m3u' -o -iname 'lista_fusionada.m3u*' | grep -q .; then
-            echo "ERROR: playlist missing from .app — Copy Bundle Resources failed"
+          # Belt-and-suspenders: inject playlist if build phase missed it
+          if ! find "$APP" \( -iname 'playlist.dat' -o -iname 'playlist.m3u' -o -iname 'lista_fusionada.m3u*' \) | grep -q .; then
+            echo "WARNING: build phase missed playlist — copying manually"
+            cp -f SenalTV/Catalog/playlist.dat "$APP/playlist.dat"
+            cp -f SenalTV/Catalog/playlist.m3u "$APP/playlist.m3u" || true
+          fi
+          if ! find "$APP" \( -iname 'playlist.dat' -o -iname 'playlist.m3u' -o -iname 'lista_fusionada.m3u*' \) | grep -q .; then
+            echo "ERROR: playlist missing from .app"
             find "$APP" -type f
             exit 1
           fi

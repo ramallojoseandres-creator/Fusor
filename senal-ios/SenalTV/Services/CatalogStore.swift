@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import Compression
+import UIKit
 
 @MainActor
 final class CatalogStore: ObservableObject {
@@ -69,8 +70,7 @@ enum PlaylistParser {
         let data = try Data(contentsOf: url)
         let name = url.lastPathComponent.lowercased()
         let text: String
-        if name.hasSuffix(".gz") || name.hasSuffix(".dat") {
-            // .dat is gzipped m3u shipped for reliable Copy Bundle Resources
+        if name.hasSuffix(".gz") || name.hasSuffix(".dat") || name == "playlist" {
             text = try String(decoding: gunzip(data), as: UTF8.self)
         } else {
             text = String(decoding: data, as: UTF8.self)
@@ -86,6 +86,13 @@ enum PlaylistParser {
 
     /// Find playlist in guest bundle (LiveContainer-safe path probing).
     private static func locatePlaylist() throws -> URL {
+        // 1) Asset catalog data set (if compiled into Assets)
+        if let asset = NSDataAsset(name: "Playlist") {
+            let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("playlist-asset.dat")
+            try asset.data.write(to: tmp, options: .atomic)
+            return tmp
+        }
+
         let candidates: [(String, String?)] = [
             ("playlist", "dat"),
             ("playlist", "m3u"),

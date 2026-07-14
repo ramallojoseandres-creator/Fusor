@@ -35,16 +35,28 @@ targets:
           - "**/.DS_Store"
           - "Info.plist"
     resources:
-      # Explicit files so Xcode always copies them into the .app
-      - path: SenalTV/Catalog/playlist.dat
-        buildPhase: resources
-      - path: SenalTV/Catalog/playlist.m3u
-        buildPhase: resources
-      - path: SenalTV/Resources/lista_fusionada.m3u
-        buildPhase: resources
-      - path: SenalTV/Resources/lista_fusionada.m3u.gz
-        buildPhase: resources
       - path: SenalTV/Assets.xcassets
+    postCompileScripts:
+      - name: Embed playlist into app bundle
+        basedOnDependencyAnalysis: false
+        script: |
+          set -euo pipefail
+          DEST="${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}"
+          mkdir -p "$DEST"
+          SRC="${SRCROOT}/SenalTV/Catalog/playlist.dat"
+          if [ ! -f "$SRC" ]; then
+            SRC="${SRCROOT}/SenalTV/Resources/lista_fusionada.m3u.gz"
+          fi
+          if [ ! -f "$SRC" ]; then
+            echo "error: missing playlist at Catalog/playlist.dat" >&2
+            exit 1
+          fi
+          cp -f "$SRC" "$DEST/playlist.dat"
+          # Plain m3u fallback if present
+          if [ -f "${SRCROOT}/SenalTV/Catalog/playlist.m3u" ]; then
+            cp -f "${SRCROOT}/SenalTV/Catalog/playlist.m3u" "$DEST/playlist.m3u"
+          fi
+          ls -lh "$DEST/playlist.dat"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.senal.tv
