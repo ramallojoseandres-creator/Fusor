@@ -270,16 +270,12 @@ private fun HeaderBar(
             .height(40.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Image(
-            painter = painterResource(R.mipmap.logo_new),
-            contentDescription = "SEÑAL",
-            modifier = Modifier.height(40.dp),
-            contentScale = ContentScale.Fit
-        )
         Text(
-            text = "  v1.0",
-            color = Color.White.copy(alpha = 0.7f),
-            fontSize = 12.sp
+            text = "SEÑAL",
+            color = BrandOrange,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Black,
+            letterSpacing = 3.sp
         )
         Box(modifier = Modifier.weight(1f))
         Image(
@@ -523,10 +519,12 @@ private fun SectionBody(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Image(
-                painter = painterResource(R.mipmap.logo_new),
-                contentDescription = null,
-                modifier = Modifier.height(36.dp)
+            Text(
+                text = "SEÑAL",
+                color = BrandOrange,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 2.sp
             )
             FocusableButton(label = "INICIO", onClick = onBack, primary = true)
         }

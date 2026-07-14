@@ -122,32 +122,15 @@ fun SenalBackground(content: @Composable () -> Unit) {
 
 @Composable
 fun BrandMark(compact: Boolean = false) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        androidx.compose.foundation.Image(
-            painter = painterResource(id = R.mipmap.logo_new),
-            contentDescription = "SEÑAL",
-            modifier = Modifier.size(if (compact) 36.dp else 56.dp)
-        )
-        Spacer(modifier = Modifier.width(10.dp))
-        Column {
-            Text(
-                text = "SEÑAL",
-                style = if (compact) {
-                    LocalSenalTypography.current.title
-                } else {
-                    LocalSenalTypography.current.brand
-                },
-                color = BrandOrange
-            )
-            if (!compact) {
-                Text(
-                    text = "IPTV PREMIUM",
-                    style = LocalSenalTypography.current.caption,
-                    color = TextMuted
-                )
-            }
-        }
-    }
+    Text(
+        text = "SEÑAL",
+        style = if (compact) {
+            LocalSenalTypography.current.title
+        } else {
+            LocalSenalTypography.current.brand
+        },
+        color = BrandOrange
+    )
 }
 
 @Composable

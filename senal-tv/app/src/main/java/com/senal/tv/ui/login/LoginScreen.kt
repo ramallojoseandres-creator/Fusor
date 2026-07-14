@@ -92,11 +92,6 @@ fun LoginScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 BrandMark()
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    text = "Acceso de usuario · catálogo en el dispositivo",
-                    style = LocalSenalTypography.current.subtitle
-                )
                 Spacer(Modifier.height(28.dp))
 
                 TvTextField(

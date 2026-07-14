@@ -47,49 +47,62 @@ GENRE_PATTERNS: List[Tuple[str, List[str]]] = [
     ("Deportes", [
         r"sport", r"deport", r"espn", r"nba", r"nfl", r"mlb", r"nhl",
         r"soccer", r"football", r"futbol", r"fútbol", r"tennis", r"tenis",
-        r"golf", r"f1\b", r"formula\s*1", r"racing", r"moto(?:gp|res)?",
+        r"golf", r"f1\b", r"formula\s*1", r"racing", r"moto(?:gp|res|r)?",
         r"bein", r"dazn", r"euro\s*sport", r"fox\s*sports", r"sky\s*sports",
         r"tyc", r"ufc", r"wwe", r"boxeo", r"wrestling", r"olymp", r"liga\b",
         r"gol\s*tv", r"goltv", r"win\s*sport", r"equidia", r"automoto",
         r"canal\s*motor", r"channel\s*fight", r"fishing", r"world\s*fishing",
+        r"bike", r"cycling", r"rugby", r"cricket", r"hockey", r"paddle",
+        r"surf", r"skate", r"extreme\s*sport", r"red\s*bull\s*tv",
+        r"fight\b", r"boxing", r"kickboxing", r"mma\b", r"béisbol", r"beisbol",
     ]),
     ("Noticias", [
         r"\bnews\b", r"notici", r"\bcnn\b", r"msnbc", r"fox\s*news",
         r"al\s*jazeera", r"bloomberg", r"\bcnbc\b", r"euronews", r"sky\s*news",
         r"bbc\s*(world|news)", r"france\s*24", r"\bdw\b", r"telesur",
-        r"ntn24", r"telemundo", r"univision\s*not", r"c5n", r"tn\b",
-        r"globo\s*news", r"weather\b", r"clima\b",
+        r"ntn24", r"telemundo", r"univision\s*not", r"c5n", r"\btn\b",
+        r"globo\s*news", r"weather\b", r"clima\b", r"informe", r"periodis",
+        r"abc\s*news", r"nbc\s*news", r"cbs\s*news", r"rai\s*news",
+        r"press\s*tv", r"cgtn", r"nhk\s*world",
     ]),
     ("Infantil", [
         r"cartoon", r"disney", r"\bnick", r"nickelodeon", r"animation",
         r"\banime\b", r"\bkids\b", r"infantil", r"\bbaby\b", r"boomerang",
         r"cbeebies", r"pbs\s*kids", r"toon", r"junior", r"mattel",
         r"baby\s*tv", r"discovery\s*kids", r"gametoon", r"child",
+        r"pokemon", r"paw\s*patrol", r"peppa", r"sesame", r"plaza\s*sésamo",
+        r"clan\b", r"pakapaka", r"gulli",
     ]),
     ("Música", [
         r"\bmusic\b", r"música", r"musica", r"\bmtv\b", r"\bvh1\b",
         r"\bradio\b", r"\bhits\b", r"\bpop\b", r"\brock\b", r"\bdance\b",
         r"telehit", r"cmtv", r"karaoke", r"hip.?hop", r"ourvinyl",
-        r"\bjazz\b", r"classical\s*music",
+        r"\bjazz\b", r"classical\s*music", r"\bvibes\b", r"love\s*songs",
+        r"\bk-?pop\b", r"reggaeton", r"salsa", r"cumbia",
     ]),
     ("Documentales", [
         r"docu", r"\bhistory\b", r"discovery", r"nat\s*geo", r"national\s*geo",
         r"\bplanet\b", r"\bwild\b", r"\bscience\b", r"\banimal\b",
         r"explorer", r"smithsonian", r"crime\b", r"investigation",
-        r"id\s*investigation", r"curiosity",
+        r"id\s*investigation", r"curiosity", r"\bdisaster", r"\bmonsters",
+        r"\bhunter\b", r"\bwicked\b", r"\bmysteries", r"\bsurvived",
+        r"\bvault\b", r"\bcrimes\b", r"\binvestiga", r"\bnature\b",
+        r"\bwildlife",
     ]),
     ("Películas", [
         r"\bmovie", r"\bfilm\b", r"\bcinema\b", r"\bcine\b", r"pel[ií]cula",
         r"\bhbo\b", r"cinemax", r"\bstarz\b", r"showtime", r"\bmgm\b",
         r"paramount", r"warner", r"universal\s*(channel|tv|latin|cine)",
         r"sony\s*movie", r"\bfxm\b", r"studio\s*universal", r"tcm\b",
-        r"de\s*pelicula", r"space\b", r"isyunik",
+        r"de\s*pelicula", r"\bspace\b", r"\bromance\b", r"\bthriller",
+        r"\bhorror\b", r"\bwestern\b",
     ]),
     ("Series 24/7", [
         r"24/?7", r"24-7", r"\bseries?\b", r"\baxn\b", r"comedy\s*central",
         r"\bnovela\b", r"telenovela", r"sitcom", r"\bserie\b",
         r"fox\s*channel", r"warner\s*channel", r"jump\s*street",
-        r"acorn\s*tv", r"\bsitcom\b",
+        r"acorn\s*tv", r"\bdrama\b", r"\bfriends\b", r"\bteen\b",
+        r"soap\s*opera", r"\bnovelas",
     ]),
     ("Cultura", [
         r"cultur", r"\barte\b", r"encuentro", r"museum", r"theater",
@@ -100,18 +113,28 @@ GENRE_PATTERNS: List[Tuple[str, List[str]]] = [
         r"\bentertain", r"reality", r"variety", r"\be!\b",
         r"\btlc\b", r"\bbravo\b", r"humor", r"\bcomedy\b",
         r"\blate\s*night", r"talk\s*show", r"60\s*days", r"60\s*minutes",
-        r"out\s*of\s*10", r"trucking\s*hell", r"haunting", r"pawn\b",
-        r"feiticeira", r"caçadora", r"obsessiv",
+        r"out\s*of\s*10", r"trucking", r"haunting", r"\bpawn\b",
+        r"feiticeira", r"caçadora", r"obsessiv", r"\blove\b", r"\bvibes\b",
+        r"\bisland\b", r"\blaughs", r"\bcheaters", r"come\s*dine",
+        r"\brunway", r"project\s*runway", r"\breal\b", r"\bshow\b",
+        r"\bgossip", r"\bceleb", r"\bawards", r"\bgaming", r"\bew\b",
+        r"\bafroland", r"\bwbtv", r"\bdouyu", r"\btwitch",
+        r"\bdeal", r"\bdollar", r"\bescape", r"big\s*brother",
+        r"\bsurvivor", r"\bfamily\b", r"\bclub\b",
     ]),
     ("Estilo de vida", [
         r"lifestyle", r"\bfashion\b", r"\bfood\b", r"\bcook", r"\btravel\b",
         r"\bhome\b", r"\bgarden\b", r"\bhgtv\b", r"kitchen", r"gourmet",
         r"turismo", r"viajes", r"crafts?", r"adrenalina?", r"rescue",
+        r"\blife\b", r"\bhealth", r"\bfitnes", r"\byoga", r"\bbeauty",
+        r"\bwedding", r"\bhouse", r"\bdecor", r"\btruckers", r"\bboat\b",
+        r"\broad\b",
     ]),
     ("Religión", [
         r"relig", r"church", r"\bbible\b", r"islam", r"christian",
         r"\bfaith\b", r"gospel", r"iglesia", r"catholic", r"ewtn",
-        r"\bgod\b", r"son\s*of\s*god", r"\bjesus\b",
+        r"\bgod\b", r"son\s*of\s*god", r"\bjesus\b", r"\bpray",
+        r"\bmosque", r"\btemple", r"\bsacred",
     ]),
 ]
 
@@ -322,12 +345,25 @@ def classify(entry: Entry) -> str:
     if genre and genre != "Variados":
         return genre
 
+    # Preserve a known good existing group (not Variados / empty)
+    preserved = entry.group.strip()
+    if preserved and preserved not in ("Variados", "Undefined", "General", "Other", "Misc"):
+        # Keep existing genre/country labels already assigned
+        if preserved in GENRE_ORDER or preserved == "Adultos +18" or preserved in COUNTRY_FROM_CODE.values() or any(
+            preserved == v for v in COUNTRY_FROM_CODE.values()
+        ) or preserved in (
+            "Latino", "España", "México", "Estados Unidos", "Venezuela", "Colombia",
+            "Argentina", "Perú", "Chile", "Ecuador", "Brasil", "Italia", "Francia",
+            "Alemania", "Canadá", "Reino Unido", "Portugal", "Rep. Dominicana",
+        ):
+            return preserved
+
     # No strong genre → try country so we don't dump everything in Variados
     country = country_from_tvg_id(entry.tvg_id) or country_from_name(hay)
     if country:
         return country
 
-    return entry.group if entry.group and entry.group not in ("", "Undefined") else "Variados"
+    return "Variados"
 
 
 def sort_key(entry: Entry) -> Tuple:
