@@ -1,110 +1,98 @@
 package com.senal.tv.ui.splash
 
+import android.net.Uri
+import android.view.ViewGroup
+import android.widget.FrameLayout
+import androidx.annotation.OptIn
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
-import com.senal.tv.ui.theme.BrandOrange
-import com.senal.tv.ui.theme.LocalSenalTypography
-import com.senal.tv.ui.theme.SplashGradient
-import com.senal.tv.ui.theme.TextPrimary
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
+import com.senal.tv.R
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
+@OptIn(UnstableApi::class)
 @Composable
 fun SplashScreen(onFinished: () -> Unit) {
-    val logoAlpha = remember { Animatable(0f) }
-    val logoScale = remember { Animatable(0.86f) }
-    val tagAlpha = remember { Animatable(0f) }
-    val sweep = remember { Animatable(-1f) }
+    val context = LocalContext.current
+    val fade = remember { Animatable(1f) }
+    var done by remember { mutableStateOf(false) }
+
+    val player = remember {
+        ExoPlayer.Builder(context).build().apply {
+            val uri = Uri.parse("android.resource://${context.packageName}/${R.raw.splash}")
+            setMediaItem(MediaItem.fromUri(uri))
+            playWhenReady = true
+            repeatMode = Player.REPEAT_MODE_OFF
+            volume = 1f
+            prepare()
+        }
+    }
+
+    DisposableEffect(player) {
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_ENDED) done = true
+            }
+        }
+        player.addListener(listener)
+        onDispose {
+            player.removeListener(listener)
+            player.release()
+        }
+    }
 
     LaunchedEffect(Unit) {
-        launch { logoAlpha.animateTo(1f, tween(700)) }
-        launch { logoScale.animateTo(1f, tween(850)) }
-        delay(350)
-        tagAlpha.animateTo(1f, tween(600))
-        launch {
-            sweep.animateTo(
-                targetValue = 1.2f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(1600, easing = LinearEasing),
-                    repeatMode = RepeatMode.Restart
-                )
-            )
-        }
-        delay(2100)
+        delay(7_000)
+        done = true
+    }
+
+    LaunchedEffect(done) {
+        if (!done) return@LaunchedEffect
+        fade.animateTo(0f, tween(400))
         onFinished()
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(SplashGradient),
-        contentAlignment = Alignment.Center
+            .background(Color.Black)
     ) {
-        Box(
+        AndroidView(
+            factory = { ctx ->
+                PlayerView(ctx).apply {
+                    useController = false
+                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                    layoutParams = FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                    this.player = player
+                }
+            },
             modifier = Modifier
-                .offset(x = (sweep.value * 280).dp)
-                .size(320.dp, 80.dp)
-                .blur(48.dp)
-                .alpha(0.35f)
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(Color.Transparent, BrandOrange.copy(alpha = 0.55f), Color.Transparent)
-                    ),
-                    shape = CircleShape
-                )
+                .fillMaxSize()
+                .graphicsLayer { alpha = fade.value },
+            update = { it.player = player }
         )
-
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = "SEÑAL",
-                style = LocalSenalTypography.current.brand,
-                color = TextPrimary,
-                modifier = Modifier
-                    .alpha(logoAlpha.value)
-                    .scale(logoScale.value)
-            )
-            Spacer(Modifier.height(14.dp))
-            Text(
-                text = "DISFRUTA SIN PREOCUPACIONES",
-                style = LocalSenalTypography.current.tagline,
-                color = BrandOrange,
-                modifier = Modifier.alpha(tagAlpha.value)
-            )
-            Spacer(Modifier.height(22.dp))
-            Box(
-                modifier = Modifier
-                    .width(180.dp)
-                    .height(3.dp)
-                    .alpha(tagAlpha.value * 0.85f)
-                    .background(BrandOrange)
-            )
-        }
     }
 }

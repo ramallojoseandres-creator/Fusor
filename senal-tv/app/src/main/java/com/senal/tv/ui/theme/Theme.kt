@@ -18,7 +18,7 @@ val GraphiteElevated = Color(0xFF121218)
 val GraphiteCard = Color(0xFF18181F)
 
 /** Brand / focus accents from reference UX (orange) + brief accents. */
-val BrandOrange = Color(0xFFFF8C00)
+val BrandOrange = Color(0xFFDC4800)
 val BrandOrangeHot = Color(0xFFFF6A00)
 val Violet = Color(0xFF7C3AED)
 val Teal = Color(0xFF14B8A6)

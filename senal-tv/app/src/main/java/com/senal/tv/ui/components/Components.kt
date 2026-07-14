@@ -1,6 +1,10 @@
 package com.senal.tv.ui.components
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -21,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,12 +33,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -42,6 +51,7 @@ import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Glow
 import androidx.tv.material3.Surface
 import coil.compose.AsyncImage
+import com.senal.tv.R
 import com.senal.tv.data.model.CatalogItem
 import com.senal.tv.ui.theme.BrandOrange
 import com.senal.tv.ui.theme.FocusWhite
@@ -54,30 +64,94 @@ import com.senal.tv.ui.theme.TextPrimary
 import com.senal.tv.util.formatDurationMinutes
 import com.senal.tv.util.formatRating
 
+/** FLUJO focus scale — matches focus_scale_anim.xml (1.13). */
+const val FOCUS_SCALE = 1.13f
+const val FOCUS_SCALE_SOFT = 1.05f
+
+@Composable
+fun rememberFlujoFocusModifier(focused: Boolean, big: Boolean = true): Modifier {
+    val target = if (focused) {
+        if (big) FOCUS_SCALE else FOCUS_SCALE_SOFT
+    } else {
+        1f
+    }
+    val scale by animateFloatAsState(
+        targetValue = target,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "flujoFocus"
+    )
+    val glow by animateFloatAsState(
+        targetValue = if (focused) 1f else 0f,
+        animationSpec = tween(180, easing = FastOutSlowInEasing),
+        label = "flujoGlow"
+    )
+    return Modifier
+        .graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+            shadowElevation = if (focused) 24f else 0f
+        }
+        .drawBehind {
+            if (glow > 0f) {
+                val pad = size.width * 0.02f
+                drawRoundRect(
+                    color = BrandOrange.copy(alpha = 0.35f * glow),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(18.dp.toPx()),
+                    size = androidx.compose.ui.geometry.Size(size.width + pad * 2, size.height + pad * 2),
+                    topLeft = Offset(-pad, -pad)
+                )
+            }
+        }
+}
+
 @Composable
 fun SenalBackground(content: @Composable () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(Color(0xFF1A1208), Graphite, Color(0xFF050508))
-                )
-            )
-    ) { content() }
+    Box(modifier = Modifier.fillMaxSize()) {
+        androidx.compose.foundation.Image(
+            painter = painterResource(id = R.mipmap.main_bg),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.45f))
+        )
+        content()
+    }
 }
 
 @Composable
 fun BrandMark(compact: Boolean = false) {
-    val typography = LocalSenalTypography.current
-    Column {
-        Text(
-            text = "SEÑAL",
-            style = if (compact) typography.title.copy(letterSpacing = typography.brand.letterSpacing / 2)
-            else typography.brand,
-            color = BrandOrange
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        androidx.compose.foundation.Image(
+            painter = painterResource(id = R.mipmap.logo_new),
+            contentDescription = "SEÑAL",
+            modifier = Modifier.size(if (compact) 36.dp else 56.dp)
         )
-        Text(text = "IPTV PREMIUM", style = typography.caption, color = TextMuted)
+        Spacer(modifier = Modifier.width(10.dp))
+        Column {
+            Text(
+                text = "SEÑAL",
+                style = if (compact) {
+                    LocalSenalTypography.current.title
+                } else {
+                    LocalSenalTypography.current.brand
+                },
+                color = BrandOrange
+            )
+            if (!compact) {
+                Text(
+                    text = "IPTV PREMIUM",
+                    style = LocalSenalTypography.current.caption,
+                    color = TextMuted
+                )
+            }
+        }
     }
 }
 
@@ -90,31 +164,26 @@ fun FocusableButton(
     enabled: Boolean = true
 ) {
     var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        if (focused) 1.08f else 1f,
-        animationSpec = tween(180),
-        label = "btnScale"
-    )
     Surface(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier
-            .scale(scale)
+            .then(rememberFlujoFocusModifier(focused, big = false))
             .onFocusChanged { focused = it.isFocused },
         shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(14.dp)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = if (primary) BrandOrange else GraphiteCard,
-            focusedContainerColor = if (primary) BrandOrangeHotSafe else Color(0xFF23232E),
+            focusedContainerColor = if (primary) Color(0xFFFF6A00) else Color(0xFF23232E),
             pressedContainerColor = BrandOrange
         ),
         border = ClickableSurfaceDefaults.border(
             focusedBorder = Border(
-                border = BorderStroke(3.dp, if (primary) FocusWhite else BrandOrange),
+                border = BorderStroke(3.dp, FocusWhite),
                 shape = RoundedCornerShape(14.dp)
             )
         ),
         glow = ClickableSurfaceDefaults.glow(
-            focusedGlow = Glow(elevationColor = BrandOrange, elevation = 10.dp)
+            focusedGlow = Glow(elevationColor = BrandOrange, elevation = 14.dp)
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
         content = {
@@ -132,7 +201,48 @@ fun FocusableButton(
     )
 }
 
-private val BrandOrangeHotSafe = Color(0xFFFF6A00)
+/**
+ * FLUJO-style horizontal category column (FocusColumView).
+ * Uses real tile art + 1.13 spring zoom.
+ */
+@Composable
+fun FocusColumnTile(
+    label: String,
+    normalRes: Int,
+    focusedRes: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var focused by remember { mutableStateOf(false) }
+    Surface(
+        onClick = onClick,
+        modifier = modifier
+            .then(rememberFlujoFocusModifier(focused, big = true))
+            .onFocusChanged { focused = it.isFocused },
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = Color.Transparent,
+            focusedContainerColor = Color.Transparent
+        ),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
+        content = {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                AsyncImage(
+                    model = if (focused) focusedRes else normalRes,
+                    contentDescription = label,
+                    contentScale = ContentScale.FillBounds,
+                    modifier = Modifier.fillMaxSize()
+                )
+                Text(
+                    text = label,
+                    style = LocalSenalTypography.current.button,
+                    color = FocusWhite,
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
+            }
+        }
+    )
+}
 
 @Composable
 fun ColorTile(
@@ -143,19 +253,13 @@ fun ColorTile(
     height: Dp = 78.dp
 ) {
     var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        if (focused) 1.06f else 1f,
-        animationSpec = tween(160),
-        label = "tileScale"
-    )
     Surface(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
             .height(height)
-            .scale(scale)
-            .onFocusChanged { focused = it.isFocused }
-            .shadow(if (focused) 16.dp else 4.dp, RoundedCornerShape(16.dp)),
+            .then(rememberFlujoFocusModifier(focused, big = true))
+            .onFocusChanged { focused = it.isFocused },
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = color,
@@ -173,11 +277,7 @@ fun ColorTile(
                 Modifier.fillMaxSize().padding(horizontal = 18.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
-                Text(
-                    text = label,
-                    style = LocalSenalTypography.current.button,
-                    color = FocusWhite
-                )
+                Text(text = label, style = LocalSenalTypography.current.button, color = FocusWhite)
             }
         }
     )
@@ -215,18 +315,12 @@ fun PosterCard(
     showMeta: Boolean = true
 ) {
     var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        if (focused) 1.1f else 1f,
-        animationSpec = tween(180),
-        label = "posterScale"
-    )
     Surface(
         onClick = onClick,
         modifier = modifier
             .width(170.dp)
-            .scale(scale)
-            .onFocusChanged { focused = it.isFocused }
-            .shadow(if (focused) 20.dp else 6.dp, RoundedCornerShape(16.dp)),
+            .then(rememberFlujoFocusModifier(focused, big = true))
+            .onFocusChanged { focused = it.isFocused },
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = GraphiteCard,
@@ -289,16 +383,11 @@ fun ChannelCard(
     modifier: Modifier = Modifier
 ) {
     var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        if (focused) 1.03f else 1f,
-        animationSpec = tween(150),
-        label = "chScale"
-    )
     Surface(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .scale(scale)
+            .then(rememberFlujoFocusModifier(focused, big = false))
             .onFocusChanged { focused = it.isFocused },
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
         colors = ClickableSurfaceDefaults.colors(
@@ -354,14 +443,12 @@ fun ChannelCard(
                 Box(
                     Modifier
                         .size(8.dp)
-                        .background(Color(0xFF22C55E), Circleish)
+                        .background(Color(0xFF22C55E), RoundedCornerShape(50))
                 )
             }
         }
     )
 }
-
-private val Circleish = RoundedCornerShape(50)
 
 @Composable
 fun SectionHeader(title: String, subtitle: String? = null) {
@@ -378,4 +465,23 @@ fun EmptyState(message: String) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(text = message, style = LocalSenalTypography.current.subtitle, color = TextMuted)
     }
+}
+
+@Composable
+fun PulseBorder(active: Boolean, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    val pulse = remember { Animatable(0.4f) }
+    LaunchedEffect(active) {
+        if (!active) return@LaunchedEffect
+        while (true) {
+            pulse.animateTo(1f, tween(700))
+            pulse.animateTo(0.4f, tween(700))
+        }
+    }
+    Box(
+        modifier = modifier.border(
+            width = 2.dp,
+            color = BrandOrange.copy(alpha = if (active) pulse.value else 0f),
+            shape = RoundedCornerShape(14.dp)
+        )
+    ) { content() }
 }

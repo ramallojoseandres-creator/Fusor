@@ -4,6 +4,8 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -34,11 +37,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.senal.tv.AppContainer
+import com.senal.tv.R
 import com.senal.tv.data.model.CatalogItem
 import com.senal.tv.data.model.HomeSection
 import com.senal.tv.ui.common.ContinueRecentsScreen
 import com.senal.tv.ui.components.BrandMark
-import com.senal.tv.ui.components.ColorTile
+import com.senal.tv.ui.components.FocusColumnTile
+import com.senal.tv.ui.components.FocusableButton
+import com.senal.tv.ui.components.PulseBorder
 import com.senal.tv.ui.components.SenalBackground
 import com.senal.tv.ui.favorites.FavoritesScreen
 import com.senal.tv.ui.live.LiveTvScreen
@@ -47,36 +53,42 @@ import com.senal.tv.ui.search.SearchScreen
 import com.senal.tv.ui.series.SeriesScreen
 import com.senal.tv.ui.settings.SettingsScreen
 import com.senal.tv.ui.theme.BrandOrange
-import com.senal.tv.ui.theme.GraphiteCard
 import com.senal.tv.ui.theme.LocalSenalTypography
-import com.senal.tv.ui.theme.Teal
 import com.senal.tv.ui.theme.TextMuted
 import com.senal.tv.ui.theme.TextPrimary
-import com.senal.tv.ui.theme.TileCoral
-import com.senal.tv.ui.theme.TileCyan
-import com.senal.tv.ui.theme.TileGreen
-import com.senal.tv.ui.theme.TilePurple
-import com.senal.tv.ui.theme.Violet
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.delay
 
-private data class DashTile(
+private data class FocusColumn(
     val section: HomeSection,
     val label: String,
-    val color: Color
+    val normalRes: Int,
+    val focusedRes: Int
 )
 
-private val tiles = listOf(
-    DashTile(HomeSection.LIVE, "TV EN VIVO", BrandOrange),
-    DashTile(HomeSection.MOVIES, "PELÍCULAS", TilePurple),
-    DashTile(HomeSection.SERIES, "SERIES", TileCyan),
-    DashTile(HomeSection.FAVORITES, "FAVORITOS", TileGreen),
-    DashTile(HomeSection.CONTINUE, "CONTINUAR", TileCoral),
-    DashTile(HomeSection.RECENTS, "RECIENTES", Violet),
-    DashTile(HomeSection.SEARCH, "BÚSQUEDA", Teal),
-    DashTile(HomeSection.SETTINGS, "AJUSTES", GraphiteCard)
+private val focusColumns = listOf(
+    FocusColumn(
+        HomeSection.LIVE, "TV EN VIVO",
+        R.mipmap.bg_main_live_category_item_n, R.mipmap.bg_main_live_category_item_f
+    ),
+    FocusColumn(
+        HomeSection.MOVIES, "PELÍCULAS",
+        R.mipmap.bg_main_vod_category_item_n, R.mipmap.bg_main_vod_category_item_f
+    ),
+    FocusColumn(
+        HomeSection.SERIES, "SERIES",
+        R.mipmap.bg_main_special_category_item_n, R.mipmap.bg_main_special_category_item_f
+    ),
+    FocusColumn(
+        HomeSection.FAVORITES, "FAVORITOS",
+        R.mipmap.bg_main_game_category_item_n, R.mipmap.bg_main_game_category_item_f
+    ),
+    FocusColumn(
+        HomeSection.SEARCH, "BÚSQUEDA",
+        R.mipmap.bg_main_vod_category_item_n, R.mipmap.bg_main_vod_category_item_f
+    )
 )
 
 @Composable
@@ -86,44 +98,246 @@ fun HomeScreen(
     onLogout: () -> Unit
 ) {
     var section by remember { mutableStateOf<HomeSection?>(null) }
-    var preview by remember { mutableStateOf<CatalogItem?>(null) }
+    var previewItems by remember { mutableStateOf<List<CatalogItem>>(emptyList()) }
+    var previewIndex by remember { mutableIntStateOf(0) }
     var clock by remember { mutableStateOf(currentClock()) }
 
     LaunchedEffect(Unit) {
         while (true) {
             clock = currentClock()
-            delay(30_000)
+            delay(20_000)
         }
     }
 
     LaunchedEffect(Unit) {
         runCatching {
-            container.catalogRepository.page(type = "live", page = 1, limit = 8)
-        }.onSuccess { response ->
-            preview = response.resolveItems().firstOrNull()
+            container.catalogRepository.page(type = "live", page = 1, limit = 12)
+        }.onSuccess { previewItems = it.resolveItems() }
+    }
+
+    LaunchedEffect(previewItems) {
+        if (previewItems.size < 2) return@LaunchedEffect
+        while (true) {
+            delay(4_500)
+            previewIndex = (previewIndex + 1) % previewItems.size
         }
     }
 
     SenalBackground(
         content = {
-            if (section == null) {
-                Dashboard(
-                    clock = clock,
-                    preview = preview,
-                    onOpen = { section = it },
-                    onPlayPreview = { item -> onPlay(item, 0L, listOf(item)) }
-                )
-            } else {
-                SectionHost(
-                    section = section!!,
-                    container = container,
-                    onBackHome = { section = null },
-                    onPlay = onPlay,
-                    onLogout = onLogout
-                )
-            }
+            AnimatedContent(
+                targetState = section,
+                transitionSpec = {
+                    (slideInHorizontally(tween(280)) { it / 4 } + fadeIn(tween(220))) togetherWith
+                        (slideOutHorizontally(tween(220)) { -it / 5 } + fadeOut(tween(180)))
+                },
+                label = "rootSection",
+                content = { current ->
+                    if (current == null) {
+                        FlujoDashboard(
+                            clock = clock,
+                            preview = previewItems.getOrNull(previewIndex),
+                            banners = previewItems.drop(1).take(4),
+                            onOpen = { section = it },
+                            onPlayPreview = { item -> onPlay(item, 0L, previewItems.ifEmpty { listOf(item) }) }
+                        )
+                    } else {
+                        SectionHost(
+                            section = current,
+                            container = container,
+                            onBackHome = { section = null },
+                            onPlay = onPlay,
+                            onLogout = onLogout
+                        )
+                    }
+                }
+            )
         }
     )
+}
+
+@Composable
+private fun FlujoDashboard(
+    clock: String,
+    preview: CatalogItem?,
+    banners: List<CatalogItem>,
+    onOpen: (HomeSection) -> Unit,
+    onPlayPreview: (CatalogItem) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 48.dp, vertical = 22.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            BrandMark(compact = true)
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                FocusableButton(
+                    label = "HISTORIAL",
+                    onClick = { onOpen(HomeSection.RECENTS) },
+                    primary = false
+                )
+                FocusableButton(
+                    label = "AJUSTES",
+                    onClick = { onOpen(HomeSection.SETTINGS) },
+                    primary = false
+                )
+                Text(text = clock, style = LocalSenalTypography.current.subtitle, color = TextMuted)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(18.dp))
+
+        // Top row: live preview + rotating banners (FLUJO layout)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(280.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            PulseBorder(
+                active = preview != null,
+                modifier = Modifier
+                    .width(500.dp)
+                    .fillMaxHeight()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color.Black)
+                ) {
+                    if (preview != null) {
+                        AsyncImage(
+                            model = preview.resolvePoster() ?: preview.resolveLogo(),
+                            contentDescription = preview.resolveTitle(),
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(Color.Transparent, Color(0xDD000000))
+                                    )
+                                )
+                        )
+                        Row(
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                Modifier
+                                    .width(6.dp)
+                                    .height(6.dp)
+                                    .background(BrandOrange, RoundedCornerShape(50))
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("EN VIVO", style = LocalSenalTypography.current.caption, color = BrandOrange)
+                                Text(
+                                    preview.resolveTitle(),
+                                    style = LocalSenalTypography.current.body,
+                                    color = TextPrimary
+                                )
+                            }
+                            FocusableButton(
+                                label = "VER",
+                                onClick = { onPlayPreview(preview) },
+                                primary = true
+                            )
+                        }
+                    } else {
+                        Text(
+                            "Cargando señal…",
+                            color = TextMuted,
+                            style = LocalSenalTypography.current.subtitle,
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    }
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                banners.ifEmpty { List(2) { null } }.take(2).forEach { banner ->
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF15151C))
+                    ) {
+                        if (banner != null) {
+                            AsyncImage(
+                                model = banner.resolvePoster() ?: banner.resolveLogo(),
+                                contentDescription = banner.resolveTitle(),
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                            Box(
+                                Modifier
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = 0.35f))
+                            )
+                            Text(
+                                text = banner.resolveTitle(),
+                                style = LocalSenalTypography.current.body,
+                                color = TextPrimary,
+                                modifier = Modifier
+                                    .align(Alignment.BottomStart)
+                                    .padding(12.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(22.dp))
+
+        // Bottom FocusColumView row — the signature FLUJO interaction
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(110.dp),
+            horizontalArrangement = Arrangement.spacedBy((-4).dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            focusColumns.forEach { col ->
+                FocusColumnTile(
+                    label = col.label,
+                    normalRes = col.normalRes,
+                    focusedRes = col.focusedRes,
+                    onClick = { onOpen(col.section) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                )
+            }
+            FocusableButton(
+                label = "✚",
+                onClick = { onOpen(HomeSection.CONTINUE) },
+                primary = false,
+                modifier = Modifier
+                    .width(56.dp)
+                    .height(56.dp)
+                    .padding(start = 8.dp)
+            )
+        }
+    }
 }
 
 @Composable
@@ -145,194 +359,44 @@ private fun SectionHost(
             verticalAlignment = Alignment.CenterVertically
         ) {
             BrandMark(compact = true)
-            ColorTile(
-                label = "INICIO",
-                color = BrandOrange.copy(alpha = 0.85f),
-                onClick = onBackHome,
-                modifier = Modifier.width(160.dp),
-                height = 52.dp
-            )
+            FocusableButton(label = "INICIO", onClick = onBackHome, primary = true)
         }
-        Box(modifier = Modifier.height(14.dp))
-        AnimatedContent(
-            targetState = section,
-            transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(160)) },
-            modifier = Modifier.weight(1f),
-            label = "section",
-            content = { current ->
-                when (current) {
-                    HomeSection.LIVE -> LiveTvScreen(
-                        container = container,
-                        onPlay = { item, neighbors -> onPlay(item, 0L, neighbors) }
-                    )
-                    HomeSection.MOVIES -> MoviesScreen(
-                        container = container,
-                        onPlay = { onPlay(it, 0L, listOf(it)) }
-                    )
-                    HomeSection.SERIES -> SeriesScreen(
-                        container = container,
-                        onPlay = { onPlay(it, 0L, listOf(it)) }
-                    )
-                    HomeSection.FAVORITES -> FavoritesScreen(
-                        container = container,
-                        onPlay = { onPlay(it, 0L, listOf(it)) }
-                    )
-                    HomeSection.CONTINUE -> ContinueRecentsScreen(
-                        container = container,
-                        mode = ContinueRecentsScreen.Mode.CONTINUE,
-                        onPlay = { item, pos -> onPlay(item, pos, listOf(item)) }
-                    )
-                    HomeSection.RECENTS -> ContinueRecentsScreen(
-                        container = container,
-                        mode = ContinueRecentsScreen.Mode.RECENTS,
-                        onPlay = { item, _ -> onPlay(item, 0L, listOf(item)) }
-                    )
-                    HomeSection.SEARCH -> SearchScreen(
-                        container = container,
-                        onPlay = { onPlay(it, 0L, listOf(it)) }
-                    )
-                    HomeSection.SETTINGS -> SettingsScreen(
-                        container = container,
-                        onLogout = onLogout
-                    )
-                }
-            }
-        )
-    }
-}
-
-@Composable
-private fun Dashboard(
-    clock: String,
-    preview: CatalogItem?,
-    onOpen: (HomeSection) -> Unit,
-    onPlayPreview: (CatalogItem) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        horizontalArrangement = Arrangement.spacedBy(18.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .weight(1.35f)
-                .fillMaxHeight(),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                BrandMark(compact = true)
-                Text(text = clock, style = LocalSenalTypography.current.subtitle, color = TextMuted)
-            }
-
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(
-                        Brush.linearGradient(
-                            listOf(Color(0xFF2A1A08), Color(0xFF121218), Color(0xFF0B1C1A))
-                        )
-                    )
-                    .padding(22.dp)
-            ) {
-                Column(modifier = Modifier.align(Alignment.BottomStart)) {
-                    Text(text = "SEÑAL", style = LocalSenalTypography.current.title, color = BrandOrange)
-                    Text(
-                        text = "TV en vivo · Películas · Series",
-                        style = LocalSenalTypography.current.subtitle
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Navega con el control remoto. Enfoque grande, cambios rápidos.",
-                        style = LocalSenalTypography.current.body,
-                        color = TextPrimary.copy(alpha = 0.85f)
-                    )
-                }
-            }
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(220.dp)
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(Color.Black)
-            ) {
-                if (preview != null) {
-                    AsyncImage(
-                        model = preview.resolvePoster() ?: preview.resolveLogo(),
-                        contentDescription = preview.resolveTitle(),
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    listOf(Color.Transparent, Color(0xCC000000))
-                                )
-                            )
-                    )
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(16.dp)
-                    ) {
-                        Text(
-                            text = "EN VIVO",
-                            style = LocalSenalTypography.current.caption,
-                            color = BrandOrange
-                        )
-                        Text(
-                            text = preview.resolveTitle(),
-                            style = LocalSenalTypography.current.body,
-                            color = TextPrimary
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(12.dp),
-                        content = {
-                            ColorTile(
-                                label = "VER",
-                                color = BrandOrange,
-                                onClick = { onPlayPreview(preview) },
-                                modifier = Modifier.width(110.dp),
-                                height = 44.dp
-                            )
-                        }
-                    )
-                } else {
-                    Text(
-                        text = "Preview en vivo",
-                        style = LocalSenalTypography.current.subtitle,
-                        color = TextMuted,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-            }
-        }
-
-        Column(
-            modifier = Modifier
-                .width(280.dp)
-                .fillMaxHeight(),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            tiles.forEach { tile ->
-                ColorTile(
-                    label = tile.label,
-                    color = tile.color,
-                    onClick = { onOpen(tile.section) },
-                    modifier = Modifier.weight(1f),
-                    height = 64.dp
+        Spacer(modifier = Modifier.height(14.dp))
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            when (section) {
+                HomeSection.LIVE -> LiveTvScreen(
+                    container = container,
+                    onPlay = { item, neighbors -> onPlay(item, 0L, neighbors) }
+                )
+                HomeSection.MOVIES -> MoviesScreen(
+                    container = container,
+                    onPlay = { onPlay(it, 0L, listOf(it)) }
+                )
+                HomeSection.SERIES -> SeriesScreen(
+                    container = container,
+                    onPlay = { onPlay(it, 0L, listOf(it)) }
+                )
+                HomeSection.FAVORITES -> FavoritesScreen(
+                    container = container,
+                    onPlay = { onPlay(it, 0L, listOf(it)) }
+                )
+                HomeSection.CONTINUE -> ContinueRecentsScreen(
+                    container = container,
+                    mode = ContinueRecentsScreen.Mode.CONTINUE,
+                    onPlay = { item, pos -> onPlay(item, pos, listOf(item)) }
+                )
+                HomeSection.RECENTS -> ContinueRecentsScreen(
+                    container = container,
+                    mode = ContinueRecentsScreen.Mode.RECENTS,
+                    onPlay = { item, _ -> onPlay(item, 0L, listOf(item)) }
+                )
+                HomeSection.SEARCH -> SearchScreen(
+                    container = container,
+                    onPlay = { onPlay(it, 0L, listOf(it)) }
+                )
+                HomeSection.SETTINGS -> SettingsScreen(
+                    container = container,
+                    onLogout = onLogout
                 )
             }
         }
