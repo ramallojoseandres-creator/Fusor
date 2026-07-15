@@ -2,14 +2,14 @@ import SwiftUI
 import AVFoundation
 import Combine
 
-/// Guía estilo FLUJO: categorías | canales | vídeo de fondo sin pausar.
+/// Guía EN VIVO: categorías | canales | vídeo de fondo.
+/// Navegar NO cambia el stream. Solo un tap/SELECT sintoniza el canal.
 struct LiveView: View {
     @EnvironmentObject private var catalog: CatalogStore
     @StateObject private var preview = GuidePreviewModel()
     @State private var selectedCategory: String?
     @State private var focusedId: String?
     @State private var fullscreen: Channel?
-    @State private var focusTask: Task<Void, Never>?
 
     private var categories: [CategoryInfo] { catalog.categories }
 
@@ -28,7 +28,6 @@ struct LiveView: View {
                         .ignoresSafeArea()
                 }
 
-                // Scrim for readable lists
                 LinearGradient(
                     colors: [
                         .black.opacity(0.82),
@@ -63,6 +62,7 @@ struct LiveView: View {
             if selectedCategory == nil {
                 selectedCategory = CatalogRules.defaultCategory(categories) ?? catalog.selectedCategory
             }
+            // Primera vez: sintonizar un canal. Luego el scroll no lo cambia.
             if preview.current == nil, let first = channels.first {
                 focusedId = first.id
                 preview.play(first)
@@ -70,23 +70,12 @@ struct LiveView: View {
         }
         .onChange(of: selectedCategory) { newValue in
             catalog.selectedCategory = newValue
-            // No pausamos el vídeo; solo esperamos la nueva selección de canal.
-            if let first = catalog.channels(in: newValue).first, preview.current == nil {
-                focusedId = first.id
-                preview.play(first)
+            // Solo cambia la lista visible — el vídeo sigue con preview.current.
+            if let keep = catalog.channels(in: newValue).first(where: { $0.id == preview.current?.id }) {
+                focusedId = keep.id
             }
         }
-        .onChange(of: focusedId) { newId in
-            guard let newId else { return }
-            focusTask?.cancel()
-            focusTask = Task {
-                try? await Task.sleep(nanoseconds: 220_000_000)
-                guard !Task.isCancelled else { return }
-                if let ch = channels.first(where: { $0.id == newId }) {
-                    await MainActor.run { preview.play(ch) }
-                }
-            }
-        }        .fullScreenCover(item: $fullscreen) { ch in
+        .fullScreenCover(item: $fullscreen) { ch in
             ZStack(alignment: .topLeading) {
                 PlayerView(channel: ch, neighbors: channels)
                 Button {
@@ -179,10 +168,12 @@ struct LiveView: View {
                             focused: ch.id == focusedId
                         ) {
                             focusedId = ch.id
-                        } onOpen: {
-                            focusedId = ch.id
-                            preview.play(ch)
-                            fullscreen = ch
+                            // Tap / SELECT: sintoniza; si ya está al aire → pantalla completa.
+                            if preview.current?.id == ch.id {
+                                fullscreen = ch
+                            } else {
+                                preview.play(ch)
+                            }
                         }
                     }
                 }
@@ -199,7 +190,12 @@ struct LiveView: View {
                 .font(.headline.bold())
                 .foregroundStyle(.white)
                 .lineLimit(1)
-            Text(preview.error ?? (preview.isBuffering ? "Sintonizando…" : "Sin pausar el reproductor · toca un canal para pantalla completa"))
+            Text(
+                preview.error
+                    ?? (preview.isBuffering
+                        ? "Sintonizando…"
+                        : "Navega sin cambiar · toca = sintonizar · otra vez = pantalla completa")
+            )
                 .font(.caption)
                 .foregroundStyle(preview.error == nil ? SenalColors.orange : .red.opacity(0.9))
         }
@@ -216,11 +212,10 @@ private struct GuideChannelRow: View {
     let channel: Channel
     let selected: Bool
     let focused: Bool
-    var onFocus: () -> Void
-    var onOpen: () -> Void
+    var onSelect: () -> Void
 
     var body: some View {
-        Button(action: onOpen) {
+        Button(action: onSelect) {
             HStack(spacing: 10) {
                 Text("\(channel.number)")
                     .font(.caption.bold().monospacedDigit())
@@ -246,7 +241,7 @@ private struct GuideChannelRow: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.white)
                         .lineLimit(1)
-                    Text("No información")
+                    Text(selected ? "En aire" : "No información")
                         .font(.caption2)
                         .foregroundStyle(Color.white.opacity(focused ? 0.85 : 0.55))
                         .lineLimit(1)
@@ -263,7 +258,6 @@ private struct GuideChannelRow: View {
             )
         }
         .buttonStyle(.plain)
-        .simultaneousGesture(TapGesture().onEnded { onFocus() })
     }
 
     private var rowBackground: Color {
