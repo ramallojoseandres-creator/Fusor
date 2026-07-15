@@ -411,12 +411,17 @@ $("importForm").addEventListener("submit", async (e) => {
 });
 
 document.querySelectorAll(".nav button").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".nav button").forEach((b) => b.classList.remove("active"));
-    btn.classList.add("active");
-    ["dash","users","banners","logs","import"].forEach((t) => $(`tab-${t}`).classList.toggle("hidden", t !== btn.dataset.tab));
-  });
+  btn.addEventListener("click", () => goTab(btn.dataset.tab));
 });
+
+function goTab(tab) {
+  document.querySelectorAll(".nav button").forEach((b) => {
+    b.classList.toggle("active", b.dataset.tab === tab);
+  });
+  ["dash","users","banners","logs","import"].forEach((t) => {
+    $(`tab-${t}`).classList.toggle("hidden", t !== tab);
+  });
+}
 
 $("loginBtn").onclick = login;
 $("loginPass").addEventListener("keydown", (e) => { if (e.key === "Enter") login(); });
