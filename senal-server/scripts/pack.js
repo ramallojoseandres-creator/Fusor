@@ -10,7 +10,7 @@ const zipPath = path.join(outDir, "Senal-Server-PRO.zip");
 fs.mkdirSync(outDir, { recursive: true });
 if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
 
-const exclude = ["node_modules", ".env", "dist", ".git"];
+const exclude = ["node_modules", ".env", "dist", ".git", "data/db.json", "data/*.m3u"];
 const args = exclude.map((x) => `-x "${x}/*"`).join(" ");
 
 execSync(`cd "${root}" && zip -r "${zipPath}" . ${args}`, { stdio: "inherit" });
