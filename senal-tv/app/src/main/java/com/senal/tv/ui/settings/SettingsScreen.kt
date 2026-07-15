@@ -134,7 +134,7 @@ fun SettingsScreen(
                         color = TextMuted
                     )
                     Text(
-                        "Catálogo: servidor /playlist.m3u (gzip+ETag) · caché disco",
+                        "Catálogo: 1ª descarga desde servidor → guardada en disco",
                         style = LocalSenalTypography.current.caption,
                         color = Teal
                     )

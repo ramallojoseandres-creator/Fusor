@@ -30,11 +30,11 @@ class SenalApp : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
-        // Caché disco primero; luego sync ETag desde servidor si hay sesión.
+        // Solo precarga desde DISCO (nunca descarga al abrir la app).
+        // La primera descarga ocurre en CatalogLoadingScreen tras el login.
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-            runCatching { container.playlistSync.ensureCatalogReady(forceNetwork = false) }
-            if (!container.tokenStore.cachedToken.isNullOrBlank()) {
-                runCatching { container.playlistSync.refreshFromServer() }
+            if (container.playlistSync.hasLocalCache()) {
+                runCatching { container.playlistSync.loadLocalOnly() }
             }
         }
     }

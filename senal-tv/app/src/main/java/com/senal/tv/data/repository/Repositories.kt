@@ -55,8 +55,8 @@ class AuthRepository(
                 userId = response.user?.id,
                 role = response.user?.role
             )
-            // Tras login: bajar playlist del servidor (fallo soft — la TV usa caché/asset).
-            runCatching { playlistSync?.ensureCatalogReady(forceNetwork = true) }
+            // NO descargar aquí: CatalogLoadingScreen lo hace UNA vez si no hay caché.
+            // Así el login es rápido y el mensaje «Cargando todos los canales…» es claro.
         }.recoverCatching { err ->
             throw friendlyHttp(err)
         }

@@ -11,10 +11,11 @@ import okhttp3.Request
 import java.util.concurrent.TimeUnit
 
 /**
- * Descarga /playlist.m3u del servidor (JWT), guarda gzip en disco y
- * recarga [LocalPlaylistStore]. Usa ETag para no bajar de nuevo si no cambió.
+ * Catálogo del servidor **una vez**, luego disco.
  *
- * Orden de velocidad: caché disco → sync delta (304) → asset embebido de respaldo.
+ * - Primera vez (sin caché): descarga /playlist.m3u y guarda gzip en disco.
+ * - Arranques siguientes: SOLO lee disco — no toca la red.
+ * - Actualización manual: Ajustes → "Actualizar lista".
  */
 class PlaylistSync(
     private val context: Context,
@@ -24,7 +25,7 @@ class PlaylistSync(
 ) {
     private val client = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
-        .readTimeout(90, TimeUnit.SECONDS)
+        .readTimeout(120, TimeUnit.SECONDS)
         .retryOnConnectionFailure(true)
         .build()
 
@@ -34,88 +35,96 @@ class PlaylistSync(
     val cacheFile: File
         get() = File(cacheDir, "playlist.m3u.gz")
 
-    suspend fun ensureCatalogReady(forceNetwork: Boolean = false): SyncResult = withContext(Dispatchers.IO) {
-        // 1) Disco inmediato
-        if (cacheFile.exists() && cacheFile.length() > 64) {
-            runCatching {
-                playlistStore.loadFromGzipFile(cacheFile)
-            }.onSuccess {
-                if (!forceNetwork) {
-                    // Sync en cold path solo si no forzamos; caller can background refresh.
-                    return@withContext SyncResult(source = "cache", channels = playlistStore.size(), updated = false)
+    fun hasLocalCache(): Boolean = cacheFile.exists() && cacheFile.length() > 64L
+
+    /**
+     * Carga rápida desde disco (o asset de respaldo). **Nunca** descarga de red.
+     */
+    suspend fun loadLocalOnly(): SyncResult = withContext(Dispatchers.IO) {
+        if (hasLocalCache()) {
+            runCatching { playlistStore.loadFromGzipFile(cacheFile) }
+                .onSuccess {
+                    return@withContext SyncResult("cache", playlistStore.size(), updated = false)
                 }
-            }
         }
-
-        // 2) Red (si hay sesión)
-        val token = tokenStore.cachedToken
-        if (!token.isNullOrBlank()) {
-            val net = downloadAndApply(token, forceNetwork)
-            if (net != null) return@withContext net
-        }
-
-        // 3) Asset embebido (solo si aún no hay nada en memoria)
         if (playlistStore.size() == 0) {
             runCatching { playlistStore.loadFromAssetFallback() }
                 .onSuccess {
-                    return@withContext SyncResult(source = "asset", channels = playlistStore.size(), updated = false)
+                    return@withContext SyncResult("asset", playlistStore.size(), updated = false)
                 }
                 .onFailure {
-                    return@withContext SyncResult(source = "none", channels = 0, updated = false, error = it.message)
+                    return@withContext SyncResult("none", 0, false, it.message)
                 }
         }
-        SyncResult(source = "memory", channels = playlistStore.size(), updated = false)
+        SyncResult("memory", playlistStore.size(), updated = false)
     }
 
-    /** Refresh en background tras login / botón Ajustes. */
+    /**
+     * Si ya hay caché → disco. Si no → descarga del servidor (primera vez).
+     * [forceNetwork] solo para el botón manual de Ajustes.
+     */
+    suspend fun ensureCatalogReady(forceNetwork: Boolean = false): SyncResult = withContext(Dispatchers.IO) {
+        if (!forceNetwork && hasLocalCache()) {
+            return@withContext loadLocalOnly()
+        }
+
+        val token = tokenStore.cachedToken
+        if (!token.isNullOrBlank() && (forceNetwork || !hasLocalCache())) {
+            val net = downloadAndApply(token)
+            if (net != null) return@withContext net
+            // Fallo de red: intentar lo local que haya
+            if (hasLocalCache() || playlistStore.size() > 0) {
+                return@withContext loadLocalOnly()
+            }
+            return@withContext SyncResult("none", 0, false, "No se pudo descargar la lista de canales")
+        }
+
+        loadLocalOnly()
+    }
+
+    /** Primera vez: descarga obligatoria si no hay caché. */
+    suspend fun downloadFirstTimeIfNeeded(): SyncResult = withContext(Dispatchers.IO) {
+        if (hasLocalCache()) return@withContext loadLocalOnly()
+        val token = tokenStore.cachedToken
+            ?: return@withContext SyncResult("none", 0, false, "Sin sesión")
+        downloadAndApply(token)
+            ?: SyncResult("none", 0, false, "No se pudo descargar la lista de canales")
+    }
+
+    /** Solo Ajustes → Actualizar lista (sí usa red). */
     suspend fun refreshFromServer(): SyncResult = withContext(Dispatchers.IO) {
         val token = tokenStore.cachedToken
             ?: return@withContext SyncResult("none", 0, false, "Sin sesión")
-        downloadAndApply(token, force = true)
+        downloadAndApply(token)
             ?: SyncResult("none", playlistStore.size(), false, "No se pudo descargar playlist")
     }
 
-    private suspend fun downloadAndApply(token: String, force: Boolean): SyncResult? {
-        val etag = if (force) null else settingsStore.playlistEtag()
+    private suspend fun downloadAndApply(token: String): SyncResult? {
         val base = BuildConfig.API_BASE_URL.trimEnd('/')
         val url = "$base/playlist.m3u"
         val req = Request.Builder()
             .url(url)
             .header("Authorization", "Bearer $token")
             .header("Accept", "audio/x-mpegurl, application/vnd.apple.mpegurl, text/plain, */*")
-            .apply {
-                if (!etag.isNullOrBlank()) header("If-None-Match", etag)
-            }
             .get()
             .build()
 
         return runCatching {
             client.newCall(req).execute().use { resp ->
-                when (resp.code) {
-                    304 -> {
-                        if (cacheFile.exists()) {
-                            playlistStore.loadFromGzipFile(cacheFile)
-                            SyncResult("cache-304", playlistStore.size(), updated = false)
-                        } else null
-                    }
-                    in 200..299 -> {
-                        // OkHttp descomprime gzip transparente → body en texto plano.
-                        val body = resp.body?.bytes() ?: return@use null
-                        val newEtag = resp.header("ETag")
-                        val tmp = File(cacheDir, "playlist.tmp.gz")
-                        GZIPOutputStream(tmp.outputStream()).use { it.write(body) }
-                        tmp.copyTo(cacheFile, overwrite = true)
-                        tmp.delete()
-                        playlistStore.loadFromGzipFile(cacheFile)
-                        settingsStore.setPlaylistMeta(
-                            etag = newEtag.orEmpty(),
-                            syncedAt = System.currentTimeMillis(),
-                            channels = playlistStore.size()
-                        )
-                        SyncResult("network", playlistStore.size(), updated = true)
-                    }
-                    else -> null
-                }
+                if (resp.code !in 200..299) return@use null
+                val body = resp.body?.bytes() ?: return@use null
+                val newEtag = resp.header("ETag")
+                val tmp = File(cacheDir, "playlist.tmp.gz")
+                GZIPOutputStream(tmp.outputStream()).use { it.write(body) }
+                tmp.copyTo(cacheFile, overwrite = true)
+                tmp.delete()
+                playlistStore.loadFromGzipFile(cacheFile)
+                settingsStore.setPlaylistMeta(
+                    etag = newEtag.orEmpty(),
+                    syncedAt = System.currentTimeMillis(),
+                    channels = playlistStore.size()
+                )
+                SyncResult("network", playlistStore.size(), updated = true)
             }
         }.getOrNull()
     }

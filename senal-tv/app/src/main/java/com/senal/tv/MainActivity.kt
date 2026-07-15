@@ -15,6 +15,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.senal.tv.data.model.CatalogItem
+import com.senal.tv.ui.catalog.CatalogLoadingScreen
 import com.senal.tv.ui.home.HomeScreen
 import com.senal.tv.ui.login.LoginScreen
 import com.senal.tv.ui.player.PlayerScreen
@@ -41,6 +42,8 @@ class MainActivity : ComponentActivity() {
 private sealed interface AppRoute {
     data object Splash : AppRoute
     data object Login : AppRoute
+    /** Primera vez descarga; si ya hay caché solo abre disco. */
+    data object CatalogGate : AppRoute
     data object Home : AppRoute
     data class Player(
         val item: CatalogItem,
@@ -63,7 +66,9 @@ private fun SenalRoot() {
         route = when {
             token.isNullOrBlank() -> AppRoute.Login
             route is AppRoute.Player -> route
-            else -> AppRoute.Home
+            route is AppRoute.Home -> route
+            route is AppRoute.CatalogGate -> route
+            else -> AppRoute.CatalogGate
         }
     }
 
@@ -71,15 +76,19 @@ private fun SenalRoot() {
         AppRoute.Splash -> SplashScreen(
             onFinished = {
                 splashDone = true
-                route = if (token.isNullOrBlank()) AppRoute.Login else AppRoute.Home
+                route = if (token.isNullOrBlank()) AppRoute.Login else AppRoute.CatalogGate
             }
         )
         AppRoute.Login -> LoginScreen(
             authRepository = container.authRepository,
             onLoggedIn = {
                 lastChannelAutoPlayed = false
-                route = AppRoute.Home
+                route = AppRoute.CatalogGate
             }
+        )
+        AppRoute.CatalogGate -> CatalogLoadingScreen(
+            container = container,
+            onReady = { route = AppRoute.Home }
         )
         AppRoute.Home -> HomeScreen(
             container = container,
