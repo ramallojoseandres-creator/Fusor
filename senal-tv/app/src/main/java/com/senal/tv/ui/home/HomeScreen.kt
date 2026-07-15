@@ -260,12 +260,11 @@ private fun HeaderBar(
             .height(40.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "SEÑAL",
-            color = BrandOrange,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Black,
-            letterSpacing = 3.sp
+        Image(
+            painter = painterResource(R.drawable.brand_logo),
+            contentDescription = "SEÑAL",
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.height(36.dp)
         )
         Box(modifier = Modifier.weight(1f))
         Image(
@@ -523,12 +522,11 @@ private fun SectionBody(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "SEÑAL",
-                color = BrandOrange,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Black,
-                letterSpacing = 2.sp
+            Image(
+                painter = painterResource(R.drawable.brand_logo),
+                contentDescription = "SEÑAL",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.height(32.dp)
             )
             FocusableButton(label = "INICIO", onClick = onBack, primary = true)
         }
