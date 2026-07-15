@@ -1,32 +1,42 @@
-# SEÑAL Server PRO (Windows VPS)
+# SEÑAL Server IPTV 3.0 (Windows VPS)
 
-Compatible con el paquete **Senal-Server-M3U-Simple**:
+Panel reseller tipo servicios IPTV: usuarios, bouquets, catálogo con **orden editable**, export M3U y URL clásica `/get.php`.
 
-1. `INSTALAR-WINDOWS.bat` → instala Node (si falta), crea `.env`, `npm install`, abre firewall :3000  
-2. `INICIAR-SENAL.bat` → arranca el panel
+## Instalación
+
+1. `INSTALAR-WINDOWS.bat` → Node, `.env`, `npm install`, firewall :3000  
+2. `INICIAR-SENAL.bat` → arranca el panel en `http://IP:3000/`
+
+Ver `COMO-INSTALAR.txt` para migrar desde v2.1 conservando `data/db.json`.
 
 ## Panel
 
-Abre `http://IP:3000/`
+| Pestaña | Función |
+|---------|---------|
+| **Dashboard** | Stats, plantilla URL M3U, exportar playlist ordenada |
+| **Catálogo** | Arrastrar orden de categorías y canales; ocultar canales |
+| **Paquetes** | Bouquets: subset de categorías por usuario |
+| **Usuarios** | Crear, bloquear, vencer, límite dispositivos, paquete, URL M3U |
+| **Banner** | Avisos del home APK (`GET /api/banner`) |
+| **Logs** | Logins, imports, cambios de orden |
+| **Importar M3U** | Carga catálogo; luego reordena en Catálogo |
 
-- **Usuarios** — crear / bloquear / vencer / límite de dispositivos / liberar  
-- **Banner** — mensajes del home de la APK (`GET /api/banner`)  
-- **Logs** — logins, fallos, cambios admin, imports  
-- **Importar M3U** — actualiza catálogo del servidor (`data/db.json`)
+## URL M3U (clientes / apps IPTV)
 
-## Migrar desde tu servidor actual
+```
+http://TU-IP:3000/get.php?username=USUARIO&password=CLAVE&type=m3u_plus
+```
 
-1. Detén el servidor viejo (cierra la ventana de `INICIAR-SENAL`).  
-2. Copia esta carpeta `senal-server` al VPS (o reemplaza archivos).  
-3. Conserva tu `data/db.json` y tu `.env`.  
-4. Ejecuta `INSTALAR-WINDOWS.bat` (instala `dotenv` nuevo).  
-5. Ejecuta `INICIAR-SENAL.bat`.
+El M3U respeta `categoryOrder` y `sort` definidos en el panel.
 
-El servidor migra solo el esquema (añade `banners` y `logs` si faltan) sin borrar usuarios/dispositivos.
+## API admin (resumen)
+
+- `GET/PUT /api/admin/catalog/categories/order` — orden categorías  
+- `PUT /api/admin/catalog/channels/order` — orden canales en un grupo  
+- `GET /api/admin/export.m3u` — descarga M3U ordenado  
+- `GET/POST/PATCH/DELETE /api/admin/bouquets` — paquetes  
 
 ## Variables `.env`
-
-Ver `.env.example`:
 
 ```
 PORT=3000
@@ -34,9 +44,8 @@ PUBLIC_BASE_URL=http://185.192.20.245:3000
 JWT_SECRET=...
 MASTER_USERNAME=admin
 MASTER_PASSWORD=...
-PLAYBACK_MODE=proxy
 ```
 
 ## Seguridad
 
-Si compartiste el ZIP con `.env` real, **cambia** `MASTER_PASSWORD` y `JWT_SECRET`.
+Rota `MASTER_PASSWORD` y `JWT_SECRET` si compartiste el ZIP o `.env`.

@@ -1,32 +1,40 @@
-SEÑAL SERVER PRO — Windows VPS
-==============================
+SEÑAL SERVER IPTV 3.0 — Windows VPS
+====================================
 
-IMPORTANTE: el servidor que corre ahora (v1.0) SOLO muestra stats y
-usuarios básicos. Este pack añade:
-  - Crear/bloquear usuarios, dispositivos, vencimiento
-  - Editor de BANNER (avisos en la TV)
-  - LOGS de logins y cambios
+Novedades respecto a PRO 2.1:
+  - Catálogo con ORDEN editable (arrastrar categorías y canales)
+  - Paquetes / bouquets por usuario
+  - URL M3U estilo IPTV: /get.php?username=...&password=...&type=m3u_plus
+  - Exportar M3U ordenado desde el panel
+  - Usuarios, dispositivos, vencimiento, banner y logs (igual que antes)
 
-PASOS:
-1) En el VPS, detén el servidor viejo (cierra la ventana negra
-   de INICIAR-SENAL o mata el proceso node).
+PASOS (instalación nueva o actualización desde 2.1):
+1) Detén el servidor viejo (cierra INICIAR-SENAL o mata el proceso node).
 
 2) Copia TODA esta carpeta a C:\Senal-Server-PRO
    (o reemplaza los archivos del servidor actual).
 
-3) Si ya tenías usuarios, copia tu carpeta data\ vieja aquí:
+3) CONSERVA tu data\ y .env:
       C:\Senal-Server-PRO\data\db.json
+      C:\Senal-Server-PRO\.env
+   La migración añade categoryOrder, bouquets y conserva usuarios.
 
-4) Si ya tenías .env, cópialo aquí. Si no:
-      INSTALAR-WINDOWS.bat  (crea .env y pide editarlo)
+4) Si es la primera vez o no tienes .env:
+      INSTALAR-WINDOWS.bat
 
-5) INSTALAR-WINDOWS.bat   (solo la primera vez / al actualizar)
+5) INSTALAR-WINDOWS.bat   (npm install)
 6) INICIAR-SENAL.bat
-7) Abre en el navegador:  http://127.0.0.1:3000
+7) Navegador:  http://127.0.0.1:3000
    Login master (el de tu .env)
 
-QUÉ CONTROLA EL PANEL SOBRE LA TV:
-  ✓ Login / bloqueo / vencimiento / límite de dispositivos
-  ✓ Mensajes del banner del home (APK 1.9+)
-  ✗ La lista de canales de la APK es EMPEBIDA: importar M3U
-    aquí NO cambia canales en la TV (solo el conteo del servidor).
+FLUJO TÍPICO IPTV:
+  1. Importar M3U (pestaña Importar)
+  2. Catálogo → arrastrar categorías y canales al orden deseado
+  3. (Opcional) Paquetes → elegir categorías por plan
+  4. Usuarios → asignar paquete; copiar URL /get.php
+  5. Dashboard → Descargar M3U ordenado
+
+APK SEÑAL:
+  El panel controla auth, banner y playlist vía URL M3U.
+  Si la APK usa lista embebida, los canales en TV no cambian
+  hasta que la app consuma la URL del servidor.

@@ -1,12 +1,13 @@
 {
   "name": "senal-server",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "private": true,
-  "description": "SEÑAL Server PRO — usuarios, dispositivos, logs, banner (Windows VPS)",
+  "description": "SEÑAL Server IPTV 3.0 — catálogo ordenable, bouquets, M3U reseller, usuarios, banner (Windows VPS)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "pack": "node scripts/pack.js"
   },
   "engines": {
     "node": ">=18"

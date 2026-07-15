@@ -3,19 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SEÑAL · Panel PRO</title>
+<title>SEÑAL · Panel IPTV 3.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#070b10; --panel:#0e141c; --panel2:#121a24; --line:#1e2a38;
-  --text:#e8eef5; --muted:#7d8fa3; --cyan:#2ec6e0; --ok:#2dd4a8; --warn:#e8b84a; --danger:#e15b5b;
+  --bg:#070b10;--panel:#0e141c;--panel2:#121a24;--line:#1e2a38;
+  --text:#e8eef5;--muted:#7d8fa3;--cyan:#2ec6e0;--ok:#2dd4a8;--warn:#e8b84a;--danger:#e15b5b;
 }
-*{box-sizing:border-box} html,body{height:100%;margin:0}
+*{box-sizing:border-box}html,body{height:100%;margin:0}
 body{font:14px/1.45 "DM Sans",system-ui,sans-serif;color:var(--text);
   background:radial-gradient(900px 480px at 85% -10%,rgba(46,198,224,.16),transparent 55%),var(--bg)}
 button,input,select,textarea{font:inherit}
-.app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+.app{display:grid;grid-template-columns:250px 1fr;min-height:100vh}
 .side{background:#0b121a;border-right:1px solid var(--line);padding:22px 16px;display:flex;flex-direction:column;gap:16px}
 .brand{display:flex;gap:12px;align-items:center;padding:4px 8px 12px}
 .mark{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--cyan),#127a90);display:grid;place-items:center;font-weight:800}
@@ -24,10 +24,10 @@ button,input,select,textarea{font:inherit}
 .nav button{text-align:left;background:transparent;border:1px solid transparent;color:var(--muted);padding:12px 14px;border-radius:12px;cursor:pointer;font-weight:600}
 .nav button.active,.nav button:hover{color:var(--text);background:rgba(46,198,224,.12);border-color:rgba(46,198,224,.2)}
 .foot{margin-top:auto;color:var(--muted);font-size:12px}
-.main{padding:28px 32px 48px;max-width:1320px}
+.main{padding:28px 32px 48px;max-width:1400px}
 .top{display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:18px}
 .top h2{margin:0;font-size:26px;font-weight:800}.top p{margin:4px 0 0;color:var(--muted)}
-.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px}
+.grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:18px}
 .stat{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 16px}
 .stat span{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px}
 .stat b{display:block;font-size:28px;margin-top:6px;font-variant-numeric:tabular-nums}
@@ -50,20 +50,43 @@ th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px
 .hidden{display:none!important}
 .login{min-height:100vh;display:grid;place-items:center;padding:24px}
 .login-card{width:min(420px,100%);background:rgba(14,20,28,.96);border:1px solid var(--line);border-radius:20px;padding:28px}
-.mono{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12px;color:var(--muted)}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12px;color:var(--muted);word-break:break-all}
 .msg{margin-top:10px}.msg.ok{color:var(--ok)}.msg.err{color:var(--danger)}
-.actions{display:flex;gap:8px;flex-wrap:wrap}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .banner-item,.log-item{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px}
 .log-item{display:grid;grid-template-columns:170px 120px 1fr;gap:10px}
 .log-type{font-weight:800;color:var(--cyan)}
-@media(max-width:1100px){.grid{grid-template-columns:1fr 1fr}.log-item{grid-template-columns:1fr}.app{grid-template-columns:1fr}.side{display:none}}
+.catalog{display:grid;grid-template-columns:minmax(240px,320px) 1fr;gap:14px;min-height:520px}
+.cat-list,.ch-list{background:var(--panel2);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+.cat-list header,.ch-list header{padding:12px 14px;border-bottom:1px solid var(--line);font-weight:700;font-size:13px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.cat-scroll,.ch-scroll{overflow:auto;flex:1;max-height:560px}
+.dnd-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid rgba(30,42,56,.6);cursor:grab;user-select:none}
+.dnd-item:hover{background:rgba(46,198,224,.06)}
+.dnd-item.active{background:rgba(46,198,224,.14);border-left:3px solid var(--cyan)}
+.dnd-item.dragging{opacity:.45}
+.dnd-item .handle{color:var(--muted);font-size:16px;flex-shrink:0}
+.dnd-item .meta{margin-left:auto;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.ch-item .title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ch-item.hidden-row{opacity:.45}
+.bouquet-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.bouquet-card{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:14px}
+.cat-checks{max-height:220px;overflow:auto;display:grid;gap:6px;margin-top:10px}
+.cat-checks label{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted)}
+.m3u-box{background:#0a1018;border:1px dashed var(--line);border-radius:12px;padding:12px;margin-top:8px}
+@media(max-width:1100px){
+  .grid{grid-template-columns:1fr 1fr}
+  .catalog{grid-template-columns:1fr}
+  .log-item{grid-template-columns:1fr}
+  .app{grid-template-columns:1fr}
+  .side{display:none}
+}
 </style>
 </head>
 <body>
 <div id="loginView" class="login">
   <div class="login-card">
     <h1 style="letter-spacing:3px;margin:0">SEÑAL</h1>
-    <p class="mono">Panel PRO · usuarios · logs · banner</p>
+    <p class="mono">Panel IPTV 3.0 · catálogo · orden · bouquets · M3U</p>
     <div class="row" style="flex-direction:column;margin-top:18px">
       <input id="loginUser" value="admin" placeholder="Usuario master">
       <input id="loginPass" type="password" placeholder="Contraseña">
@@ -75,9 +98,11 @@ th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px
 
 <div id="appView" class="app hidden">
   <aside class="side">
-    <div class="brand"><div class="mark">S</div><div><h1>SEÑAL</h1><small>SERVER PRO</small></div></div>
+    <div class="brand"><div class="mark">S</div><div><h1>SEÑAL</h1><small>IPTV 3.0</small></div></div>
     <nav class="nav">
       <button class="active" data-tab="dash">Dashboard</button>
+      <button data-tab="catalog">Catálogo</button>
+      <button data-tab="bouquets">Paquetes</button>
       <button data-tab="users">Usuarios</button>
       <button data-tab="banners">Banner</button>
       <button data-tab="logs">Logs</button>
@@ -91,43 +116,83 @@ th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px
 
   <main class="main">
     <section id="tab-dash">
-      <div class="top"><div><h2>Dashboard</h2><p>Resumen del servidor</p></div><button class="btn ghost" onclick="refreshAll()">Actualizar</button></div>
+      <div class="top"><div><h2>Dashboard</h2><p>Servidor IPTV reseller</p></div>
+        <div class="actions">
+          <button class="btn ghost" onclick="exportM3u()">Descargar M3U ordenado</button>
+          <button class="btn ghost" onclick="refreshAll()">Actualizar</button>
+        </div>
+      </div>
       <div class="grid">
         <div class="stat"><span>Usuarios</span><b id="sUsers">0</b></div>
         <div class="stat"><span>Dispositivos</span><b id="sDevices">0</b></div>
         <div class="stat"><span>Contenido</span><b id="sContent">0</b></div>
-        <div class="stat"><span>Banners</span><b id="sBanners">0</b></div>
+        <div class="stat"><span>Categorías</span><b id="sCategories">0</b></div>
+        <div class="stat"><span>Paquetes</span><b id="sBouquets">0</b></div>
         <div class="stat"><span>Logs</span><b id="sLogs">0</b></div>
       </div>
       <div class="card">
-        <h3>Qué controla este panel en la TV</h3>
-        <ul style="margin:0;padding-left:18px;color:var(--muted);line-height:1.7">
-          <li><b style="color:var(--ok)">Sí afecta la TV:</b> crear usuarios, bloquear, vencimiento, límite de dispositivos, liberar dispositivos, mensajes del <b>Banner</b>.</li>
-          <li><b style="color:var(--warn)">No cambia canales de la APK:</b> la lista va embebida en el APK. Importar M3U aquí solo actualiza el conteo del servidor.</li>
+        <h3>URL M3U estilo IPTV (para apps externas)</h3>
+        <p style="color:var(--muted);margin:0 0 10px">Cada usuario puede usar su playlist personal con el orden que definas en <b>Catálogo</b>:</p>
+        <div class="m3u-box mono" id="m3uTemplate">—</div>
+        <ul style="margin:12px 0 0;padding-left:18px;color:var(--muted);line-height:1.7">
+          <li><b style="color:var(--ok)">Panel:</b> usuarios, vencimiento, dispositivos, banner, orden de categorías/canales, paquetes.</li>
+          <li><b style="color:var(--cyan)">M3U:</b> <code>/get.php?username=USER&password=PASS&type=m3u_plus</code></li>
+          <li><b style="color:var(--warn)">APK SEÑAL:</b> si usa lista embebida, importar aquí no cambia canales en la TV hasta que la app consuma esta URL.</li>
         </ul>
-        <div class="actions" style="margin-top:14px">
-          <button class="btn" onclick="goTab('users')">Gestionar usuarios</button>
-          <button class="btn" onclick="goTab('banners')">Escribir banner</button>
-          <button class="btn ghost" onclick="goTab('logs')">Ver logs</button>
-        </div>
-        <p class="mono" id="dashNote" style="margin-top:14px"></p>
       </div>
     </section>
 
+    <section id="tab-catalog" class="hidden">
+      <div class="top"><div><h2>Catálogo</h2><p>Arrastra para cambiar el orden de categorías y canales</p></div>
+        <div class="actions">
+          <button class="btn ghost" onclick="exportM3u()">Exportar M3U</button>
+          <button class="btn ghost" onclick="loadCatalog()">Recargar</button>
+        </div>
+      </div>
+      <p id="catalogMsg" class="msg"></p>
+      <div class="catalog">
+        <div class="cat-list">
+          <header><span>Categorías</span><span class="mono" id="catCount">0</span></header>
+          <div class="cat-scroll" id="catList"></div>
+        </div>
+        <div class="ch-list">
+          <header>
+            <span id="chHeader">Canales</span>
+            <input id="chSearch" placeholder="Buscar…" style="max-width:200px;padding:7px 10px;font-size:12px" oninput="filterChannels()">
+          </header>
+          <div class="ch-scroll" id="chList"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-bouquets" class="hidden">
+      <div class="top"><div><h2>Paquetes (bouquets)</h2><p>Filtra categorías por usuario</p></div></div>
+      <div class="card">
+        <h3>Nuevo paquete</h3>
+        <div class="row">
+          <input id="bqName" placeholder="Nombre del paquete">
+          <button class="btn" onclick="createBouquet()">Crear</button>
+        </div>
+        <p id="bqMsg" class="msg"></p>
+      </div>
+      <div class="bouquet-grid" id="bouquetGrid"></div>
+    </section>
+
     <section id="tab-users" class="hidden">
-      <div class="top"><div><h2>Usuarios</h2><p>Dispositivos, vencimiento y estado</p></div></div>
+      <div class="top"><div><h2>Usuarios</h2><p>Dispositivos, vencimiento, paquete y URL M3U</p></div></div>
       <div class="card">
         <h3>Crear usuario</h3>
         <div class="row">
           <input id="uName" placeholder="Usuario">
           <input id="uPass" type="password" placeholder="Contraseña">
           <input id="uLimit" type="number" min="1" max="50" value="1" title="Máx dispositivos">
+          <select id="uBouquet"></select>
           <input id="uExpiry" type="datetime-local">
           <button class="btn" id="createUserBtn">Crear</button>
         </div>
       </div>
       <div class="card"><table><thead><tr>
-        <th>Usuario</th><th>Estado</th><th>Vence</th><th>Límite</th><th>Dispositivos</th><th>Acciones</th>
+        <th>Usuario</th><th>Estado</th><th>Paquete</th><th>Vence</th><th>Límite</th><th>Dispositivos</th><th>Acciones</th>
       </tr></thead><tbody id="usersBody"></tbody></table></div>
     </section>
 
@@ -157,11 +222,10 @@ th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px
         <div class="row">
           <select id="logType">
             <option value="">Todos los tipos</option>
-            <option>login_ok</option><option>login_fail</option><option>login_blocked</option>
-            <option>login_expired</option><option>device_limit</option>
-            <option>user_create</option><option>user_update</option><option>user_delete</option>
-            <option>banner_create</option><option>banner_delete</option><option>m3u_import</option>
-            <option>server_start</option>
+            <option>login_ok</option><option>login_fail</option><option>device_limit</option>
+            <option>user_create</option><option>user_update</option>
+            <option>m3u_import</option><option>catalog_order</option><option>channel_order</option>
+            <option>bouquet_create</option><option>server_start</option>
           </select>
           <input id="logQ" placeholder="Buscar…">
           <button class="btn ghost" onclick="logs()">Filtrar</button>
@@ -171,7 +235,7 @@ th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px
     </section>
 
     <section id="tab-import" class="hidden">
-      <div class="top"><div><h2>Importar M3U</h2><p>Catálogo del servidor (conteo / data)</p></div></div>
+      <div class="top"><div><h2>Importar M3U</h2><p>Carga el catálogo y conserva grupos del archivo</p></div></div>
       <div class="card">
         <form id="importForm">
           <div class="row">
@@ -180,6 +244,7 @@ th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px
           </div>
         </form>
         <p id="importMsg" class="msg"></p>
+        <p style="color:var(--muted);margin-top:12px">Después de importar, ve a <b>Catálogo</b> para reordenar categorías y canales. El M3U exportado y las URLs <code>/get.php</code> respetan ese orden.</p>
       </div>
     </section>
   </main>
@@ -187,6 +252,13 @@ th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px
 
 <script>
 let token = localStorage.getItem("senalToken") || "";
+let publicBaseUrl = location.origin;
+let bouquets = [];
+let catalogData = { categoryOrder: [], categories: [] };
+let selectedGroup = "";
+let channelRows = [];
+let dragState = { type: null, id: null };
+
 const $ = (id) => document.getElementById(id);
 const esc = (v) => String(v ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 
@@ -203,6 +275,10 @@ async function api(path, options = {}) {
   try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
   if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
   return data;
+}
+
+function m3uUrl(username) {
+  return `${publicBaseUrl}/get.php?username=${encodeURIComponent(username)}&password=TU_PASSWORD&type=m3u_plus`;
 }
 
 async function login() {
@@ -234,14 +310,15 @@ async function showApp() {
 }
 
 async function refreshAll() {
-  await Promise.all([stats(), users(), banners(), logs(), health()]);
+  await Promise.all([stats(), health(), bouquetsList(), users(), banners(), logs()]);
 }
 
 async function health() {
   try {
     const h = await fetch("/api/health").then((r) => r.json());
-    $("serverHealth").textContent = `v${h.version} · ${h.users} users · ${h.content} content`;
-    $("dashNote").textContent = JSON.stringify(h);
+    publicBaseUrl = h.publicBaseUrl || location.origin;
+    $("serverHealth").textContent = `v${h.version} · ${h.content} canales · ${h.categories} cat.`;
+    $("m3uTemplate").textContent = `${publicBaseUrl}/get.php?username=USUARIO&password=CLAVE&type=m3u_plus`;
   } catch { $("serverHealth").textContent = "offline"; }
 }
 
@@ -250,7 +327,8 @@ async function stats() {
   $("sUsers").textContent = s.users;
   $("sDevices").textContent = s.devices;
   $("sContent").textContent = s.content;
-  $("sBanners").textContent = s.banners;
+  $("sCategories").textContent = s.categories;
+  $("sBouquets").textContent = s.bouquets;
   $("sLogs").textContent = s.logs;
 }
 
@@ -258,6 +336,215 @@ function fmtDate(v) {
   if (!v) return "Sin vencimiento";
   const d = new Date(v);
   return Number.isNaN(d.getTime()) ? String(v) : d.toLocaleString();
+}
+
+function bouquetName(id) {
+  return bouquets.find((b) => b.id === id)?.name || id || "Completo";
+}
+
+function fillBouquetSelects() {
+  const opts = bouquets.map((b) => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join("");
+  $("uBouquet").innerHTML = opts;
+}
+
+async function bouquetsList() {
+  bouquets = await api("/api/admin/bouquets");
+  fillBouquetSelects();
+  renderBouquets();
+}
+
+function renderBouquets() {
+  const cats = catalogData.categories?.length
+    ? catalogData.categories.map((c) => c.name)
+    : [];
+  $("bouquetGrid").innerHTML = bouquets.map((b) => {
+    const checks = cats.length ? cats.map((name) => {
+      const on = b.id === "all" || (b.categories || []).includes(name);
+      const disabled = b.id === "all" ? "disabled" : "";
+      return `<label><input type="checkbox" data-bq-cat data-bq-id="${esc(b.id)}" data-cat="${esc(name)}" ${on ? "checked" : ""} ${disabled}> ${esc(name)}</label>`;
+    }).join("") : '<p class="mono">Importa un M3U para ver categorías</p>';
+    return `<div class="bouquet-card">
+      <strong>${esc(b.name)}</strong>
+      <div class="mono" style="margin-top:4px">${b.id === "all" ? "Todas las categorías" : `${(b.categories||[]).length} categorías`}</div>
+      <div class="cat-checks">${checks}</div>
+      ${b.id !== "all" ? `<div class="actions" style="margin-top:12px"><button class="btn danger sm" onclick="deleteBouquet('${b.id}')">Eliminar</button></div>` : ""}
+    </div>`;
+  }).join("");
+}
+
+async function createBouquet() {
+  const msg = $("bqMsg");
+  try {
+    await api("/api/admin/bouquets", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: $("bqName").value, categories: [] })
+    });
+    $("bqName").value = "";
+    msg.className = "msg ok"; msg.textContent = "Paquete creado";
+    await bouquetsList();
+    stats();
+  } catch (e) { msg.className = "msg err"; msg.textContent = e.message; }
+}
+
+async function toggleBqCat(id, cat, checked) {
+  const b = bouquets.find((x) => x.id === id);
+  if (!b || id === "all") return;
+  const set = new Set(b.categories || []);
+  if (checked) set.add(cat); else set.delete(cat);
+  await api(`/api/admin/bouquets/${id}`, {
+    method: "PATCH", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ categories: [...set] })
+  });
+  await bouquetsList();
+}
+
+async function deleteBouquet(id) {
+  if (!confirm("¿Eliminar paquete? Los usuarios volverán a Completo.")) return;
+  await api(`/api/admin/bouquets/${id}`, { method: "DELETE" });
+  await bouquetsList();
+  stats();
+}
+
+async function loadCatalog() {
+  catalogData = await api("/api/admin/catalog");
+  $("catCount").textContent = catalogData.categories?.length || 0;
+  renderCategories();
+  if (!selectedGroup && catalogData.categoryOrder?.length) {
+    selectedGroup = catalogData.categoryOrder[0];
+    await loadChannels(selectedGroup);
+  } else if (selectedGroup) {
+    await loadChannels(selectedGroup);
+  }
+  renderBouquets();
+}
+
+function renderCategories() {
+  const order = catalogData.categoryOrder || [];
+  const counts = Object.fromEntries((catalogData.categories || []).map((c) => [c.name, c.count]));
+  $("catList").innerHTML = order.map((name) => `
+    <div class="dnd-item cat-item ${name === selectedGroup ? "active" : ""}" draggable="true"
+      data-group="${esc(name)}" onclick="selectCategory(this.dataset.group)">
+      <span class="handle">⠿</span>
+      <span>${esc(name)}</span>
+      <span class="meta">${counts[name] ?? 0}</span>
+    </div>`).join("") || '<p style="padding:14px;color:var(--muted)">Sin categorías. Importa un M3U.</p>';
+  bindCatDnD();
+}
+
+function bindCatDnD() {
+  const items = [...document.querySelectorAll(".cat-item")];
+  items.forEach((el) => {
+    el.addEventListener("dragstart", (e) => {
+      dragState = { type: "cat", id: el.dataset.group };
+      el.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+    });
+    el.addEventListener("dragend", () => el.classList.remove("dragging"));
+    el.addEventListener("dragover", (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; });
+    el.addEventListener("drop", async (e) => {
+      e.preventDefault();
+      const from = dragState.id;
+      const to = el.dataset.group;
+      if (!from || from === to) return;
+      const order = [...document.querySelectorAll(".cat-item")].map((n) => n.dataset.group);
+      const fi = order.indexOf(from), ti = order.indexOf(to);
+      order.splice(fi, 1);
+      order.splice(ti, 0, from);
+      try {
+        const r = await api("/api/admin/catalog/categories/order", {
+          method: "PUT", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ order })
+        });
+        catalogData.categoryOrder = r.categoryOrder;
+        renderCategories();
+        flashCatalog("Orden de categorías guardado");
+      } catch (err) { flashCatalog(err.message, true); }
+    });
+  });
+}
+
+async function selectCategory(group) {
+  selectedGroup = group;
+  renderCategories();
+  await loadChannels(group);
+}
+
+async function loadChannels(group) {
+  $("chHeader").textContent = group || "Canales";
+  channelRows = await api(`/api/admin/catalog/${encodeURIComponent(group)}/channels`);
+  renderChannels();
+}
+
+function renderChannels() {
+  const q = ($("chSearch").value || "").toLowerCase();
+  const list = q ? channelRows.filter((c) => c.title.toLowerCase().includes(q)) : channelRows;
+  $("chList").innerHTML = list.map((c) => `
+    <div class="dnd-item ch-item ${c.hidden ? "hidden-row" : ""}" draggable="${q ? "false" : "true"}"
+      data-id="${c.id}" data-group="${esc(c.group)}">
+      <span class="handle">${q ? "·" : "⠿"}</span>
+      <span class="title" title="${esc(c.title)}">${esc(c.title)}</span>
+      <button class="btn ghost sm" onclick="toggleHidden('${c.id}',${!c.hidden})">${c.hidden ? "Mostrar" : "Ocultar"}</button>
+    </div>`).join("") || '<p style="padding:14px;color:var(--muted)">Sin canales en esta categoría.</p>';
+  if (!q) bindChDnD();
+}
+
+function filterChannels() { renderChannels(); }
+
+function bindChDnD() {
+  const items = [...document.querySelectorAll(".ch-item[draggable=true]")];
+  items.forEach((el) => {
+    el.addEventListener("dragstart", (e) => {
+      dragState = { type: "ch", id: el.dataset.id };
+      el.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+    });
+    el.addEventListener("dragend", () => el.classList.remove("dragging"));
+    el.addEventListener("dragover", (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; });
+    el.addEventListener("drop", async (e) => {
+      e.preventDefault();
+      const from = dragState.id;
+      const to = el.dataset.id;
+      if (!from || from === to) return;
+      const ids = [...document.querySelectorAll(".ch-item[draggable=true]")].map((n) => n.dataset.id);
+      const fi = ids.indexOf(from), ti = ids.indexOf(to);
+      ids.splice(fi, 1);
+      ids.splice(ti, 0, from);
+      try {
+        await api("/api/admin/catalog/channels/order", {
+          method: "PUT", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ group: selectedGroup, ids })
+        });
+        await loadChannels(selectedGroup);
+        flashCatalog(`Orden guardado en ${selectedGroup}`);
+      } catch (err) { flashCatalog(err.message, true); }
+    });
+  });
+}
+
+async function toggleHidden(id, hidden) {
+  await api(`/api/admin/channels/${id}`, {
+    method: "PATCH", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ hidden })
+  });
+  await loadChannels(selectedGroup);
+}
+
+function flashCatalog(text, err = false) {
+  const el = $("catalogMsg");
+  el.className = err ? "msg err" : "msg ok";
+  el.textContent = text;
+  setTimeout(() => { el.textContent = ""; }, 2800);
+}
+
+async function exportM3u() {
+  const r = await fetch("/api/admin/export.m3u", { headers: { Authorization: `Bearer ${token}` } });
+  if (!r.ok) { alert("Error al exportar"); return; }
+  const blob = await r.blob();
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "senal-ordenado.m3u";
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 async function users() {
@@ -269,9 +556,17 @@ async function users() {
     const devices = (u.devices || []).map((d) =>
       `${esc(d.name || d.deviceId)} <span class="mono">${esc(d.lastSeenAt || "")}</span>`
     ).join("<br>") || "—";
+    const bqOpts = bouquets.map((b) =>
+      `<option value="${b.id}" ${u.bouquetId === b.id ? "selected" : ""}>${esc(b.name)}</option>`
+    ).join("");
     return `<tr>
-      <td><strong>${esc(u.username)}</strong><div class="mono">${esc(u.role)}</div></td>
+      <td><strong>${esc(u.username)}</strong><div class="mono">${esc(u.role)}</div>
+        <div class="m3u-box mono" style="margin-top:8px;font-size:11px">${esc(m3uUrl(u.username))}</div>
+      </td>
       <td>${status}</td>
+      <td>
+        <select id="bq-${u.id}" onchange="setBouquet('${u.id}')">${bqOpts}</select>
+      </td>
       <td>
         <div>${fmtDate(u.expiresAt)}</div>
         <div class="actions" style="margin-top:6px">
@@ -300,13 +595,22 @@ async function createUser() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         username: $("uName").value, password: $("uPass").value,
-        connectionLimit: Number($("uLimit").value), expiresAt: expiry
+        connectionLimit: Number($("uLimit").value), expiresAt: expiry,
+        bouquetId: $("uBouquet").value || "all"
       })
     });
     $("uName").value = ""; $("uPass").value = "";
     await Promise.all([users(), stats()]);
   } catch (e) { alert(e.message); }
 }
+
+async function setBouquet(id) {
+  await api(`/api/admin/users/${id}`, {
+    method: "PATCH", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ bouquetId: $(`bq-${id}`).value })
+  });
+}
+
 async function toggleUser(id, active) {
   await api(`/api/admin/users/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ active }) });
   users();
@@ -359,8 +663,9 @@ async function addBanner() {
       body: JSON.stringify({ title: $("bTitle").value, body: $("bBody").value, imageUrl: $("bImage").value, active: true })
     });
     $("bTitle").value = ""; $("bBody").value = ""; $("bImage").value = "";
-    msg.className = "msg ok"; msg.textContent = "Publicado. La TV lo lee en GET /api/banner";
-    await Promise.all([banners(), stats()]);
+    msg.className = "msg ok"; msg.textContent = "Publicado";
+    await stats();
+    banners();
   } catch (e) { msg.className = "msg err"; msg.textContent = e.message; }
 }
 async function deleteBanner(id) {
@@ -405,8 +710,9 @@ $("importForm").addEventListener("submit", async (e) => {
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || "Error");
     msg.className = "msg ok";
-    msg.textContent = `Importados ${j.imported}: TV ${j.live}, películas ${j.movies}, series ${j.series}`;
-    stats();
+    msg.textContent = `Importados ${j.imported} canales · ${j.categories} categorías. Ve a Catálogo para ordenar.`;
+    selectedGroup = "";
+    await Promise.all([stats(), loadCatalog()]);
   } catch (err) { msg.className = "msg err"; msg.textContent = err.message; }
 });
 
@@ -418,9 +724,11 @@ function goTab(tab) {
   document.querySelectorAll(".nav button").forEach((b) => {
     b.classList.toggle("active", b.dataset.tab === tab);
   });
-  ["dash","users","banners","logs","import"].forEach((t) => {
+  ["dash","catalog","bouquets","users","banners","logs","import"].forEach((t) => {
     $(`tab-${t}`).classList.toggle("hidden", t !== tab);
   });
+  if (tab === "catalog") loadCatalog();
+  if (tab === "bouquets") bouquetsList().then(() => loadCatalog().catch(() => {}));
 }
 
 $("loginBtn").onclick = login;
@@ -428,6 +736,12 @@ $("loginPass").addEventListener("keydown", (e) => { if (e.key === "Enter") login
 $("createUserBtn").onclick = createUser;
 $("addBannerBtn").onclick = addBanner;
 $("logoutBtn").onclick = () => { localStorage.removeItem("senalToken"); location.reload(); };
+$("bouquetGrid").addEventListener("change", (e) => {
+  const t = e.target;
+  if (t.matches("input[data-bq-cat]")) {
+    toggleBqCat(t.dataset.bqId, t.dataset.cat, t.checked);
+  }
+});
 if (token) showApp().catch(() => localStorage.removeItem("senalToken"));
 </script>
 </body>
