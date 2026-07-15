@@ -1,0 +1,40 @@
+SEÑAL SERVER IPTV 3.0 — Windows VPS
+====================================
+
+Novedades respecto a PRO 2.1:
+  - Catálogo con ORDEN editable (arrastrar categorías y canales)
+  - Paquetes / bouquets por usuario
+  - URL M3U estilo IPTV: /get.php?username=...&password=...&type=m3u_plus
+  - Exportar M3U ordenado desde el panel
+  - Usuarios, dispositivos, vencimiento, banner y logs (igual que antes)
+
+PASOS (instalación nueva o actualización desde 2.1):
+1) Detén el servidor viejo (cierra INICIAR-SENAL o mata el proceso node).
+
+2) Copia TODA esta carpeta a C:\Senal-Server-PRO
+   (o reemplaza los archivos del servidor actual).
+
+3) CONSERVA tu data\ y .env:
+      C:\Senal-Server-PRO\data\db.json
+      C:\Senal-Server-PRO\.env
+   La migración añade categoryOrder, bouquets y conserva usuarios.
+
+4) Si es la primera vez o no tienes .env:
+      INSTALAR-WINDOWS.bat
+
+5) INSTALAR-WINDOWS.bat   (npm install)
+6) INICIAR-SENAL.bat
+7) Navegador:  http://127.0.0.1:3000
+   Login master (el de tu .env)
+
+FLUJO TÍPICO IPTV:
+  1. Importar M3U (pestaña Importar)
+  2. Catálogo → arrastrar categorías y canales al orden deseado
+  3. (Opcional) Paquetes → elegir categorías por plan
+  4. Usuarios → asignar paquete; copiar URL /get.php
+  5. Dashboard → Descargar M3U ordenado
+
+APK SEÑAL:
+  El panel controla auth, banner y playlist vía URL M3U.
+  Si la APK usa lista embebida, los canales en TV no cambian
+  hasta que la app consuma la URL del servidor.
