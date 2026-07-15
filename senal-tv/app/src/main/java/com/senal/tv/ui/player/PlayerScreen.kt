@@ -332,8 +332,8 @@ fun PlayerScreen(
             .onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 val guiding = guideVisibleRef.get()
-                // key.keyCode maps to android.view.KeyEvent codes on Android
-                val code = event.key.keyCode
+                // key.keyCode is Long in Compose; Android KeyEvent codes are Int
+                val code = event.key.keyCode.toInt()
                 when {
                     event.key == Key.DirectionUp || code == android.view.KeyEvent.KEYCODE_CHANNEL_UP -> {
                         if (guiding) {
