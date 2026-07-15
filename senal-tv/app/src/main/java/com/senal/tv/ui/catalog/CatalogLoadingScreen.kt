@@ -1,15 +1,15 @@
 package com.senal.tv.ui.catalog
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.background
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -19,9 +19,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.font.FontWeight
 import com.senal.tv.AppContainer
 import com.senal.tv.ui.components.FocusableButton
 import com.senal.tv.ui.components.LoadingPulse
@@ -42,7 +43,12 @@ fun CatalogLoadingScreen(
     container: AppContainer,
     onReady: () -> Unit
 ) {
-    var message by remember { mutableStateOf("Preparando catálogo…") }
+    val hadCache = remember { container.playlistSync.hasLocalCache() }
+    var message by remember {
+        mutableStateOf(
+            if (hadCache) "Abriendo lista guardada…" else "Cargando todos los canales…"
+        )
+    }
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(true) }
     var attempt by remember { mutableStateOf(0) }
@@ -64,7 +70,6 @@ fun CatalogLoadingScreen(
         }
 
         if (result.error != null || result.channels <= 0) {
-            // Si falló la red pero hay asset de respaldo con canales, úsalo.
             val fallback = container.playlistSync.loadLocalOnly()
             if (fallback.channels > 0 && fallback.error == null) {
                 busy = false
@@ -84,7 +89,10 @@ fun CatalogLoadingScreen(
     }
 
     SenalBackground {
-        Box(Modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
             Column(
                 modifier = Modifier
                     .width(520.dp)
@@ -100,12 +108,12 @@ fun CatalogLoadingScreen(
                     fontSize = 28.sp,
                     letterSpacing = 4.sp
                 )
-                Spacer(Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(24.dp))
                 if (busy) {
                     LoadingPulse(message)
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = if (container.playlistSync.hasLocalCache()) {
+                        text = if (hadCache || container.playlistSync.hasLocalCache()) {
                             "Usa la copia guardada en este dispositivo"
                         } else {
                             "Solo la primera vez. Luego queda guardada."
@@ -113,16 +121,19 @@ fun CatalogLoadingScreen(
                         color = TextMuted,
                         fontSize = 14.sp
                     )
-                } else if (error != null) {
-                    Text(text = message, color = TextPrimary, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(10.dp))
-                    Text(text = error!!, color = androidx.compose.ui.graphics.Color(0xFFFF8A80))
-                    Spacer(Modifier.height(20.dp))
-                    FocusableButton(
-                        label = "Reintentar",
-                        onClick = { attempt += 1 },
-                        primary = true
-                    )
+                } else {
+                    val err = error
+                    if (err != null) {
+                        Text(text = message, color = TextPrimary, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(text = err, color = Color(0xFFFF8A80))
+                        Spacer(modifier = Modifier.height(20.dp))
+                        FocusableButton(
+                            label = "Reintentar",
+                            onClick = { attempt += 1 },
+                            primary = true
+                        )
+                    }
                 }
             }
         }
