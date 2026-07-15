@@ -1,0 +1,32 @@
+SEÑAL SERVER PRO — Windows VPS
+==============================
+
+IMPORTANTE: el servidor que corre ahora (v1.0) SOLO muestra stats y
+usuarios básicos. Este pack añade:
+  - Crear/bloquear usuarios, dispositivos, vencimiento
+  - Editor de BANNER (avisos en la TV)
+  - LOGS de logins y cambios
+
+PASOS:
+1) En el VPS, detén el servidor viejo (cierra la ventana negra
+   de INICIAR-SENAL o mata el proceso node).
+
+2) Copia TODA esta carpeta a C:\Senal-Server-PRO
+   (o reemplaza los archivos del servidor actual).
+
+3) Si ya tenías usuarios, copia tu carpeta data\ vieja aquí:
+      C:\Senal-Server-PRO\data\db.json
+
+4) Si ya tenías .env, cópialo aquí. Si no:
+      INSTALAR-WINDOWS.bat  (crea .env y pide editarlo)
+
+5) INSTALAR-WINDOWS.bat   (solo la primera vez / al actualizar)
+6) INICIAR-SENAL.bat
+7) Abre en el navegador:  http://127.0.0.1:3000
+   Login master (el de tu .env)
+
+QUÉ CONTROLA EL PANEL SOBRE LA TV:
+  ✓ Login / bloqueo / vencimiento / límite de dispositivos
+  ✓ Mensajes del banner del home (APK 1.9+)
+  ✗ La lista de canales de la APK es EMPEBIDA: importar M3U
+    aquí NO cambia canales en la TV (solo el conteo del servidor).

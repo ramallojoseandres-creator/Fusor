@@ -99,7 +99,19 @@ th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px
         <div class="stat"><span>Banners</span><b id="sBanners">0</b></div>
         <div class="stat"><span>Logs</span><b id="sLogs">0</b></div>
       </div>
-      <div class="card"><h3>Servicio</h3><p class="mono" id="dashNote"></p></div>
+      <div class="card">
+        <h3>Qué controla este panel en la TV</h3>
+        <ul style="margin:0;padding-left:18px;color:var(--muted);line-height:1.7">
+          <li><b style="color:var(--ok)">Sí afecta la TV:</b> crear usuarios, bloquear, vencimiento, límite de dispositivos, liberar dispositivos, mensajes del <b>Banner</b>.</li>
+          <li><b style="color:var(--warn)">No cambia canales de la APK:</b> la lista va embebida en el APK. Importar M3U aquí solo actualiza el conteo del servidor.</li>
+        </ul>
+        <div class="actions" style="margin-top:14px">
+          <button class="btn" onclick="goTab('users')">Gestionar usuarios</button>
+          <button class="btn" onclick="goTab('banners')">Escribir banner</button>
+          <button class="btn ghost" onclick="goTab('logs')">Ver logs</button>
+        </div>
+        <p class="mono" id="dashNote" style="margin-top:14px"></p>
+      </div>
     </section>
 
     <section id="tab-users" class="hidden">
