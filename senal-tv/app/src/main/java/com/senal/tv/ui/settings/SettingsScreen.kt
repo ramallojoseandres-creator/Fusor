@@ -107,13 +107,13 @@ fun SettingsScreen(
                     onClick = {
                         scope.launch {
                             error = null
-                            status = "Descargando catálogo…"
+                            status = "Descargando catálogo (manual)…"
                             runCatching { container.playlistSync.refreshFromServer() }
                                 .onSuccess { r ->
                                     status = if (r.error != null) {
                                         r.error
                                     } else {
-                                        "Lista OK · ${r.channels} canales · origen ${r.source}"
+                                        "Lista actualizada · ${r.channels} canales"
                                     }
                                 }
                                 .onFailure {
