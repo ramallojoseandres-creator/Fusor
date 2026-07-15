@@ -76,4 +76,7 @@ class AppContainer(app: Application) {
         historyDao = db.history(),
         continueDao = db.continueWatching()
     )
+
+    /** Session unlock for parental PIN (resets on process death). */
+    val adultsUnlockedSession = kotlinx.coroutines.flow.MutableStateFlow(false)
 }

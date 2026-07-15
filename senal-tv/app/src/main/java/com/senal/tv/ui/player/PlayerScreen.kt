@@ -1,6 +1,5 @@
 package com.senal.tv.ui.player
 
-import android.view.KeyEvent
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
@@ -39,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusable
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.nativeKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
@@ -80,6 +81,7 @@ import com.senal.tv.ui.theme.TextMuted
 import com.senal.tv.ui.theme.TextPrimary
 import com.senal.tv.util.CatalogRules
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -119,6 +121,24 @@ fun PlayerScreen(
     var zapList by remember { mutableStateOf(neighbors.ifEmpty { listOf(item) }) }
 
     val guideFocus = remember { FocusRequester() }
+    val rootFocus = remember { FocusRequester() }
+    val guideVisibleRef = remember { java.util.concurrent.atomic.AtomicBoolean(false) }
+
+    LaunchedEffect(guideVisible) {
+        guideVisibleRef.set(guideVisible)
+        if (guideVisible) {
+            delay(50)
+            runCatching { guideFocus.requestFocus() }
+        } else {
+            delay(40)
+            runCatching { rootFocus.requestFocus() }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        delay(80)
+        runCatching { rootFocus.requestFocus() }
+    }
 
     val trackSelector = remember {
         DefaultTrackSelector(context).apply {
@@ -152,10 +172,11 @@ fun PlayerScreen(
 
     fun playNeighbor(delta: Int) {
         if (zapList.isEmpty()) return
-        val idx = zapList.indexOfFirst { it.resolveId() == current.resolveId() }
-        if (idx < 0) return
-        val nextIdx = (idx + delta).coerceIn(0, zapList.lastIndex)
-        if (nextIdx == idx) return
+        val idx = zapList.indexOfFirst { it.resolveId() == current.resolveId() }.let {
+            if (it < 0) 0 else it
+        }
+        val nextIdx = (idx + delta + zapList.size) % zapList.size
+        if (zapList[nextIdx].resolveId() == current.resolveId() && zapList.size == 1) return
         current = zapList[nextIdx]
         requestKey++
         infoVisible = true
@@ -169,11 +190,13 @@ fun PlayerScreen(
     }
 
     LaunchedEffect(Unit) {
+        val settings = kotlinx.coroutines.flow.first(container.settingsStore.settings)
+        val hideAdults = settings.adultsLocked && !container.adultsUnlockedSession.value
         val cats = runCatching {
-            CatalogRules.sortCategories(container.catalogRepository.categories("live"))
+            container.catalogRepository.categories("live", hideAdults = hideAdults)
         }.getOrDefault(emptyList())
         categories = cats
-        if (selectedCategory.isNullOrBlank()) {
+        if (selectedCategory.isNullOrBlank() || cats.none { it.label() == selectedCategory }) {
             selectedCategory = CatalogRules.defaultCategory(cats)
         }
     }
@@ -296,12 +319,6 @@ fun PlayerScreen(
         }
     }
 
-    LaunchedEffect(guideVisible) {
-        if (guideVisible) {
-            delay(50)
-            runCatching { guideFocus.requestFocus() }
-        }
-    }
 
     BackHandler {
         if (guideVisible) guideVisible = false else onBack()
@@ -311,11 +328,15 @@ fun PlayerScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Graphite)
+            .focusRequester(rootFocus)
+            .focusable()
             .onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                when (event.key) {
-                    Key.DirectionUp -> {
-                        if (guideVisible) {
+                val guiding = guideVisibleRef.get()
+                val code = event.nativeKeyEvent.keyCode
+                when {
+                    event.key == Key.DirectionUp || code == android.view.KeyEvent.KEYCODE_CHANNEL_UP -> {
+                        if (guiding) {
                             bumpGuideTimer()
                             false
                         } else {
@@ -323,8 +344,8 @@ fun PlayerScreen(
                             true
                         }
                     }
-                    Key.DirectionDown -> {
-                        if (guideVisible) {
+                    event.key == Key.DirectionDown || code == android.view.KeyEvent.KEYCODE_CHANNEL_DOWN -> {
+                        if (guiding) {
                             bumpGuideTimer()
                             false
                         } else {
@@ -332,8 +353,9 @@ fun PlayerScreen(
                             true
                         }
                     }
-                    Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> {
-                        if (!guideVisible) {
+                    event.key == Key.DirectionCenter || event.key == Key.Enter || event.key == Key.NumPadEnter ||
+                        code == android.view.KeyEvent.KEYCODE_DPAD_CENTER || code == android.view.KeyEvent.KEYCODE_ENTER -> {
+                        if (!guiding) {
                             openGuide()
                             true
                         } else {
@@ -342,7 +364,7 @@ fun PlayerScreen(
                         }
                     }
                     else -> {
-                        if (guideVisible) bumpGuideTimer()
+                        if (guiding) bumpGuideTimer()
                         false
                     }
                 }
@@ -359,29 +381,8 @@ fun PlayerScreen(
                     )
                     this.player = player
                     isFocusable = false
-                    isClickable = false
-                    // Consume DPAD so Compose overlay gets keys via parent
-                    setOnKeyListener { _, keyCode, ev ->
-                        if (ev.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
-                        when (keyCode) {
-                            KeyEvent.KEYCODE_DPAD_UP -> {
-                                if (!guideVisible) {
-                                    playNeighbor(-1); true
-                                } else false
-                            }
-                            KeyEvent.KEYCODE_DPAD_DOWN -> {
-                                if (!guideVisible) {
-                                    playNeighbor(1); true
-                                } else false
-                            }
-                            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
-                                if (!guideVisible) {
-                                    openGuide(); true
-                                } else false
-                            }
-                            else -> false
-                        }
-                    }
+                    descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+                    // Keys handled by focused Compose parent (avoids stale closure bugs)
                 }
             },
             modifier = Modifier.fillMaxSize(),

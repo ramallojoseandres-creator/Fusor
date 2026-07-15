@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -73,22 +74,20 @@ import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.delay
 
-private data class FocusColumn(
+/** Home nav tiles (no FLUJO mipmaps). */
+private data class NavTile(
     val section: HomeSection,
     val label: String,
-    val normalRes: Int,
-    val focusedRes: Int
+    val accent: Color
 )
 
-/** Exact FLUJO column set (5 FocusColumView). */
-private val columns = listOf(
-    FocusColumn(HomeSection.LIVE, "EN VIVO", R.mipmap.bg_main_live_category_item_n, R.mipmap.bg_main_live_category_item_f),
-    FocusColumn(HomeSection.MOVIES, "PELÍCULAS", R.mipmap.bg_main_vod_category_item_n, R.mipmap.bg_main_vod_category_item_f),
-    FocusColumn(HomeSection.SERIES, "SERIES", R.mipmap.bg_main_special_category_item_n, R.mipmap.bg_main_special_category_item_f),
-    FocusColumn(HomeSection.FAVORITES, "FAVORITOS", R.mipmap.bg_main_game_category_item_n, R.mipmap.bg_main_game_category_item_f),
-    FocusColumn(HomeSection.SEARCH, "BUSCAR", R.mipmap.bg_main_vod_category_item_n, R.mipmap.bg_main_vod_category_item_f)
+private val navTiles = listOf(
+    NavTile(HomeSection.LIVE, "EN VIVO", Color(0xFF1A9BC4)),
+    NavTile(HomeSection.MOVIES, "PELÍCULAS", Color(0xFF2AA8C0)),
+    NavTile(HomeSection.SERIES, "SERIES", Color(0xFF4DB8A0)),
+    NavTile(HomeSection.FAVORITES, "FAVORITOS", Color(0xFF7EB8C8)),
+    NavTile(HomeSection.SEARCH, "BUSCAR", Color(0xFF3EC4E8)),
 )
-
 @Composable
 fun HomeScreen(
     container: AppContainer,
@@ -175,11 +174,10 @@ private fun FlujoExactHome(
     onOpen: (HomeSection) -> Unit,
     onPlayLive: (CatalogItem) -> Unit
 ) {
-    // Margins from FLUJO dimens: horizontal 89-95, top 35
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(start = 89.dp, end = 95.dp, top = 35.dp, bottom = 24.dp)
+            .padding(start = 56.dp, end = 56.dp, top = 28.dp, bottom = 28.dp)
     ) {
         HeaderBar(
             clock = clock,
@@ -187,60 +185,52 @@ private fun FlujoExactHome(
             onSearch = { onOpen(HomeSection.SEARCH) }
         )
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(22.dp))
 
-        // Top content row height 303dp (FLUJO)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(303.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                .weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Live player window 542dp + focus zoom shadow
             LivePreviewCard(
                 item = livePreview,
                 onClick = { livePreview?.let(onPlayLive) },
                 modifier = Modifier
-                    .width(542.dp)
                     .fillMaxHeight()
+                    .weight(1.15f)
                     .zIndex(2f)
             )
-
-            // Banner column fills remaining
             BannerStack(
                 items = banners,
                 modifier = Modifier
-                    .weight(1f)
+                    .weight(0.85f)
                     .fillMaxHeight()
             )
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(20.dp))
 
-        // FocusColumView row height 100dp
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(100.dp),
+                .height(92.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            columns.forEachIndexed { index, col ->
-                FocusColumnExact(
-                    label = col.label,
-                    normalRes = col.normalRes,
-                    focusedRes = col.focusedRes,
-                    onClick = { onOpen(col.section) },
+            navTiles.forEach { tile ->
+                SenalNavTile(
+                    label = tile.label,
+                    accent = tile.accent,
+                    onClick = { onOpen(tile.section) },
                     modifier = Modifier
-                        .width(150.dp)
+                        .weight(1f)
                         .fillMaxHeight()
-                        .then(if (index > 0) Modifier.offset(x = (-3).dp) else Modifier)
-                        .zIndex((index + 1).toFloat())
                 )
             }
-            Box(modifier = Modifier.weight(1f))
             Column(
-                modifier = Modifier.width(30.dp),
-                verticalArrangement = Arrangement.spacedBy(15.dp),
+                modifier = Modifier.width(44.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 IconFocusButton(
@@ -436,10 +426,9 @@ private fun BannerStack(items: List<CatalogItem>, modifier: Modifier = Modifier)
 }
 
 @Composable
-private fun FocusColumnExact(
+private fun SenalNavTile(
     label: String,
-    normalRes: Int,
-    focusedRes: Int,
+    accent: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -449,25 +438,40 @@ private fun FocusColumnExact(
         modifier = modifier
             .then(rememberFlujoFocusModifier(focused, big = true))
             .onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Transparent,
             focusedContainerColor = Color.Transparent
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
         content = {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Image(
-                    painter = painterResource(if (focused) focusedRes else normalRes),
-                    contentDescription = label,
-                    contentScale = ContentScale.FillBounds,
-                    modifier = Modifier.fillMaxSize()
-                )
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                accent.copy(alpha = if (focused) 0.95f else 0.50f),
+                                Color(0xFF000910).copy(alpha = 0.92f)
+                            )
+                        )
+                    )
+                    .then(
+                        if (focused) {
+                            Modifier.border(2.dp, Color.White.copy(alpha = 0.85f), RoundedCornerShape(14.dp))
+                        } else {
+                            Modifier.border(1.dp, accent.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
+                        }
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
                 Text(
                     text = label,
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
+                    fontSize = 15.sp,
+                    letterSpacing = 1.sp
                 )
             }
         }

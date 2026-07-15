@@ -30,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -142,12 +143,18 @@ fun LiveTvScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
+    val appSettings by container.settingsStore.settings.collectAsState(initial = com.senal.tv.data.local.AppSettings())
+    val adultsSession by container.adultsUnlockedSession.collectAsState()
+    val hideAdults = appSettings.adultsLocked && !adultsSession
+
+    LaunchedEffect(hideAdults) {
         loadingCats = true
-        runCatching { container.catalogRepository.categories("live") }
+        runCatching { container.catalogRepository.categories("live", hideAdults = hideAdults) }
             .onSuccess {
                 categories = it
-                selected = CatalogRules.defaultCategory(it)
+                if (selected == null || categories.none { c -> c.label() == selected }) {
+                    selected = CatalogRules.defaultCategory(it)
+                }
             }
             .onFailure { error = it.message }
         loadingCats = false

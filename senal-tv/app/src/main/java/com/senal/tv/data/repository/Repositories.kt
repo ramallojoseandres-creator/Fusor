@@ -1,6 +1,8 @@
 package com.senal.tv.data.repository
 
+import com.senal.tv.data.api.ChangePasswordRequest
 import com.senal.tv.data.api.NetworkModule
+import com.senal.tv.data.api.PatchUserRequest
 import com.senal.tv.data.api.SenalApi
 import com.senal.tv.data.local.ContinueDao
 import com.senal.tv.data.local.ContinueEntity
@@ -44,11 +46,53 @@ class AuthRepository(
             )
             val token = response.resolveToken()
                 ?: throw IllegalStateException(response.error ?: "No se recibió token JWT")
-            tokenStore.saveSession(token, username.trim())
+            tokenStore.saveSession(
+                token = token,
+                username = username.trim(),
+                userId = response.user?.id,
+                role = response.user?.role
+            )
         }.recoverCatching { err ->
             throw friendlyHttp(err)
         }
     }
+
+    suspend fun changePassword(current: String, newPassword: String): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                if (newPassword.length < 4) {
+                    throw IllegalStateException("La nueva contraseña debe tener al menos 4 caracteres")
+                }
+                // 1) Preferred dedicated endpoint
+                val viaAuth = runCatching {
+                    api.changePassword(
+                        ChangePasswordRequest(
+                            currentPassword = current,
+                            newPassword = newPassword,
+                            oldPassword = current,
+                            password = newPassword
+                        )
+                    )
+                }
+                if (viaAuth.isSuccess) {
+                    val body = viaAuth.getOrThrow()
+                    if (!body.error.isNullOrBlank()) {
+                        throw IllegalStateException(body.error)
+                    }
+                    return@runCatching
+                }
+                // 2) Fallback: admin-style PATCH on own user id (if the API accepts password)
+                val userId = tokenStore.cachedUserId
+                    ?: throw viaAuth.exceptionOrNull()
+                        ?: IllegalStateException("No hay id de usuario en la sesión")
+                val patched = api.patchUser(userId, PatchUserRequest(password = newPassword))
+                if (!patched.error.isNullOrBlank()) {
+                    throw IllegalStateException(patched.error)
+                }
+            }.recoverCatching { err ->
+                throw friendlyHttp(err)
+            }
+        }
 
     suspend fun logout() = tokenStore.clear()
 
@@ -78,6 +122,17 @@ class CatalogRepository(
 ) {
     suspend fun categories(type: String): List<Category> = withContext(Dispatchers.IO) {
         playlist.categories(type)
+    }
+
+    /** Categories with optional adult filter for parental lock. */
+    suspend fun categories(type: String, hideAdults: Boolean): List<Category> {
+        val all = categories(type)
+        return if (!hideAdults) {
+            com.senal.tv.util.CatalogRules.sortCategories(all)
+        } else {
+            com.senal.tv.util.CatalogRules.sortCategories(all)
+                .filterNot { com.senal.tv.util.CatalogRules.isAdultLabel(it.label()) }
+        }
     }
 
     suspend fun page(
