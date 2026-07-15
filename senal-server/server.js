@@ -707,7 +707,7 @@ app.patch("/api/admin/channels/:id", auth, requireMaster, (req, res) => {
     const max = Math.max(-1, ...db.content.filter((c) => c.group === ch.group).map((c) => c.sort ?? 0));
     ch.sort = max + 1;
   }
-  scheduleSave();
+  touchCatalog();
   logEvent("channel_edit", `Canal: ${ch.title}`, { id: ch.id, by: req.user.username });
   res.json(ch);
 });
