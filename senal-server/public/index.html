@@ -3,81 +3,71 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SEÑAL · Panel IPTV</title>
+<title>SEÑAL · Panel PRO</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#070b10; --panel:#0e141c; --panel2:#121a24; --line:#1e2a38;
-  --text:#e8eef5; --muted:#7d8fa3; --cyan:#2ec6e0; --teal:#1fa897;
-  --ok:#2dd4a8; --warn:#e8b84a; --danger:#e15b5b; --focus:#3ec4e8;
+  --text:#e8eef5; --muted:#7d8fa3; --cyan:#2ec6e0; --ok:#2dd4a8; --warn:#e8b84a; --danger:#e15b5b;
 }
-*{box-sizing:border-box} html,body{height:100%}
-body{margin:0;font:14px/1.45 "DM Sans",system-ui,sans-serif;color:var(--text);
-  background:
-    radial-gradient(900px 480px at 85% -10%,rgba(46,198,224,.18),transparent 55%),
-    radial-gradient(700px 420px at 0% 100%,rgba(31,168,151,.12),transparent 50%),
-    var(--bg)}
+*{box-sizing:border-box} html,body{height:100%;margin:0}
+body{font:14px/1.45 "DM Sans",system-ui,sans-serif;color:var(--text);
+  background:radial-gradient(900px 480px at 85% -10%,rgba(46,198,224,.16),transparent 55%),var(--bg)}
 button,input,select,textarea{font:inherit}
-a{color:var(--cyan)}
 .app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
-.side{background:linear-gradient(180deg,#0b121a,#0a1017);border-right:1px solid var(--line);padding:22px 16px;display:flex;flex-direction:column;gap:18px}
-.brand{display:flex;align-items:center;gap:12px;padding:4px 8px 18px}
-.brand-mark{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--cyan),#127a90);display:grid;place-items:center;font-weight:800;letter-spacing:1px}
-.brand h1{margin:0;font-size:18px;letter-spacing:2px}.brand small{color:var(--muted);display:block;font-size:11px;letter-spacing:.4px}
+.side{background:#0b121a;border-right:1px solid var(--line);padding:22px 16px;display:flex;flex-direction:column;gap:16px}
+.brand{display:flex;gap:12px;align-items:center;padding:4px 8px 12px}
+.mark{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--cyan),#127a90);display:grid;place-items:center;font-weight:800}
+.brand h1{margin:0;font-size:18px;letter-spacing:2px}.brand small{color:var(--muted);font-size:11px}
 .nav{display:flex;flex-direction:column;gap:6px}
 .nav button{text-align:left;background:transparent;border:1px solid transparent;color:var(--muted);padding:12px 14px;border-radius:12px;cursor:pointer;font-weight:600}
-.nav button:hover{color:var(--text);background:rgba(255,255,255,.03)}
-.nav button.active{color:var(--text);background:rgba(46,198,224,.12);border-color:rgba(46,198,224,.25)}
-.side-foot{margin-top:auto;padding:10px;color:var(--muted);font-size:12px}
-.main{padding:28px 32px 48px;max-width:1280px}
-.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;gap:12px;flex-wrap:wrap}
+.nav button.active,.nav button:hover{color:var(--text);background:rgba(46,198,224,.12);border-color:rgba(46,198,224,.2)}
+.foot{margin-top:auto;color:var(--muted);font-size:12px}
+.main{padding:28px 32px 48px;max-width:1320px}
+.top{display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:18px}
 .top h2{margin:0;font-size:26px;font-weight:800}.top p{margin:4px 0 0;color:var(--muted)}
-.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
-.stat{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 18px}
-.stat span{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:1px}
-.stat b{display:block;font-size:30px;margin-top:8px;font-variant-numeric:tabular-nums}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:18px}
-.card h3{margin:0 0 14px;font-size:15px;letter-spacing:.4px}
-.row{display:flex;gap:10px;flex-wrap:wrap}.row > *{flex:1;min-width:140px}
-input,select,textarea{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:12px 14px;outline:none}
-input:focus,select:focus,textarea:focus{border-color:var(--focus);box-shadow:0 0 0 3px rgba(62,196,232,.15)}
-textarea{min-height:88px;resize:vertical}
-.btn{background:linear-gradient(135deg,var(--cyan),#1688a0);border:0;color:#041018;font-weight:800;padding:12px 16px;border-radius:12px;cursor:pointer}
-.btn:hover{filter:brightness(1.05)}.btn.ghost{background:#152032;color:var(--text)}.btn.danger{background:#5c2228;color:#ffd4d4}
-.btn.sm{padding:8px 10px;font-size:12px;border-radius:9px}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 16px}
+.stat span{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px}
+.stat b{display:block;font-size:28px;margin-top:6px;font-variant-numeric:tabular-nums}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px}
+.card h3{margin:0 0 12px;font-size:15px}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1;min-width:130px}
+input,select,textarea{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:11px 13px}
+textarea{min-height:90px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 3px rgba(46,198,224,.15)}
+.btn{background:linear-gradient(135deg,var(--cyan),#1688a0);border:0;color:#041018;font-weight:800;padding:11px 14px;border-radius:12px;cursor:pointer}
+.btn.ghost{background:#152032;color:var(--text)}.btn.danger{background:#5c2228;color:#ffd4d4}
+.btn.sm{padding:7px 10px;font-size:12px;border-radius:9px}
 table{width:100%;border-collapse:collapse}
-th,td{padding:12px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
-th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:700}
-.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:#182433;font-size:12px;font-weight:700}
+th,td{padding:11px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px}
+.pill{display:inline-flex;padding:3px 9px;border-radius:999px;background:#182433;font-size:12px;font-weight:700}
 .pill.ok{background:rgba(45,212,168,.15);color:var(--ok)}
 .pill.off{background:rgba(225,91,91,.15);color:#ffb4b4}
 .pill.warn{background:rgba(232,184,74,.15);color:var(--warn)}
 .hidden{display:none!important}
-.login-wrap{min-height:100vh;display:grid;place-items:center;padding:24px}
-.login-card{width:min(420px,100%);background:rgba(14,20,28,.96);border:1px solid var(--line);border-radius:20px;padding:28px;box-shadow:0 30px 80px #000a}
-.login-card h1{margin:0 0 6px;letter-spacing:3px}.muted{color:var(--muted)}
-.actions{display:flex;gap:8px;flex-wrap:wrap}
-.banner-list{display:grid;gap:12px}
-.banner-item{display:grid;grid-template-columns:1fr auto;gap:12px;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:14px}
+.login{min-height:100vh;display:grid;place-items:center;padding:24px}
+.login-card{width:min(420px,100%);background:rgba(14,20,28,.96);border:1px solid var(--line);border-radius:20px;padding:28px}
 .mono{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12px;color:var(--muted)}
-.msg{margin-top:10px;font-size:13px}.msg.ok{color:var(--ok)}.msg.err{color:var(--danger)}
-.devices{font-size:12px;color:var(--muted);margin-top:4px}
-@media(max-width:960px){
-  .app{grid-template-columns:1fr}.side{display:none}.grid{grid-template-columns:1fr 1fr}.main{padding:18px}
-}
+.msg{margin-top:10px}.msg.ok{color:var(--ok)}.msg.err{color:var(--danger)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.banner-item,.log-item{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px}
+.log-item{display:grid;grid-template-columns:170px 120px 1fr;gap:10px}
+.log-type{font-weight:800;color:var(--cyan)}
+@media(max-width:1100px){.grid{grid-template-columns:1fr 1fr}.log-item{grid-template-columns:1fr}.app{grid-template-columns:1fr}.side{display:none}}
 </style>
 </head>
 <body>
-<div id="loginView" class="login-wrap">
+<div id="loginView" class="login">
   <div class="login-card">
-    <h1>SEÑAL</h1>
-    <p class="muted">Panel IPTV · usuarios, dispositivos y avisos</p>
-    <div class="row" style="margin-top:18px;flex-direction:column">
+    <h1 style="letter-spacing:3px;margin:0">SEÑAL</h1>
+    <p class="mono">Panel PRO · usuarios · logs · banner</p>
+    <div class="row" style="flex-direction:column;margin-top:18px">
       <input id="loginUser" value="admin" placeholder="Usuario master">
       <input id="loginPass" type="password" placeholder="Contraseña">
-      <button class="btn" id="loginBtn">Entrar al panel</button>
+      <button class="btn" id="loginBtn">Entrar</button>
     </div>
     <p id="loginMsg" class="msg"></p>
   </div>
@@ -85,102 +75,95 @@ th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:1px
 
 <div id="appView" class="app hidden">
   <aside class="side">
-    <div class="brand">
-      <div class="brand-mark">S</div>
-      <div><h1>SEÑAL</h1><small>CONTROL CENTER</small></div>
-    </div>
+    <div class="brand"><div class="mark">S</div><div><h1>SEÑAL</h1><small>SERVER PRO</small></div></div>
     <nav class="nav">
       <button class="active" data-tab="dash">Dashboard</button>
       <button data-tab="users">Usuarios</button>
-      <button data-tab="banners">Banner / noticias</button>
+      <button data-tab="banners">Banner</button>
+      <button data-tab="logs">Logs</button>
       <button data-tab="import">Importar M3U</button>
     </nav>
-    <div class="side-foot">
+    <div class="foot">
       <div id="serverHealth" class="mono">—</div>
-      <button class="btn ghost sm" id="logoutBtn" style="margin-top:10px;width:100%">Cerrar sesión</button>
+      <button class="btn ghost sm" id="logoutBtn" style="width:100%;margin-top:10px">Salir</button>
     </div>
   </aside>
 
   <main class="main">
     <section id="tab-dash">
-      <div class="top">
-        <div><h2>Dashboard</h2><p>Resumen de cuentas, conexiones y catálogo</p></div>
-        <button class="btn ghost" onclick="refreshAll()">Actualizar</button>
-      </div>
+      <div class="top"><div><h2>Dashboard</h2><p>Resumen del servidor</p></div><button class="btn ghost" onclick="refreshAll()">Actualizar</button></div>
       <div class="grid">
         <div class="stat"><span>Usuarios</span><b id="sUsers">0</b></div>
         <div class="stat"><span>Dispositivos</span><b id="sDevices">0</b></div>
         <div class="stat"><span>Contenido</span><b id="sContent">0</b></div>
-        <div class="stat"><span>TV / VOD / Series</span><b id="sTypes">0 / 0 / 0</b></div>
+        <div class="stat"><span>Banners</span><b id="sBanners">0</b></div>
+        <div class="stat"><span>Logs</span><b id="sLogs">0</b></div>
       </div>
-      <div class="card">
-        <h3>Estado del servicio</h3>
-        <p class="muted">Los clientes Android/iOS autentican aquí. El catálogo de la APK es local; este panel controla acceso y avisos del home.</p>
-        <p class="mono" id="dashNote"></p>
-      </div>
+      <div class="card"><h3>Servicio</h3><p class="mono" id="dashNote"></p></div>
     </section>
 
     <section id="tab-users" class="hidden">
-      <div class="top">
-        <div><h2>Usuarios</h2><p>Límite de dispositivos, vencimiento y estado</p></div>
-      </div>
+      <div class="top"><div><h2>Usuarios</h2><p>Dispositivos, vencimiento y estado</p></div></div>
       <div class="card">
         <h3>Crear usuario</h3>
         <div class="row">
           <input id="uName" placeholder="Usuario">
           <input id="uPass" type="password" placeholder="Contraseña">
-          <input id="uLimit" type="number" min="1" max="50" value="1" title="Dispositivos máx.">
-          <input id="uExpiry" type="datetime-local" title="Vencimiento">
+          <input id="uLimit" type="number" min="1" max="50" value="1" title="Máx dispositivos">
+          <input id="uExpiry" type="datetime-local">
           <button class="btn" id="createUserBtn">Crear</button>
         </div>
-        <p class="muted" style="margin-top:8px">Dispositivos = conexiones simultáneas guardadas. Al vencer, el login queda bloqueado.</p>
       </div>
-      <div class="card">
-        <table>
-          <thead>
-            <tr>
-              <th>Usuario</th><th>Estado</th><th>Vence</th><th>Límite</th><th>Dispositivos</th><th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody id="usersBody"></tbody>
-        </table>
-      </div>
+      <div class="card"><table><thead><tr>
+        <th>Usuario</th><th>Estado</th><th>Vence</th><th>Límite</th><th>Dispositivos</th><th>Acciones</th>
+      </tr></thead><tbody id="usersBody"></tbody></table></div>
     </section>
 
     <section id="tab-banners" class="hidden">
-      <div class="top">
-        <div><h2>Banner / noticias</h2><p>Mensajes que ve el usuario en el home (zona derecha)</p></div>
-      </div>
+      <div class="top"><div><h2>Banner / noticias</h2><p>Avisos del home en la TV</p></div></div>
       <div class="card">
         <h3>Nuevo aviso</h3>
         <div class="row" style="flex-direction:column">
-          <input id="bTitle" placeholder="Título del aviso">
-          <textarea id="bBody" placeholder="Texto del mensaje para la TV…"></textarea>
-          <input id="bImage" placeholder="URL de imagen (opcional)">
-          <button class="btn" id="addBannerBtn" style="max-width:220px">Publicar aviso</button>
+          <input id="bTitle" placeholder="Título">
+          <textarea id="bBody" placeholder="Mensaje para la TV…"></textarea>
+          <input id="bImage" placeholder="URL imagen (opcional)">
+          <button class="btn" id="addBannerBtn" style="max-width:220px">Publicar</button>
         </div>
         <p id="bannerMsg" class="msg"></p>
       </div>
-      <div class="card">
-        <h3>Avisos activos</h3>
-        <div id="bannerList" class="banner-list"></div>
+      <div class="card"><h3>Avisos</h3><div id="bannerList"></div></div>
+    </section>
+
+    <section id="tab-logs" class="hidden">
+      <div class="top"><div><h2>Logs</h2><p>Logins, errores, cambios admin</p></div>
+        <div class="actions">
+          <button class="btn ghost" onclick="logs()">Actualizar</button>
+          <button class="btn danger" onclick="clearLogs()">Vaciar logs</button>
+        </div>
       </div>
+      <div class="card">
+        <div class="row">
+          <select id="logType">
+            <option value="">Todos los tipos</option>
+            <option>login_ok</option><option>login_fail</option><option>login_blocked</option>
+            <option>login_expired</option><option>device_limit</option>
+            <option>user_create</option><option>user_update</option><option>user_delete</option>
+            <option>banner_create</option><option>banner_delete</option><option>m3u_import</option>
+            <option>server_start</option>
+          </select>
+          <input id="logQ" placeholder="Buscar…">
+          <button class="btn ghost" onclick="logs()">Filtrar</button>
+        </div>
+      </div>
+      <div class="card"><div id="logList"></div></div>
     </section>
 
     <section id="tab-import" class="hidden">
-      <div class="top">
-        <div><h2>Importar M3U</h2><p>Reemplaza el conteo de catálogo del servidor (la APK usa lista embebida)</p></div>
-      </div>
+      <div class="top"><div><h2>Importar M3U</h2><p>Catálogo del servidor (conteo / data)</p></div></div>
       <div class="card">
         <form id="importForm">
           <div class="row">
-            <input id="playlistFile" name="playlist" type="file" accept=".m3u,.m3u8,.txt" required>
-            <select id="importMode" name="mode">
-              <option value="AUTO">Detectar automáticamente</option>
-              <option value="LIVE">Todo como TV en vivo</option>
-              <option value="MOVIE">Todo como películas</option>
-              <option value="SERIES">Todo como series</option>
-            </select>
+            <input id="playlistFile" type="file" accept=".m3u,.m3u8,.txt" required>
             <button class="btn" type="submit">Importar</button>
           </div>
         </form>
@@ -193,6 +176,7 @@ th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:1px
 <script>
 let token = localStorage.getItem("senalToken") || "";
 const $ = (id) => document.getElementById(id);
+const esc = (v) => String(v ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 
 async function api(path, options = {}) {
   const r = await fetch(path, {
@@ -225,16 +209,10 @@ async function login() {
     });
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || "Error");
-    if (j.user?.role !== "MASTER" && j.user?.role !== "ADMIN") {
-      throw new Error("Se requiere cuenta MASTER/ADMIN");
-    }
-    token = j.token;
-    localStorage.setItem("senalToken", token);
+    if (j.user?.role !== "MASTER" && j.user?.role !== "ADMIN") throw new Error("Se requiere MASTER/ADMIN");
+    token = j.token; localStorage.setItem("senalToken", token);
     await showApp();
-  } catch (e) {
-    msg.className = "msg err";
-    msg.textContent = e.message;
-  }
+  } catch (e) { msg.className = "msg err"; msg.textContent = e.message; }
 }
 
 async function showApp() {
@@ -244,17 +222,15 @@ async function showApp() {
 }
 
 async function refreshAll() {
-  await Promise.all([stats(), users(), banners(), health()]);
+  await Promise.all([stats(), users(), banners(), logs(), health()]);
 }
 
 async function health() {
   try {
     const h = await fetch("/api/health").then((r) => r.json());
-    $("serverHealth").textContent = `v${h.version} · users ${h.users} · content ${h.content}`;
+    $("serverHealth").textContent = `v${h.version} · ${h.users} users · ${h.content} content`;
     $("dashNote").textContent = JSON.stringify(h);
-  } catch {
-    $("serverHealth").textContent = "health offline";
-  }
+  } catch { $("serverHealth").textContent = "offline"; }
 }
 
 async function stats() {
@@ -262,13 +238,8 @@ async function stats() {
   $("sUsers").textContent = s.users;
   $("sDevices").textContent = s.devices;
   $("sContent").textContent = s.content;
-  $("sTypes").textContent = `${s.live} / ${s.movies} / ${s.series}`;
-}
-
-function escapeHtml(v) {
-  return String(v ?? "")
-    .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+  $("sBanners").textContent = s.banners;
+  $("sLogs").textContent = s.logs;
 }
 
 function fmtDate(v) {
@@ -280,20 +251,19 @@ function fmtDate(v) {
 async function users() {
   const list = await api("/api/admin/users");
   $("usersBody").innerHTML = list.map((u) => {
-    const expired = u.expiresAt && Date.now() > new Date(u.expiresAt).getTime();
     const status = !u.active ? '<span class="pill off">BLOQUEADO</span>'
-      : expired ? '<span class="pill warn">VENCIDO</span>'
+      : u.expired ? '<span class="pill warn">VENCIDO</span>'
       : '<span class="pill ok">ACTIVO</span>';
     const devices = (u.devices || []).map((d) =>
-      `${escapeHtml(d.deviceName || d.deviceId)} <span class="mono">${escapeHtml(d.lastSeenAt || "")}</span>`
+      `${esc(d.name || d.deviceId)} <span class="mono">${esc(d.lastSeenAt || "")}</span>`
     ).join("<br>") || "—";
     return `<tr>
-      <td><strong>${escapeHtml(u.username)}</strong><div class="mono">${escapeHtml(u.role)}</div></td>
+      <td><strong>${esc(u.username)}</strong><div class="mono">${esc(u.role)}</div></td>
       <td>${status}</td>
       <td>
         <div>${fmtDate(u.expiresAt)}</div>
         <div class="actions" style="margin-top:6px">
-          <input type="datetime-local" id="exp-${u.id}" style="min-width:180px">
+          <input type="datetime-local" id="exp-${u.id}">
           <button class="btn ghost sm" onclick="setExpiry('${u.id}')">Guardar fecha</button>
         </div>
       </td>
@@ -301,10 +271,10 @@ async function users() {
         <input type="number" min="1" max="50" value="${u.connectionLimit}" id="lim-${u.id}" style="width:72px">
         <button class="btn ghost sm" onclick="setLimit('${u.id}')">OK</button>
       </td>
-      <td><div class="devices">${devices}</div></td>
+      <td><div class="mono">${devices}</div></td>
       <td class="actions">
         <button class="btn ghost sm" onclick="toggleUser('${u.id}', ${!u.active})">${u.active ? "Bloquear" : "Activar"}</button>
-        <button class="btn ghost sm" onclick="clearDevices('${u.id}')">Liberar dispositivos</button>
+        <button class="btn ghost sm" onclick="clearDevices('${u.id}')">Liberar</button>
         ${u.role !== "MASTER" ? `<button class="btn danger sm" onclick="deleteUser('${u.id}')">Eliminar</button>` : ""}
       </td>
     </tr>`;
@@ -315,25 +285,18 @@ async function createUser() {
   try {
     const expiry = $("uExpiry").value ? new Date($("uExpiry").value).toISOString() : null;
     await api("/api/admin/users", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        username: $("uName").value,
-        password: $("uPass").value,
-        connectionLimit: Number($("uLimit").value),
-        expiresAt: expiry
+        username: $("uName").value, password: $("uPass").value,
+        connectionLimit: Number($("uLimit").value), expiresAt: expiry
       })
     });
     $("uName").value = ""; $("uPass").value = "";
     await Promise.all([users(), stats()]);
   } catch (e) { alert(e.message); }
 }
-
 async function toggleUser(id, active) {
-  await api(`/api/admin/users/${id}`, {
-    method: "PATCH", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ active })
-  });
+  await api(`/api/admin/users/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ active }) });
   users();
 }
 async function clearDevices(id) {
@@ -354,10 +317,9 @@ async function setExpiry(id) {
   users();
 }
 async function setLimit(id) {
-  const connectionLimit = Number($(`lim-${id}`).value) || 1;
   await api(`/api/admin/users/${id}`, {
     method: "PATCH", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ connectionLimit })
+    body: JSON.stringify({ connectionLimit: Number($(`lim-${id}`).value) || 1 })
   });
   users();
 }
@@ -365,55 +327,59 @@ async function setLimit(id) {
 async function banners() {
   const list = await api("/api/admin/banners");
   $("bannerList").innerHTML = (list || []).map((b) => `
-    <div class="banner-item">
+    <div class="banner-item" style="display:grid;grid-template-columns:1fr auto;gap:12px">
       <div>
-        <strong>${escapeHtml(b.title)}</strong>
-        <div class="muted" style="margin-top:6px">${escapeHtml(b.body || "")}</div>
-        ${b.imageUrl ? `<div class="mono" style="margin-top:6px">${escapeHtml(b.imageUrl)}</div>` : ""}
-        <div class="mono" style="margin-top:6px">${b.active === false ? "inactivo" : "activo"} · ${escapeHtml(b.updatedAt || "")}</div>
+        <strong>${esc(b.title)}</strong>
+        <div style="margin-top:6px;color:var(--muted)">${esc(b.body || "")}</div>
+        <div class="mono" style="margin-top:6px">${b.active === false ? "inactivo" : "activo"} · ${esc(b.updatedAt || "")}</div>
       </div>
       <div class="actions" style="flex-direction:column">
         <button class="btn ghost sm" onclick="toggleBanner('${b.id}', ${b.active === false})">${b.active === false ? "Activar" : "Desactivar"}</button>
         <button class="btn danger sm" onclick="deleteBanner('${b.id}')">Borrar</button>
       </div>
-    </div>`).join("") || '<p class="muted">Sin avisos todavía.</p>';
+    </div>`).join("") || '<p style="color:var(--muted)">Sin avisos.</p>';
 }
-
 async function addBanner() {
   const msg = $("bannerMsg");
   try {
     await api("/api/admin/banners", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: $("bTitle").value,
-        body: $("bBody").value,
-        imageUrl: $("bImage").value,
-        active: true
-      })
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: $("bTitle").value, body: $("bBody").value, imageUrl: $("bImage").value, active: true })
     });
     $("bTitle").value = ""; $("bBody").value = ""; $("bImage").value = "";
-    msg.className = "msg ok"; msg.textContent = "Aviso publicado. La TV lo verá en el próximo arranque/home.";
-    banners();
-  } catch (e) {
-    msg.className = "msg err"; msg.textContent = e.message;
-  }
+    msg.className = "msg ok"; msg.textContent = "Publicado. La TV lo lee en GET /api/banner";
+    await Promise.all([banners(), stats()]);
+  } catch (e) { msg.className = "msg err"; msg.textContent = e.message; }
 }
-
 async function deleteBanner(id) {
   await api(`/api/admin/banners/${id}`, { method: "DELETE" });
-  banners();
+  await Promise.all([banners(), stats()]);
 }
-
 async function toggleBanner(id, active) {
   const list = await api("/api/admin/banners");
   const next = list.map((b) => b.id === id ? { ...b, active } : b);
-  await api("/api/admin/banners", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ items: next })
-  });
+  await api("/api/admin/banners", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items: next }) });
   banners();
+}
+
+async function logs() {
+  const type = $("logType").value;
+  const q = $("logQ").value;
+  const qs = new URLSearchParams({ limit: "200" });
+  if (type) qs.set("type", type);
+  if (q) qs.set("q", q);
+  const data = await api(`/api/admin/logs?${qs}`);
+  $("logList").innerHTML = (data.items || []).map((l) => `
+    <div class="log-item">
+      <div class="mono">${esc(l.at)}</div>
+      <div class="log-type">${esc(l.type)}</div>
+      <div>${esc(l.message)}<div class="mono">${esc(JSON.stringify(l.meta || {}))}</div></div>
+    </div>`).join("") || '<p style="color:var(--muted)">Sin logs.</p>';
+}
+async function clearLogs() {
+  if (!confirm("¿Vaciar todos los logs?")) return;
+  await api("/api/admin/logs", { method: "DELETE" });
+  await Promise.all([logs(), stats()]);
 }
 
 $("importForm").addEventListener("submit", async (e) => {
@@ -423,30 +389,20 @@ $("importForm").addEventListener("submit", async (e) => {
   try {
     const form = new FormData();
     form.append("playlist", $("playlistFile").files[0]);
-    form.append("mode", $("importMode").value);
-    const r = await fetch("/api/admin/import", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: form
-    });
+    const r = await fetch("/api/admin/import", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || "Error");
     msg.className = "msg ok";
     msg.textContent = `Importados ${j.imported}: TV ${j.live}, películas ${j.movies}, series ${j.series}`;
     stats();
-  } catch (err) {
-    msg.className = "msg err";
-    msg.textContent = err.message;
-  }
+  } catch (err) { msg.className = "msg err"; msg.textContent = err.message; }
 });
 
 document.querySelectorAll(".nav button").forEach((btn) => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".nav button").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
-    ["dash", "users", "banners", "import"].forEach((t) => {
-      $(`tab-${t}`).classList.toggle("hidden", t !== btn.dataset.tab);
-    });
+    ["dash","users","banners","logs","import"].forEach((t) => $(`tab-${t}`).classList.toggle("hidden", t !== btn.dataset.tab));
   });
 });
 
@@ -455,7 +411,7 @@ $("loginPass").addEventListener("keydown", (e) => { if (e.key === "Enter") login
 $("createUserBtn").onclick = createUser;
 $("addBannerBtn").onclick = addBanner;
 $("logoutBtn").onclick = () => { localStorage.removeItem("senalToken"); location.reload(); };
-if (token) showApp().catch(() => { localStorage.removeItem("senalToken"); });
+if (token) showApp().catch(() => localStorage.removeItem("senalToken"));
 </script>
 </body>
 </html>

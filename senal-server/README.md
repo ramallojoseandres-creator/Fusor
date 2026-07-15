@@ -1,42 +1,42 @@
-# SEÑAL Server 2.0 — Panel IPTV
+# SEÑAL Server PRO (Windows VPS)
 
-Panel de control pro para gestionar:
+Compatible con el paquete **Senal-Server-M3U-Simple**:
 
-- Usuarios (activar / bloquear / eliminar)
-- Límite de dispositivos por cuenta
-- Fecha de vencimiento
-- Mensajes del **banner de noticias** del home de la TV
-- Importación M3U (conteo / archivo en `data/`)
+1. `INSTALAR-WINDOWS.bat` → instala Node (si falta), crea `.env`, `npm install`, abre firewall :3000  
+2. `INICIAR-SENAL.bat` → arranca el panel
 
-## Despliegue en el VPS (`185.192.20.245:3000`)
+## Panel
 
-```bash
-# En el servidor (reemplaza el panel actual)
-cd /opt  # o la carpeta donde corra hoy el servicio
-# detén el proceso anterior (pm2/systemd)
-pm2 stop senal-server || true
+Abre `http://IP:3000/`
 
-# copia esta carpeta senal-server/
-cd senal-server
-npm install --omit=dev
-export SENAL_MASTER_USER=admin
-export SENAL_MASTER_PASS='TU_CLAVE_SEGURA'
-export SENAL_JWT_SECRET='cadena-larga-secreta'
-export PORT=3000
-pm2 start server.js --name senal-server
-pm2 save
+- **Usuarios** — crear / bloquear / vencer / límite de dispositivos / liberar  
+- **Banner** — mensajes del home de la APK (`GET /api/banner`)  
+- **Logs** — logins, fallos, cambios admin, imports  
+- **Importar M3U** — actualiza catálogo del servidor (`data/db.json`)
+
+## Migrar desde tu servidor actual
+
+1. Detén el servidor viejo (cierra la ventana de `INICIAR-SENAL`).  
+2. Copia esta carpeta `senal-server` al VPS (o reemplaza archivos).  
+3. Conserva tu `data/db.json` y tu `.env`.  
+4. Ejecuta `INSTALAR-WINDOWS.bat` (instala `dotenv` nuevo).  
+5. Ejecuta `INICIAR-SENAL.bat`.
+
+El servidor migra solo el esquema (añade `banners` y `logs` si faltan) sin borrar usuarios/dispositivos.
+
+## Variables `.env`
+
+Ver `.env.example`:
+
+```
+PORT=3000
+PUBLIC_BASE_URL=http://185.192.20.245:3000
+JWT_SECRET=...
+MASTER_USERNAME=admin
+MASTER_PASSWORD=...
+PLAYBACK_MODE=proxy
 ```
 
-Abre `http://TU_IP:3000/` → login master → pestaña **Banner / noticias**.
+## Seguridad
 
-## API relevante para la APK
-
-| Método | Ruta | Uso |
-|--------|------|-----|
-| GET | `/api/banner` | Avisos activos del home |
-| GET/POST/PUT/DELETE | `/api/admin/banners` | CRUD avisos (admin) |
-| POST | `/api/admin/users` | Crear usuario + `connectionLimit` + `expiresAt` |
-| PATCH | `/api/admin/users/:id` | Editar estado / devices / expiry |
-| DELETE | `/api/admin/users/:id/devices` | Liberar dispositivos |
-
-La APK 1.9+ lee `GET /api/banner` al abrir el home.
+Si compartiste el ZIP con `.env` real, **cambia** `MASTER_PASSWORD` y `JWT_SECRET`.
