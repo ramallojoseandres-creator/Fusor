@@ -11,6 +11,7 @@ import com.senal.tv.data.local.FavoriteEntity
 import com.senal.tv.data.local.HistoryDao
 import com.senal.tv.data.local.HistoryEntity
 import com.senal.tv.data.local.LocalPlaylistStore
+import com.senal.tv.data.local.PlaylistSync
 import com.senal.tv.data.local.SettingsStore
 import com.senal.tv.data.local.TokenStore
 import com.senal.tv.data.model.CatalogItem
@@ -25,12 +26,13 @@ import kotlinx.coroutines.withContext
 import retrofit2.HttpException
 
 /**
- * Solo autentica contra el servidor SEÑAL (creación / acceso de usuarios).
- * El catálogo y las URLs de stream NO pasan por el servidor.
+ * Autentica contra el servidor SEÑAL y dispara sync de playlist (gzip + ETag).
+ * Streams siguen siendo URLs directas del M3U (no proxy).
  */
 class AuthRepository(
     private val api: SenalApi,
-    private val tokenStore: TokenStore
+    private val tokenStore: TokenStore,
+    private val playlistSync: PlaylistSync? = null
 ) {
     val tokenFlow = tokenStore.tokenFlow
 
@@ -53,6 +55,8 @@ class AuthRepository(
                 userId = response.user?.id,
                 role = response.user?.role
             )
+            // Tras login: bajar playlist del servidor (fallo soft — la TV usa caché/asset).
+            runCatching { playlistSync?.ensureCatalogReady(forceNetwork = true) }
         }.recoverCatching { err ->
             throw friendlyHttp(err)
         }

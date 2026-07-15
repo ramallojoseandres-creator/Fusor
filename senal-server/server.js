@@ -268,7 +268,7 @@ function publicUser(u) {
 app.get("/api/health", (_req, res) => {
   const s = contentStats();
   res.json({
-    ok: true, app: "Señal Server", version: "3.0.0",
+    ok: true, app: "Señal Server", version: "3.1.0",
     content: s.total, categories: db.categoryOrder.length,
     users: db.users.length, devices: db.devices.length,
     publicBaseUrl: PUBLIC_BASE_URL
@@ -303,8 +303,43 @@ app.get("/playlist.m3u", auth, (req, res) => {
   const channels = user.role === "MASTER" || user.role === "ADMIN"
     ? db.content.filter((c) => !c.hidden)
     : filterForUser(user);
+  const body = buildM3U(channels);
+  const etag = '"' + crypto.createHash("sha1").update(body).digest("hex") + '"';
+  if (req.headers["if-none-match"] === etag) {
+    res.status(304).end();
+    return;
+  }
+  res.setHeader("ETag", etag);
+  res.setHeader("Cache-Control", "private, max-age=60");
   res.setHeader("Content-Type", "audio/x-mpegurl; charset=utf-8");
-  res.send(buildM3U(channels));
+  // Gzip manual para clientes que envían Accept-Encoding: gzip
+  const accept = String(req.headers["accept-encoding"] || "");
+  if (accept.includes("gzip")) {
+    const zlib = require("zlib");
+    const gz = zlib.gzipSync(Buffer.from(body, "utf8"));
+    res.setHeader("Content-Encoding", "gzip");
+    res.setHeader("Content-Length", gz.length);
+    res.end(gz);
+  } else {
+    res.send(body);
+  }
+});
+
+/** Categorías ligeras para la APK (instantáneo vs parsear M3U completo). */
+app.get("/api/app/categories", auth, (req, res) => {
+  const user = db.users.find((u) => u.id === req.user.sub);
+  if (!user) return res.status(404).json({ error: "No encontrado" });
+  const channels = user.role === "MASTER" || user.role === "ADMIN"
+    ? db.content.filter((c) => !c.hidden)
+    : filterForUser(user);
+  const counts = new Map();
+  for (const c of channels) counts.set(c.group, (counts.get(c.group) || 0) + 1);
+  const order = db.categoryOrder.filter((g) => counts.has(g));
+  for (const g of counts.keys()) if (!order.includes(g)) order.push(g);
+  res.json({
+    categories: order.map((name) => ({ id: name, name, title: name, count: counts.get(name) || 0 })),
+    total: channels.length
+  });
 });
 
 app.post("/api/auth/login", async (req, res) => {
@@ -496,6 +531,44 @@ app.put("/api/admin/catalog/channels/order", auth, requireMaster, (req, res) => 
   res.json({ ok: true });
 });
 
+/** Rename a category (all channels + categoryOrder + bouquets) */
+app.patch("/api/admin/catalog/categories/rename", auth, requireMaster, (req, res) => {
+  const { from, to } = req.body || {};
+  if (!from || !to) return res.status(400).json({ error: "from y to requeridos" });
+  const toName = String(to).trim();
+  if (!toName) return res.status(400).json({ error: "Nombre inválido" });
+  if (from === toName) return res.json({ ok: true, categoryOrder: db.categoryOrder });
+  for (const ch of db.content) {
+    if (ch.group === from) ch.group = toName;
+  }
+  db.categoryOrder = db.categoryOrder.map((g) => (g === from ? toName : g));
+  for (const b of db.bouquets) {
+    if (Array.isArray(b.categories)) {
+      b.categories = b.categories.map((c) => (c === from ? toName : c));
+    }
+  }
+  rebuildCatalogIndex(db);
+  scheduleSave();
+  logEvent("category_rename", `Categoría renombrada: ${from} → ${toName}`, { by: req.user.username });
+  res.json({ ok: true, categoryOrder: db.categoryOrder });
+});
+
+/** Delete a category and all its channels */
+app.delete("/api/admin/catalog/categories/:groupEncoded", auth, requireMaster, (req, res) => {
+  const group = decodeURIComponent(req.params.groupEncoded);
+  db.content = db.content.filter((c) => c.group !== group);
+  db.categoryOrder = db.categoryOrder.filter((g) => g !== group);
+  for (const b of db.bouquets) {
+    if (Array.isArray(b.categories)) {
+      b.categories = b.categories.filter((c) => c !== group);
+    }
+  }
+  rebuildCatalogIndex(db);
+  scheduleSave();
+  logEvent("category_delete", `Categoría eliminada: ${group}`, { by: req.user.username });
+  res.json({ ok: true });
+});
+
 app.patch("/api/admin/channels/:id", auth, requireMaster, (req, res) => {
   const ch = db.content.find((c) => c.id === req.params.id);
   if (!ch) return res.status(404).json({ error: "No encontrado" });
@@ -594,7 +667,7 @@ app.use(express.static(PUBLIC));
 app.get("*", (_req, res) => res.sendFile(path.join(PUBLIC, "index.html")));
 
 app.listen(PORT, () => {
-  console.log(`SEÑAL Server IPTV 3.0 → http://localhost:${PORT}`);
+  console.log(`SEÑAL Server IPTV 3.1 → http://localhost:${PORT}`);
   console.log(`M3U: ${PUBLIC_BASE_URL}/get.php?username=USER&password=PASS&type=m3u_plus`);
   console.log(`Master: ${MASTER_USER}`);
   logEvent("server_start", `Servidor 3.0 puerto ${PORT}`, { port: PORT });

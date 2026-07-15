@@ -181,7 +181,11 @@ fun HomeScreen(
                     }
                 )
             } else {
-                Box(Modifier.fillMaxSize().padding(20.dp)) {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(if (section == HomeSection.LIVE) 0.dp else 20.dp)
+                ) {
                     SectionBody(
                         section = section!!,
                         container = container,
@@ -243,8 +247,8 @@ private fun FlujoExactHome(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(92.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                .height(118.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             navTiles.forEach { tile ->
@@ -510,12 +514,13 @@ private fun SenalNavTile(
     modifier: Modifier = Modifier
 ) {
     var focused by remember { mutableStateOf(false) }
+    // Botones «gordos»: tipografía Display negra, bordes gruesos, bloque sólido.
     Surface(
         onClick = onClick,
         modifier = modifier
             .then(rememberFlujoFocusModifier(focused, big = true))
             .onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Transparent,
             focusedContainerColor = Color.Transparent
@@ -525,30 +530,36 @@ private fun SenalNavTile(
             Box(
                 Modifier
                     .fillMaxSize()
-                    .clip(RoundedCornerShape(14.dp))
+                    .clip(RoundedCornerShape(8.dp))
                     .background(
-                        Brush.verticalGradient(
-                            listOf(
-                                accent.copy(alpha = if (focused) 0.95f else 0.50f),
-                                Color(0xFF000910).copy(alpha = 0.92f)
-                            )
-                        )
-                    )
-                    .then(
                         if (focused) {
-                            Modifier.border(2.dp, Color.White.copy(alpha = 0.85f), RoundedCornerShape(14.dp))
+                            Brush.verticalGradient(listOf(accent, accent.copy(alpha = 0.75f)))
                         } else {
-                            Modifier.border(1.dp, accent.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
+                            Brush.verticalGradient(
+                                listOf(
+                                    Color(0xFF1A222C),
+                                    Color(0xFF0A0E14)
+                                )
+                            )
                         }
-                    ),
+                    )
+                    .border(
+                        width = if (focused) 4.dp else 3.dp,
+                        color = if (focused) Color.White else accent,
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                    .padding(horizontal = 6.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = label,
                     color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                    letterSpacing = 1.sp
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    fontWeight = FontWeight.Black,
+                    fontSize = if (focused) 20.sp else 18.sp,
+                    letterSpacing = (-0.5).sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -595,20 +606,22 @@ private fun SectionBody(
     onLogout: () -> Unit
 ) {
     Column(Modifier.fillMaxSize()) {
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Image(
-                painter = painterResource(R.drawable.brand_logo),
-                contentDescription = "SEÑAL",
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.height(32.dp)
-            )
-            FocusableButton(label = "INICIO", onClick = onBack, primary = true)
+        if (section != HomeSection.LIVE) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.brand_logo),
+                    contentDescription = "SEÑAL",
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.height(32.dp)
+                )
+                FocusableButton(label = "INICIO", onClick = onBack, primary = true)
+            }
+            Spacer(Modifier.height(12.dp))
         }
-        Spacer(Modifier.height(12.dp))
         AnimatedContent(
             targetState = section,
             transitionSpec = {
@@ -617,19 +630,32 @@ private fun SectionBody(
             modifier = Modifier.weight(1f),
             label = "section",
             content = { current ->
-                when (current) {
-                    HomeSection.LIVE -> LiveTvScreen(container) { item, n -> onPlay(item, 0L, n) }
-                    HomeSection.MOVIES -> MoviesScreen(container) { onPlay(it, 0L, listOf(it)) }
-                    HomeSection.SERIES -> SeriesScreen(container) { onPlay(it, 0L, listOf(it)) }
-                    HomeSection.FAVORITES -> FavoritesScreen(container) { onPlay(it, 0L, listOf(it)) }
-                    HomeSection.CONTINUE -> ContinueRecentsScreen(
-                        container, ContinueRecentsScreen.Mode.CONTINUE
-                    ) { item, pos -> onPlay(item, pos, listOf(item)) }
-                    HomeSection.RECENTS -> ContinueRecentsScreen(
-                        container, ContinueRecentsScreen.Mode.RECENTS
-                    ) { item, _ -> onPlay(item, 0L, listOf(item)) }
-                    HomeSection.SEARCH -> SearchScreen(container) { onPlay(it, 0L, listOf(it)) }
-                    HomeSection.SETTINGS -> SettingsScreen(container, onLogout)
+                Box(Modifier.fillMaxSize()) {
+                    when (current) {
+                        HomeSection.LIVE -> {
+                            LiveTvScreen(container) { item, n -> onPlay(item, 0L, n) }
+                            // Volver sin tapar la guía de categorías (esquina superior derecha).
+                            FocusableButton(
+                                label = "INICIO",
+                                onClick = onBack,
+                                primary = true,
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(16.dp)
+                            )
+                        }
+                        HomeSection.MOVIES -> MoviesScreen(container) { onPlay(it, 0L, listOf(it)) }
+                        HomeSection.SERIES -> SeriesScreen(container) { onPlay(it, 0L, listOf(it)) }
+                        HomeSection.FAVORITES -> FavoritesScreen(container) { onPlay(it, 0L, listOf(it)) }
+                        HomeSection.CONTINUE -> ContinueRecentsScreen(
+                            container, ContinueRecentsScreen.Mode.CONTINUE
+                        ) { item, pos -> onPlay(item, pos, listOf(item)) }
+                        HomeSection.RECENTS -> ContinueRecentsScreen(
+                            container, ContinueRecentsScreen.Mode.RECENTS
+                        ) { item, _ -> onPlay(item, 0L, listOf(item)) }
+                        HomeSection.SEARCH -> SearchScreen(container) { onPlay(it, 0L, listOf(it)) }
+                        HomeSection.SETTINGS -> SettingsScreen(container, onLogout)
+                    }
                 }
             }
         )

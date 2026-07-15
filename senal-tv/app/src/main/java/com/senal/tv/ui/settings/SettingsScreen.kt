@@ -102,6 +102,29 @@ fun SettingsScreen(
                     primary = false
                 )
 
+                FocusableButton(
+                    label = "Actualizar lista desde servidor",
+                    onClick = {
+                        scope.launch {
+                            error = null
+                            status = "Descargando catálogo…"
+                            runCatching { container.playlistSync.refreshFromServer() }
+                                .onSuccess { r ->
+                                    status = if (r.error != null) {
+                                        r.error
+                                    } else {
+                                        "Lista OK · ${r.channels} canales · origen ${r.source}"
+                                    }
+                                }
+                                .onFailure {
+                                    error = it.message ?: "No se pudo actualizar la lista"
+                                    status = null
+                                }
+                        }
+                    },
+                    primary = false
+                )
+
                 if (isAdmin) {
                     Spacer(Modifier.height(8.dp))
                     Text("Admin", style = LocalSenalTypography.current.caption, color = BrandOrange)
@@ -111,9 +134,18 @@ fun SettingsScreen(
                         color = TextMuted
                     )
                     Text(
-                        "Catálogo jmrzcf embebido · streams directos",
+                        "Catálogo: servidor /playlist.m3u (gzip+ETag) · caché disco",
                         style = LocalSenalTypography.current.caption,
                         color = Teal
+                    )
+                    val syncHint = settings.playlistSyncedAt.takeIf { it > 0 }?.let {
+                        java.text.SimpleDateFormat("dd/MM HH:mm", java.util.Locale.getDefault())
+                            .format(java.util.Date(it))
+                    } ?: "nunca"
+                    Text(
+                        "Última sync: $syncHint · ${settings.playlistChannelCount} ch",
+                        style = LocalSenalTypography.current.caption,
+                        color = TextMuted
                     )
                     Text(
                         "v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",

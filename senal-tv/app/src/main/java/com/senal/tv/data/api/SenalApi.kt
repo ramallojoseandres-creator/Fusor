@@ -9,8 +9,8 @@ import retrofit2.http.POST
 import retrofit2.http.Path
 
 /**
- * El servidor SEÑAL gestiona usuarios (login / sesión JWT) y mensajes de banner.
- * Catálogo y streams van embebidos en la APK.
+ * Auth JWT + banner. El catálogo se sincroniza por separado vía
+ * GET /playlist.m3u (gzip + ETag) → caché en disco.
  */
 interface SenalApi {
 

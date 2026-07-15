@@ -22,7 +22,11 @@ data class AppSettings(
     val adultPinHash: String = "",
     /** Last live channel for this device/user — used for autoplay on launch. */
     val lastChannelId: String = "",
-    val lastChannelTitle: String = ""
+    val lastChannelTitle: String = "",
+    /** Catálogo remoto: ETag + última sync. */
+    val playlistEtag: String = "",
+    val playlistSyncedAt: Long = 0L,
+    val playlistChannelCount: Int = 0
 ) {
     val hasAdultPin: Boolean get() = adultPinHash.isNotBlank()
 }
@@ -35,6 +39,9 @@ class SettingsStore(private val context: Context) {
     private val adultPinKey = stringPreferencesKey("adult_pin_hash")
     private val lastChannelIdKey = stringPreferencesKey("last_channel_id")
     private val lastChannelTitleKey = stringPreferencesKey("last_channel_title")
+    private val playlistEtagKey = stringPreferencesKey("playlist_etag")
+    private val playlistSyncedAtKey = stringPreferencesKey("playlist_synced_at")
+    private val playlistCountKey = stringPreferencesKey("playlist_count")
 
     val settings: Flow<AppSettings> = context.settingsStore.data.map {
         AppSettings(
@@ -44,8 +51,22 @@ class SettingsStore(private val context: Context) {
             adultsLocked = it[adultsLockedKey] ?: false,
             adultPinHash = it[adultPinKey].orEmpty(),
             lastChannelId = it[lastChannelIdKey].orEmpty(),
-            lastChannelTitle = it[lastChannelTitleKey].orEmpty()
+            lastChannelTitle = it[lastChannelTitleKey].orEmpty(),
+            playlistEtag = it[playlistEtagKey].orEmpty(),
+            playlistSyncedAt = it[playlistSyncedAtKey]?.toLongOrNull() ?: 0L,
+            playlistChannelCount = it[playlistCountKey]?.toIntOrNull() ?: 0
         )
+    }
+
+    suspend fun playlistEtag(): String =
+        context.settingsStore.data.first()[playlistEtagKey].orEmpty()
+
+    suspend fun setPlaylistMeta(etag: String, syncedAt: Long, channels: Int) {
+        context.settingsStore.edit {
+            if (etag.isNotBlank()) it[playlistEtagKey] = etag
+            it[playlistSyncedAtKey] = syncedAt.toString()
+            it[playlistCountKey] = channels.toString()
+        }
     }
 
     suspend fun setLastChannel(id: String, title: String) {

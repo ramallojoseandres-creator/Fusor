@@ -79,8 +79,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 /**
- * Guía FLUJO: categorías | canales | vídeo en vivo de fondo
- * que **no se pausa** al cambiar de categoría o recorrer la lista.
+ * Guía EN VIVO: categorías y canales **sobre** el reproductor desde el primer frame.
+ * El vídeo arranca en segundo plano; la guía NUNCA espera a que el canal reproduzca.
  */
 @OptIn(UnstableApi::class)
 @Composable
@@ -100,11 +100,15 @@ fun LiveTvScreen(
     var loadingChannels by remember { mutableStateOf(false) }
     var loadingMore by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    /** Guía lista: ya se puede navegar aunque el preview aún no reproduzca. */
+    var guideReady by remember { mutableStateOf(false) }
 
     var focusedChannelId by remember { mutableStateOf<String?>(null) }
     var preview by remember { mutableStateOf<CatalogItem?>(null) }
     var buffering by remember { mutableStateOf(false) }
     var previewError by remember { mutableStateOf<String?>(null) }
+    /** No arrancar ExoPlayer hasta que haya categorías en pantalla + 1 frame. */
+    var allowPlayback by remember { mutableStateOf(false) }
 
     val listState = rememberLazyListState()
     val pageSize = 60
@@ -147,19 +151,25 @@ fun LiveTvScreen(
     val adultsSession by container.adultsUnlockedSession.collectAsState()
     val hideAdults = appSettings.adultsLocked && !adultsSession
 
+    // 1) Categorías PRIMERO — la guía aparece aunque el stream aún no arranque.
     LaunchedEffect(hideAdults) {
         loadingCats = true
         runCatching { container.catalogRepository.categories("live", hideAdults = hideAdults) }
             .onSuccess {
                 categories = it
+                guideReady = true
                 if (selected == null || categories.none { c -> c.label() == selected }) {
                     selected = CatalogRules.defaultCategory(it)
                 }
             }
             .onFailure { error = it.message }
         loadingCats = false
+        // Deja pintar la guía un frame antes de saturar con ExoPlayer.
+        delay(48)
+        allowPlayback = true
     }
 
+    // 2) Canales de la categoría (independiente del reproductor).
     LaunchedEffect(selected) {
         val category = selected ?: return@LaunchedEffect
         loadingChannels = true
@@ -168,7 +178,6 @@ fun LiveTvScreen(
         hasMore = true
         channels = emptyList()
         focusedChannelId = null
-        // No paramos el player: sigue el canal anterior hasta elegir otro.
         runCatching {
             container.catalogRepository.page(
                 type = "live",
@@ -179,6 +188,7 @@ fun LiveTvScreen(
         }.onSuccess { response ->
             channels = response.resolveItems()
             hasMore = response.resolveHasMore(pageSize)
+            // Solo fija preview si aún no hay; no bloquea la guía.
             if (preview == null) {
                 channels.firstOrNull()?.let {
                     preview = it
@@ -192,7 +202,8 @@ fun LiveTvScreen(
     }
 
     // Debounce focus → switch stream (sin pausar al navegar con el D-pad)
-    LaunchedEffect(focusedChannelId, channels) {
+    LaunchedEffect(focusedChannelId, channels, allowPlayback) {
+        if (!allowPlayback) return@LaunchedEffect
         val id = focusedChannelId ?: return@LaunchedEffect
         delay(220)
         val next = channels.firstOrNull { it.resolveId() == id } ?: return@LaunchedEffect
@@ -200,7 +211,8 @@ fun LiveTvScreen(
         preview = next
     }
 
-    LaunchedEffect(preview?.resolveId()) {
+    LaunchedEffect(preview?.resolveId(), allowPlayback) {
+        if (!allowPlayback) return@LaunchedEffect
         val item = preview ?: return@LaunchedEffect
         previewError = null
         buffering = true
@@ -337,32 +349,38 @@ fun LiveTvScreen(
                     letterSpacing = 1.5.sp,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
                 )
-                if (loadingCats) {
-                    Text("Cargando…", color = TextMuted, modifier = Modifier.padding(8.dp))
-                } else {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        items(categories, key = { it.label() }) { category ->
-                            val active = category.label() == selected
-                            Surface(
-                                onClick = { selected = category.label() },
-                                shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
-                                colors = ClickableSurfaceDefaults.colors(
-                                    containerColor = if (active) BrandOrange else Color.Transparent,
-                                    focusedContainerColor = if (active) BrandOrangeHot else Color.White.copy(alpha = 0.18f)
-                                ),
-                                scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(
-                                    text = category.label(),
-                                    color = if (active) Color.White else TextPrimary,
-                                    fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
-                                    fontSize = 15.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 11.dp)
-                                )
-                            }
+                // Siempre visible: nunca ocultar la columna esperando al vídeo.
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (loadingCats && categories.isEmpty()) {
+                        item {
+                            Text(
+                                "Cargando categorías…",
+                                color = TextMuted,
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
+                    }
+                    items(categories, key = { it.label() }) { category ->
+                        val active = category.label() == selected
+                        Surface(
+                            onClick = { selected = category.label() },
+                            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
+                            colors = ClickableSurfaceDefaults.colors(
+                                containerColor = if (active) BrandOrange else Color.Transparent,
+                                focusedContainerColor = if (active) BrandOrangeHot else Color.White.copy(alpha = 0.18f)
+                            ),
+                            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = category.label(),
+                                color = if (active) Color.White else TextPrimary,
+                                fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                                fontSize = 15.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 11.dp)
+                            )
                         }
                     }
                 }
@@ -455,9 +473,11 @@ fun LiveTvScreen(
                     )
                     Text(
                         text = when {
+                            !guideReady -> "Preparando guía…"
                             previewError != null -> previewError!!
+                            !allowPlayback -> "Guía lista · sintonizando…"
                             buffering -> "Sintonizando…"
-                            else -> "Sin pausar el reproductor · OK para pantalla completa"
+                            else -> "Explora categorías sin esperar · OK = pantalla completa"
                         },
                         color = if (previewError != null) Color(0xFFFF8A80) else BrandOrange,
                         fontSize = 13.sp,

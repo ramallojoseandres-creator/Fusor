@@ -1,12 +1,18 @@
-SEÑAL SERVER IPTV 3.0 — Windows VPS
+SEÑAL SERVER IPTV 3.1 — Windows VPS
 ====================================
 
-Novedades respecto a PRO 2.1:
+Novedades 3.1:
+  - Renombrar / borrar categorías
+  - Editar / borrar / mover canales
+  - /playlist.m3u con gzip + ETag (APK 1.10+)
+  - /api/app/categories (lista ligera)
+
+Novedades 3.0 (sigue todo):
   - Catálogo con ORDEN editable (arrastrar categorías y canales)
   - Paquetes / bouquets por usuario
   - URL M3U estilo IPTV: /get.php?username=...&password=...&type=m3u_plus
   - Exportar M3U ordenado desde el panel
-  - Usuarios, dispositivos, vencimiento, banner y logs (igual que antes)
+  - Usuarios, dispositivos, vencimiento, banner y logs
 
 PASOS (instalación nueva o actualización desde 2.1):
 1) Detén el servidor viejo (cierra INICIAR-SENAL o mata el proceso node).

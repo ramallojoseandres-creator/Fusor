@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SEÑAL · Panel IPTV 3.0</title>
+<title>SEÑAL · Panel IPTV 3.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
@@ -68,6 +68,11 @@ th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px
 .dnd-item .meta{margin-left:auto;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
 .ch-item .title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ch-item.hidden-row{opacity:.45}
+.cat-item .cat-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cat-item .cat-count{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;flex-shrink:0}
+.cat-actions{display:flex;gap:5px;flex-shrink:0;margin-left:6px}
+.ch-actions{display:flex;gap:5px;flex-shrink:0;align-items:center}
+.ch-move-sel{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:5px 8px;font-size:11px;cursor:pointer;min-width:80px;max-width:110px}
 .bouquet-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
 .bouquet-card{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:14px}
 .cat-checks{max-height:220px;overflow:auto;display:grid;gap:6px;margin-top:10px}
@@ -86,7 +91,7 @@ th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px
 <div id="loginView" class="login">
   <div class="login-card">
     <h1 style="letter-spacing:3px;margin:0">SEÑAL</h1>
-    <p class="mono">Panel IPTV 3.0 · catálogo · orden · bouquets · M3U</p>
+    <p class="mono">Panel IPTV 3.1 · catálogo · gestión · bouquets · M3U</p>
     <div class="row" style="flex-direction:column;margin-top:18px">
       <input id="loginUser" value="admin" placeholder="Usuario master">
       <input id="loginPass" type="password" placeholder="Contraseña">
@@ -98,7 +103,7 @@ th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px
 
 <div id="appView" class="app hidden">
   <aside class="side">
-    <div class="brand"><div class="mark">S</div><div><h1>SEÑAL</h1><small>IPTV 3.0</small></div></div>
+    <div class="brand"><div class="mark">S</div><div><h1>SEÑAL</h1><small>IPTV 3.1</small></div></div>
     <nav class="nav">
       <button class="active" data-tab="dash">Dashboard</button>
       <button data-tab="catalog">Catálogo</button>
@@ -143,7 +148,7 @@ th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px
     </section>
 
     <section id="tab-catalog" class="hidden">
-      <div class="top"><div><h2>Catálogo</h2><p>Arrastra para cambiar el orden de categorías y canales</p></div>
+      <div class="top"><div><h2>Catálogo</h2><p>Arrastra para reordenar · renombra, borra y mueve categorías y canales</p></div>
         <div class="actions">
           <button class="btn ghost" onclick="exportM3u()">Exportar M3U</button>
           <button class="btn ghost" onclick="loadCatalog()">Recargar</button>
@@ -363,13 +368,35 @@ function renderBouquets() {
       const disabled = b.id === "all" ? "disabled" : "";
       return `<label><input type="checkbox" data-bq-cat data-bq-id="${esc(b.id)}" data-cat="${esc(name)}" ${on ? "checked" : ""} ${disabled}> ${esc(name)}</label>`;
     }).join("") : '<p class="mono">Importa un M3U para ver categorías</p>';
+    const activeCats = b.id === "all" ? cats : (b.categories || []).filter((c) => cats.includes(c));
+    const chCount = b.id === "all"
+      ? (catalogData.total || 0)
+      : (catalogData.categories || []).filter((c) => activeCats.includes(c.name)).reduce((s, c) => s + (c.total || 0), 0);
+    const catLabel = b.id === "all" ? "Todas las categorías" : `${activeCats.length} categoría(s)`;
     return `<div class="bouquet-card">
-      <strong>${esc(b.name)}</strong>
-      <div class="mono" style="margin-top:4px">${b.id === "all" ? "Todas las categorías" : `${(b.categories||[]).length} categorías`}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <strong>${esc(b.name)}</strong>
+        ${b.id !== "all" ? `<button class="btn ghost sm" style="flex-shrink:0" onclick="renameBouquet('${esc(b.id)}')">Renombrar</button>` : ""}
+      </div>
+      <div class="mono" style="margin-top:4px;color:var(--muted)">${catLabel} · ${chCount} canales</div>
       <div class="cat-checks">${checks}</div>
       ${b.id !== "all" ? `<div class="actions" style="margin-top:12px"><button class="btn danger sm" onclick="deleteBouquet('${b.id}')">Eliminar</button></div>` : ""}
     </div>`;
   }).join("");
+}
+
+async function renameBouquet(id) {
+  const b = bouquets.find((x) => x.id === id);
+  if (!b) return;
+  const newName = (prompt("Renombrar paquete:", b.name) || "").trim();
+  if (!newName || newName === b.name) return;
+  try {
+    await api(`/api/admin/bouquets/${id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newName })
+    });
+    await bouquetsList();
+  } catch (e) { alert(e.message); }
 }
 
 async function createBouquet() {
@@ -425,8 +452,14 @@ function renderCategories() {
     <div class="dnd-item cat-item ${name === selectedGroup ? "active" : ""}" draggable="true"
       data-group="${esc(name)}" onclick="selectCategory(this.dataset.group)">
       <span class="handle">⠿</span>
-      <span>${esc(name)}</span>
-      <span class="meta">${counts[name] ?? 0}</span>
+      <span class="cat-name">${esc(name)}</span>
+      <span class="cat-count">${counts[name] ?? 0}</span>
+      <div class="cat-actions" onclick="event.stopPropagation()">
+        <button class="btn ghost sm" title="Renombrar categoría"
+          onclick="renameCategory(this.closest('[data-group]').dataset.group)">Renombrar</button>
+        <button class="btn danger sm" title="Borrar categoría y todos sus canales"
+          onclick="deleteCategory(this.closest('[data-group]').dataset.group)">Borrar</button>
+      </div>
     </div>`).join("") || '<p style="padding:14px;color:var(--muted)">Sin categorías. Importa un M3U.</p>';
   bindCatDnD();
 }
@@ -478,12 +511,27 @@ async function loadChannels(group) {
 function renderChannels() {
   const q = ($("chSearch").value || "").toLowerCase();
   const list = q ? channelRows.filter((c) => c.title.toLowerCase().includes(q)) : channelRows;
+  const catOpts = (catalogData.categoryOrder || [])
+    .filter((g) => g !== selectedGroup)
+    .map((g) => `<option value="${esc(g)}">${esc(g)}</option>`)
+    .join("");
   $("chList").innerHTML = list.map((c) => `
     <div class="dnd-item ch-item ${c.hidden ? "hidden-row" : ""}" draggable="${q ? "false" : "true"}"
-      data-id="${c.id}" data-group="${esc(c.group)}">
+      data-id="${c.id}" data-group="${esc(c.group)}" data-title="${esc(c.title)}">
       <span class="handle">${q ? "·" : "⠿"}</span>
       <span class="title" title="${esc(c.title)}">${esc(c.title)}</span>
-      <button class="btn ghost sm" onclick="toggleHidden('${c.id}',${!c.hidden})">${c.hidden ? "Mostrar" : "Ocultar"}</button>
+      <div class="ch-actions">
+        <button class="btn ghost sm" title="Editar nombre del canal"
+          onclick="editChannel(this.closest('[data-id]').dataset.id, this.closest('[data-id]').dataset.title)">Editar</button>
+        <button class="btn ghost sm"
+          onclick="toggleHidden('${c.id}',${!c.hidden})">${c.hidden ? "Mostrar" : "Ocultar"}</button>
+        <button class="btn danger sm" title="Borrar canal"
+          onclick="deleteChannel('${c.id}')">Borrar</button>
+        ${catOpts ? `<select class="ch-move-sel" title="Mover a otra categoría"
+          onchange="moveChannel('${c.id}', this.value); this.value=''">
+          <option value="">Mover a…</option>${catOpts}
+        </select>` : ""}
+      </div>
     </div>`).join("") || '<p style="padding:14px;color:var(--muted)">Sin canales en esta categoría.</p>';
   if (!q) bindChDnD();
 }
@@ -534,6 +582,73 @@ function flashCatalog(text, err = false) {
   el.className = err ? "msg err" : "msg ok";
   el.textContent = text;
   setTimeout(() => { el.textContent = ""; }, 2800);
+}
+
+async function renameCategory(name) {
+  const newName = (prompt(`Renombrar categoría "${name}":`, name) || "").trim();
+  if (!newName || newName === name) return;
+  try {
+    const r = await api("/api/admin/catalog/categories/rename", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ from: name, to: newName })
+    });
+    if (selectedGroup === name) selectedGroup = newName;
+    catalogData.categoryOrder = r.categoryOrder;
+    await loadCatalog();
+    flashCatalog(`Categoría renombrada a "${newName}"`);
+  } catch (e) { flashCatalog(e.message, true); }
+}
+
+async function deleteCategory(name) {
+  const info = catalogData.categories.find((c) => c.name === name);
+  const total = info?.total ?? 0;
+  if (!confirm(`¿Borrar categoría "${name}" y sus ${total} canal(es)? Esta acción no se puede deshacer.`)) return;
+  try {
+    await api(`/api/admin/catalog/categories/${encodeURIComponent(name)}`, { method: "DELETE" });
+    if (selectedGroup === name) { selectedGroup = ""; channelRows = []; }
+    await loadCatalog();
+    flashCatalog(`Categoría "${name}" eliminada`);
+    stats();
+  } catch (e) { flashCatalog(e.message, true); }
+}
+
+async function editChannel(id, title) {
+  const newTitle = (prompt("Renombrar canal:", title) || "").trim();
+  if (!newTitle || newTitle === title) return;
+  try {
+    await api(`/api/admin/channels/${id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: newTitle })
+    });
+    await loadChannels(selectedGroup);
+    flashCatalog("Canal renombrado");
+  } catch (e) { flashCatalog(e.message, true); }
+}
+
+async function deleteChannel(id) {
+  if (!confirm("¿Borrar este canal? Esta acción no se puede deshacer.")) return;
+  try {
+    await api(`/api/admin/channels/${id}`, { method: "DELETE" });
+    channelRows = channelRows.filter((c) => c.id !== id);
+    renderChannels();
+    await loadCatalog();
+    flashCatalog("Canal eliminado");
+    stats();
+  } catch (e) { flashCatalog(e.message, true); }
+}
+
+async function moveChannel(id, newGroup) {
+  if (!newGroup) return;
+  try {
+    await api(`/api/admin/channels/${id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ group: newGroup })
+    });
+    channelRows = channelRows.filter((c) => c.id !== id);
+    renderChannels();
+    await loadCatalog();
+    flashCatalog(`Canal movido a "${newGroup}"`);
+  } catch (e) { flashCatalog(e.message, true); }
 }
 
 async function exportM3u() {

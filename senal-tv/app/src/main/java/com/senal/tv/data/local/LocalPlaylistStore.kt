@@ -7,13 +7,17 @@ import com.senal.tv.data.model.Category
 import com.senal.tv.data.model.PlaybackResponse
 import com.senal.tv.util.CatalogRules
 import java.io.BufferedReader
+import java.io.File
 import java.io.InputStreamReader
 import java.util.zip.GZIPInputStream
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * Catálogo embebido desde `assets/catalog/lista_fusionada.m3u(.gz)`.
+ * Catálogo local en memoria desde:
+ * 1) Caché en disco (`filesDir/catalog/playlist.m3u.gz`) — lista del servidor
+ * 2) Asset embebido de respaldo (opcional)
+ *
  * Respeta `group-title` exacto del M3U (orden de aparición, sin renormalizar).
  */
 class LocalPlaylistStore(private val context: Context) {
@@ -23,15 +27,34 @@ class LocalPlaylistStore(private val context: Context) {
 
     private val all = ArrayList<PlaylistEntry>(10_000)
     private val byId = HashMap<String, PlaylistEntry>(10_000)
-    /** Group → channel indexes in M3U appearance order. */
     private val groupIndex = LinkedHashMap<String, ArrayList<Int>>(256)
     private val categoriesByType = HashMap<String, List<Category>>(4)
+
+    fun size(): Int = all.size
 
     suspend fun ensureLoaded() {
         if (loaded) return
         mutex.withLock {
             if (loaded) return
-            parseAsset()
+            val disk = File(context.filesDir, "catalog/playlist.m3u.gz")
+            when {
+                disk.exists() && disk.length() > 64L -> parseGzipFile(disk)
+                else -> parseAssetOrEmpty()
+            }
+            loaded = true
+        }
+    }
+
+    suspend fun loadFromGzipFile(file: File) {
+        mutex.withLock {
+            parseGzipFile(file)
+            loaded = true
+        }
+    }
+
+    suspend fun loadFromAssetFallback() {
+        mutex.withLock {
+            parseAssetOrEmpty()
             loaded = true
         }
     }
@@ -134,7 +157,6 @@ class LocalPlaylistStore(private val context: Context) {
         return byId[id]?.toCatalogItem()
     }
 
-    /** Neighbors for zap: same group as id, fallback all live. */
     suspend fun neighborsFor(id: String, limit: Int = 200): List<CatalogItem> {
         ensureLoaded()
         val entry = byId[id] ?: return emptyList()
@@ -146,69 +168,86 @@ class LocalPlaylistStore(private val context: Context) {
     }
 
     fun clearMemory() {
-        // Keep parse in memory.
+        loaded = false
+        all.clear()
+        byId.clear()
+        groupIndex.clear()
+        categoriesByType.clear()
     }
 
     private fun findGroupIndexes(group: String): List<Int> {
         groupIndex[group]?.let { return it }
-        // case-insensitive fallback
         val hit = groupIndex.entries.firstOrNull { it.key.equals(group, ignoreCase = true) }
         return hit?.value.orEmpty()
     }
 
-    private fun parseAsset() {
+    private fun parseGzipFile(file: File) {
+        GZIPInputStream(file.inputStream()).use { gz ->
+            parseReader(BufferedReader(InputStreamReader(gz, Charsets.UTF_8), 64 * 1024))
+        }
+    }
+
+    private fun parseAssetOrEmpty() {
+        val assetName = runCatching { resolveAssetName() }.getOrNull()
+        if (assetName == null) {
+            all.clear(); byId.clear(); groupIndex.clear(); categoriesByType.clear()
+            categoriesByType["live"] = emptyList()
+            categoriesByType["movie"] = emptyList()
+            categoriesByType["series"] = emptyList()
+            return
+        }
+        context.assets.open(assetName).use { input ->
+            val stream = if (assetName.endsWith(".gz")) GZIPInputStream(input) else input
+            parseReader(BufferedReader(InputStreamReader(stream, Charsets.UTF_8), 64 * 1024))
+        }
+    }
+
+    private fun parseReader(reader: BufferedReader) {
         all.clear()
         byId.clear()
         groupIndex.clear()
         categoriesByType.clear()
 
-        val assetName = resolveAssetName()
-        context.assets.open(assetName).use { input ->
-            val stream = if (assetName.endsWith(".gz")) GZIPInputStream(input) else input
-            BufferedReader(InputStreamReader(stream, Charsets.UTF_8), 64 * 1024).use { reader ->
-                var pending: ExtInf? = null
-                var index = 0
-                while (true) {
-                    val lineRaw = reader.readLine() ?: break
-                    val line = lineRaw.trim()
-                    if (line.isEmpty()) continue
-                    when {
-                        line.startsWith("#EXTINF", ignoreCase = true) -> {
-                            pending = parseExtInf(line)
-                        }
-                        line.startsWith("#") -> Unit
-                        else -> {
-                            val ext = pending
-                            pending = null
-                            if (ext == null) continue
-                            val url = line
-                            if (url.isEmpty()) continue
-                            index += 1
-                            val group = ext.group.ifBlank { "Variados" }
-                            val id = stableId(ext.tvgId, ext.name, url, index)
-                            val entry = PlaylistEntry(
-                                id = id,
-                                number = index,
-                                name = ext.name.ifBlank { "Canal $index" },
-                                logo = ext.logo,
-                                group = group,
-                                tvgId = ext.tvgId,
-                                url = url,
-                                userAgent = ext.userAgent,
-                                referrer = ext.referrer,
-                                kind = "live"
-                            )
-                            val pos = all.size
-                            all += entry
-                            byId[id] = entry
-                            groupIndex.getOrPut(group) { ArrayList(64) }.add(pos)
-                        }
+        reader.use { r ->
+            var pending: ExtInf? = null
+            var index = 0
+            while (true) {
+                val lineRaw = r.readLine() ?: break
+                val line = lineRaw.trim()
+                if (line.isEmpty()) continue
+                when {
+                    line.startsWith("#EXTINF", ignoreCase = true) -> pending = parseExtInf(line)
+                    line.startsWith("#") -> Unit
+                    else -> {
+                        val ext = pending
+                        pending = null
+                        if (ext == null) continue
+                        val url = line
+                        if (url.isEmpty()) continue
+                        index += 1
+                        val group = ext.group.ifBlank { "Variados" }
+                        val id = stableId(ext.tvgId, ext.name, url, index)
+                        val entry = PlaylistEntry(
+                            id = id,
+                            number = index,
+                            name = ext.name.ifBlank { "Canal $index" },
+                            logo = ext.logo,
+                            group = group,
+                            tvgId = ext.tvgId,
+                            url = url,
+                            userAgent = ext.userAgent,
+                            referrer = ext.referrer,
+                            kind = "live"
+                        )
+                        val pos = all.size
+                        all += entry
+                        byId[id] = entry
+                        groupIndex.getOrPut(group) { ArrayList(64) }.add(pos)
                     }
                 }
             }
         }
 
-        // Categories in exact M3U appearance order (LinkedHashMap), adults last via CatalogRules.
         val liveCats = groupIndex.map { (name, idxs) ->
             Category(id = name, name = name, title = name, count = idxs.size)
         }
@@ -234,9 +273,7 @@ class LocalPlaylistStore(private val context: Context) {
         return when {
             names.any { it == "lista_fusionada.m3u.gz" } -> "catalog/lista_fusionada.m3u.gz"
             names.any { it == "lista_fusionada.m3u" } -> "catalog/lista_fusionada.m3u"
-            else -> throw IllegalStateException(
-                "Falta assets/catalog/lista_fusionada.m3u(.gz) — lista embebida"
-            )
+            else -> throw IllegalStateException("Sin lista en caché ni en assets")
         }
     }
 
@@ -263,7 +300,6 @@ class LocalPlaylistStore(private val context: Context) {
         )
     }
 
-    /** Fast quoted-attribute scan (avoids Regex per line). */
     private fun attrFast(source: String, key: String): String? {
         val needle = "$key=\""
         val start = source.indexOf(needle, ignoreCase = true)

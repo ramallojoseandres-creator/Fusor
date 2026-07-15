@@ -9,6 +9,7 @@ import coil.memory.MemoryCache
 import coil.request.CachePolicy
 import com.senal.tv.data.api.NetworkModule
 import com.senal.tv.data.local.LocalPlaylistStore
+import com.senal.tv.data.local.PlaylistSync
 import com.senal.tv.data.local.SenalDatabase
 import com.senal.tv.data.local.SettingsStore
 import com.senal.tv.data.local.TokenStore
@@ -29,9 +30,12 @@ class SenalApp : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
-        // Prefetch lista M3U embebida en background (sin tocar el servidor).
+        // Caché disco primero; luego sync ETag desde servidor si hay sesión.
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-            runCatching { container.playlistStore.ensureLoaded() }
+            runCatching { container.playlistSync.ensureCatalogReady(forceNetwork = false) }
+            if (!container.tokenStore.cachedToken.isNullOrBlank()) {
+                runCatching { container.playlistSync.refreshFromServer() }
+            }
         }
     }
 
@@ -69,7 +73,8 @@ class AppContainer(app: Application) {
         .build()
     val api = NetworkModule.createApi(tokenStore)
     val playlistStore = LocalPlaylistStore(app)
-    val authRepository = AuthRepository(api, tokenStore)
+    val playlistSync = PlaylistSync(app, tokenStore, settingsStore, playlistStore)
+    val authRepository = AuthRepository(api, tokenStore, playlistSync)
     val catalogRepository = CatalogRepository(playlistStore)
     val libraryRepository = LibraryRepository(
         favoriteDao = db.favorites(),

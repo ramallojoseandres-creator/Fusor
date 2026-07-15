@@ -1,8 +1,8 @@
 {
   "name": "senal-server",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "private": true,
-  "description": "SEÑAL Server IPTV 3.0 — catálogo ordenable, bouquets, M3U reseller, usuarios, banner (Windows VPS)",
+  "description": "SEÑAL Server IPTV 3.1 — catálogo ordenable, gestión de categorías/canales, bouquets, M3U reseller, usuarios, banner (Windows VPS)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
