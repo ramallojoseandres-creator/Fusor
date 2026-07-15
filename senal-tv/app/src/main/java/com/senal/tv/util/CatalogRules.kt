@@ -3,45 +3,14 @@ package com.senal.tv.util
 import com.senal.tv.data.model.CatalogItem
 import com.senal.tv.data.model.Category
 
-/** Shared live-catalog ordering / adult demotion. */
+/**
+ * Live-catalog helpers. Category order follows the M3U appearance order;
+ * only adult groups are moved to the end.
+ */
 object CatalogRules {
 
     private val adultRegex = Regex(
         pattern = """(?i)(\+| )?18\+?|adult|adulto|adultos|xxx|porn|porno|erotic|erotica|nsfw|hot\s*xxx|onlyfans|playboy""",
-    )
-
-    private val preferredLiveOrder = listOf(
-        "deportes",
-        "sports",
-        "noticias",
-        "news",
-        "cultura",
-        "documentales",
-        "series 24/7",
-        "series",
-        "películas",
-        "peliculas",
-        "cine",
-        "infantil",
-        "kids",
-        "música",
-        "musica",
-        "entretenimiento",
-        "estilo de vida",
-        "religión",
-        "religion",
-        "variados",
-        "latino",
-        "latinos",
-        "españa",
-        "espana",
-        "mexico",
-        "méxico",
-        "estados unidos",
-        "usa",
-        "eeuu",
-        "4k",
-        "general",
     )
 
     fun isAdultLabel(label: String?): Boolean {
@@ -56,6 +25,7 @@ object CatalogRules {
             isAdultLabel(item.group) ||
             isAdultLabel(item.category)
 
+    /** Keep M3U order; demote adult categories to the end. */
     fun sortCategories(categories: List<Category>): List<Category> {
         if (categories.isEmpty()) return categories
         val seen = LinkedHashSet<String>()
@@ -65,11 +35,7 @@ object CatalogRules {
         }
         val adults = unique.filter { isAdultLabel(it.label()) }
         val normal = unique.filterNot { isAdultLabel(it.label()) }
-        val ranked = normal.sortedWith(
-            compareBy<Category> { preferredIndex(it.label()) }
-                .thenBy { it.label().lowercase() }
-        )
-        return ranked + adults
+        return normal + adults
     }
 
     fun defaultCategory(categories: List<Category>): String? =
@@ -78,10 +44,4 @@ object CatalogRules {
 
     fun preferredLiveItems(items: List<CatalogItem>): List<CatalogItem> =
         items.filterNot { isAdultItem(it) }.ifEmpty { items }
-
-    private fun preferredIndex(label: String): Int {
-        val key = label.trim().lowercase()
-        val hit = preferredLiveOrder.indexOfFirst { key == it || key.contains(it) }
-        return if (hit >= 0) hit else preferredLiveOrder.size + 1
-    }
 }

@@ -11,6 +11,7 @@ import com.senal.tv.data.local.FavoriteEntity
 import com.senal.tv.data.local.HistoryDao
 import com.senal.tv.data.local.HistoryEntity
 import com.senal.tv.data.local.LocalPlaylistStore
+import com.senal.tv.data.local.SettingsStore
 import com.senal.tv.data.local.TokenStore
 import com.senal.tv.data.model.CatalogItem
 import com.senal.tv.data.model.CatalogResponse
@@ -135,6 +136,10 @@ class CatalogRepository(
         }
     }
 
+    suspend fun get(id: String): CatalogItem? = withContext(Dispatchers.IO) {
+        playlist.get(id)
+    }
+
     suspend fun page(
         type: String,
         category: String? = null,
@@ -160,7 +165,8 @@ class CatalogRepository(
 class LibraryRepository(
     private val favoriteDao: FavoriteDao,
     private val historyDao: HistoryDao,
-    private val continueDao: ContinueDao
+    private val continueDao: ContinueDao,
+    private val settingsStore: SettingsStore? = null
 ) {
     fun favorites(): Flow<List<FavoriteEntity>> = favoriteDao.observe()
     fun history(): Flow<List<HistoryEntity>> = historyDao.observe()
@@ -198,7 +204,16 @@ class LibraryRepository(
             )
         )
         historyDao.trim()
+        // Persist last live channel for resume/autoplay
+        if (item.contentType() == ContentType.LIVE ||
+            item.type.equals("live", ignoreCase = true) ||
+            item.type.isNullOrBlank()
+        ) {
+            settingsStore?.setLastChannel(item.resolveId(), item.resolveTitle())
+        }
     }
+
+    suspend fun latestHistory(): HistoryEntity? = historyDao.latest()
 
     suspend fun saveProgress(
         contentId: String,

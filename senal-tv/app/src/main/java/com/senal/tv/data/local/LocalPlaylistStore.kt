@@ -6,24 +6,26 @@ import com.senal.tv.data.model.CatalogResponse
 import com.senal.tv.data.model.Category
 import com.senal.tv.data.model.PlaybackResponse
 import com.senal.tv.util.CatalogRules
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.util.zip.GZIPInputStream
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Catálogo embebido desde `assets/catalog/lista_fusionada.m3u(.gz)`.
- * El servidor SEÑAL solo autentica usuarios; el contenido no viaja por la API.
+ * Respeta `group-title` exacto del M3U (orden de aparición, sin renormalizar).
  */
 class LocalPlaylistStore(private val context: Context) {
 
     private val mutex = Mutex()
     @Volatile private var loaded = false
 
-    private val all = mutableListOf<PlaylistEntry>()
-    private val byId = LinkedHashMap<String, PlaylistEntry>()
-    private val categoriesByType = mutableMapOf<String, List<Category>>()
+    private val all = ArrayList<PlaylistEntry>(10_000)
+    private val byId = HashMap<String, PlaylistEntry>(10_000)
+    /** Group → channel indexes in M3U appearance order. */
+    private val groupIndex = LinkedHashMap<String, ArrayList<Int>>(256)
+    private val categoriesByType = HashMap<String, List<Category>>(4)
 
     suspend fun ensureLoaded() {
         if (loaded) return
@@ -48,24 +50,49 @@ class LocalPlaylistStore(private val context: Context) {
         ensureLoaded()
         val kind = normalizeType(type)
         val cat = category?.trim().orEmpty()
-        val filtered = all.asSequence()
-            .filter { matchesType(it, kind) }
-            .filter { cat.isEmpty() || it.group.equals(cat, ignoreCase = true) }
-            .toList()
         val safePage = page.coerceAtLeast(1)
         val safeLimit = limit.coerceIn(1, 200)
         val from = (safePage - 1) * safeLimit
-        val slice = if (from >= filtered.size) emptyList() else {
-            filtered.subList(from, minOf(from + safeLimit, filtered.size))
+
+        val (total, slice) = when {
+            kind == "live" && cat.isNotEmpty() -> {
+                val idxs = findGroupIndexes(cat)
+                val totalCount = idxs.size
+                val end = minOf(from + safeLimit, totalCount)
+                val items = if (from >= totalCount) emptyList() else {
+                    idxs.subList(from, end).map { all[it].toCatalogItem(displayType = kind) }
+                }
+                totalCount to items
+            }
+            kind == "live" && cat.isEmpty() -> {
+                val totalCount = all.size
+                val end = minOf(from + safeLimit, totalCount)
+                val items = if (from >= totalCount) emptyList() else {
+                    all.subList(from, end).map { it.toCatalogItem(displayType = kind) }
+                }
+                totalCount to items
+            }
+            else -> {
+                val filtered = all.asSequence()
+                    .filter { matchesType(it, kind) }
+                    .filter { cat.isEmpty() || it.group.equals(cat, ignoreCase = true) }
+                    .toList()
+                val end = minOf(from + safeLimit, filtered.size)
+                val items = if (from >= filtered.size) emptyList() else {
+                    filtered.subList(from, end).map { it.toCatalogItem(displayType = kind) }
+                }
+                filtered.size to items
+            }
         }
+
         val cats = categoriesByType[kind].orEmpty()
         return CatalogResponse(
-            items = slice.map { it.toCatalogItem(displayType = kind) },
+            items = slice,
             categories = if (safePage == 1) cats else null,
             page = safePage,
             limit = safeLimit,
-            total = filtered.size,
-            hasMore = from + slice.size < filtered.size
+            total = total,
+            hasMore = from + slice.size < total
         )
     }
 
@@ -107,76 +134,99 @@ class LocalPlaylistStore(private val context: Context) {
         return byId[id]?.toCatalogItem()
     }
 
+    /** Neighbors for zap: same group as id, fallback all live. */
+    suspend fun neighborsFor(id: String, limit: Int = 200): List<CatalogItem> {
+        ensureLoaded()
+        val entry = byId[id] ?: return emptyList()
+        val idxs = findGroupIndexes(entry.group)
+        if (idxs.isEmpty()) {
+            return all.take(limit).map { it.toCatalogItem() }
+        }
+        return idxs.asSequence().take(limit).map { all[it].toCatalogItem() }.toList()
+    }
+
     fun clearMemory() {
-        // Keep parse in memory; only wipe category memo if needed in future.
+        // Keep parse in memory.
+    }
+
+    private fun findGroupIndexes(group: String): List<Int> {
+        groupIndex[group]?.let { return it }
+        // case-insensitive fallback
+        val hit = groupIndex.entries.firstOrNull { it.key.equals(group, ignoreCase = true) }
+        return hit?.value.orEmpty()
     }
 
     private fun parseAsset() {
         all.clear()
         byId.clear()
+        groupIndex.clear()
         categoriesByType.clear()
 
         val assetName = resolveAssetName()
-        val raw = context.assets.open(assetName).use { input ->
+        context.assets.open(assetName).use { input ->
             val stream = if (assetName.endsWith(".gz")) GZIPInputStream(input) else input
-            BufferedReader(InputStreamReader(stream, Charsets.UTF_8)).use { reader ->
-                reader.readLines()
+            BufferedReader(InputStreamReader(stream, Charsets.UTF_8), 64 * 1024).use { reader ->
+                var pending: ExtInf? = null
+                var index = 0
+                while (true) {
+                    val lineRaw = reader.readLine() ?: break
+                    val line = lineRaw.trim()
+                    if (line.isEmpty()) continue
+                    when {
+                        line.startsWith("#EXTINF", ignoreCase = true) -> {
+                            pending = parseExtInf(line)
+                        }
+                        line.startsWith("#") -> Unit
+                        else -> {
+                            val ext = pending
+                            pending = null
+                            if (ext == null) continue
+                            val url = line
+                            if (url.isEmpty()) continue
+                            index += 1
+                            val group = ext.group.ifBlank { "Variados" }
+                            val id = stableId(ext.tvgId, ext.name, url, index)
+                            val entry = PlaylistEntry(
+                                id = id,
+                                number = index,
+                                name = ext.name.ifBlank { "Canal $index" },
+                                logo = ext.logo,
+                                group = group,
+                                tvgId = ext.tvgId,
+                                url = url,
+                                userAgent = ext.userAgent,
+                                referrer = ext.referrer,
+                                kind = "live"
+                            )
+                            val pos = all.size
+                            all += entry
+                            byId[id] = entry
+                            groupIndex.getOrPut(group) { ArrayList(64) }.add(pos)
+                        }
+                    }
+                }
             }
         }
 
-        var pending: ExtInf? = null
-        var index = 0
-        for (lineRaw in raw) {
-            val line = lineRaw.trim()
-            if (line.isEmpty()) continue
-            when {
-                line.startsWith("#EXTINF", ignoreCase = true) -> {
-                    pending = parseExtInf(line)
-                }
-                line.startsWith("#") -> {
-                    // ignore other tags
-                }
-                else -> {
-                    val ext = pending
-                    pending = null
-                    if (ext == null) continue
-                    val url = line.trim()
-                    if (url.isEmpty()) continue
-                    index += 1
-                    val group = ext.group.ifBlank { "Variados" }
-                    val id = stableId(ext.tvgId, ext.name, url, index)
-                    val entry = PlaylistEntry(
-                        id = id,
-                        number = index,
-                        name = ext.name.ifBlank { "Canal $index" },
-                        logo = ext.logo,
-                        group = group,
-                        tvgId = ext.tvgId,
-                        url = url,
-                        userAgent = ext.userAgent,
-                        referrer = ext.referrer,
-                        kind = "live" // M3U = streams en vivo; movie/series filtran por grupo
-                    )
-                    all += entry
-                    byId[id] = entry
-                }
-            }
+        // Categories in exact M3U appearance order (LinkedHashMap), adults last via CatalogRules.
+        val liveCats = groupIndex.map { (name, idxs) ->
+            Category(id = name, name = name, title = name, count = idxs.size)
         }
+        categoriesByType["live"] = CatalogRules.sortCategories(liveCats)
 
-        fun buildCats(filter: (PlaylistEntry) -> Boolean): List<Category> {
+        fun typedCats(predicate: (PlaylistEntry) -> Boolean): List<Category> {
             val counts = LinkedHashMap<String, Int>()
-            all.filter(filter).forEach { e ->
-                counts[e.group] = (counts[e.group] ?: 0) + 1
+            all.forEach { e ->
+                if (predicate(e)) counts[e.group] = (counts[e.group] ?: 0) + 1
             }
-            val cats = counts.map { (name, count) ->
-                Category(id = name, name = name, title = name, count = count)
-            }
-            return CatalogRules.sortCategories(cats)
+            return CatalogRules.sortCategories(
+                counts.map { (name, count) ->
+                    Category(id = name, name = name, title = name, count = count)
+                }
+            )
         }
-
-        categoriesByType["live"] = buildCats { true }
-        categoriesByType["movie"] = buildCats { isMovieGroup(it.group, it.name) }
-        categoriesByType["series"] = buildCats { isSeriesGroup(it.group, it.name) }
+        categoriesByType["movie"] = typedCats { isMovieGroup(it.group, it.name) }
+        categoriesByType["series"] = typedCats { isSeriesGroup(it.group, it.name) }
     }
 
     private fun resolveAssetName(): String {
@@ -203,18 +253,25 @@ class LocalPlaylistStore(private val context: Context) {
         val comma = line.lastIndexOf(',')
         val name = if (comma >= 0) line.substring(comma + 1).trim() else ""
         val attrsPart = if (comma >= 0) line.substring(0, comma) else line
-        fun attr(key: String): String? {
-            val regex = Regex("""(?i)${Regex.escape(key)}="([^"]*)"""")
-            return regex.find(attrsPart)?.groupValues?.getOrNull(1)?.trim()?.ifBlank { null }
-        }
         return ExtInf(
             name = name,
-            group = attr("group-title") ?: "Variados",
-            logo = attr("tvg-logo"),
-            tvgId = attr("tvg-id").orEmpty(),
-            userAgent = attr("http-user-agent") ?: attr("user-agent"),
-            referrer = attr("http-referrer") ?: attr("referrer")
+            group = attrFast(attrsPart, "group-title") ?: "Variados",
+            logo = attrFast(attrsPart, "tvg-logo"),
+            tvgId = attrFast(attrsPart, "tvg-id").orEmpty(),
+            userAgent = attrFast(attrsPart, "http-user-agent") ?: attrFast(attrsPart, "user-agent"),
+            referrer = attrFast(attrsPart, "http-referrer") ?: attrFast(attrsPart, "referrer")
         )
+    }
+
+    /** Fast quoted-attribute scan (avoids Regex per line). */
+    private fun attrFast(source: String, key: String): String? {
+        val needle = "$key=\""
+        val start = source.indexOf(needle, ignoreCase = true)
+        if (start < 0) return null
+        val valueStart = start + needle.length
+        val end = source.indexOf('"', valueStart)
+        if (end < 0) return null
+        return source.substring(valueStart, end).trim().ifBlank { null }
     }
 
     private fun matchesType(entry: PlaylistEntry, kind: String): Boolean = when (kind) {
@@ -236,12 +293,11 @@ class LocalPlaylistStore(private val context: Context) {
     }
 
     private fun stableId(tvgId: String, name: String, url: String, index: Int): String {
-        val base = when {
-            tvgId.isNotBlank() -> "tvg:${tvgId}"
+        return when {
+            tvgId.isNotBlank() -> "tvg:$tvgId"
             name.isNotBlank() -> "m3u:${name.lowercase().hashCode()}:$index"
             else -> "url:${url.hashCode()}:$index"
         }
-        return base
     }
 
     private fun normalizeType(type: String): String = when (type.lowercase()) {

@@ -55,6 +55,8 @@ private fun SenalRoot() {
     val token by container.authRepository.tokenFlow.collectAsState(initial = container.tokenStore.cachedToken)
     var route by remember { mutableStateOf<AppRoute>(AppRoute.Splash) }
     var splashDone by remember { mutableStateOf(false) }
+    /** Only auto-resume last channel once after splash/login, not every return from player. */
+    var lastChannelAutoPlayed by remember { mutableStateOf(false) }
 
     LaunchedEffect(token, splashDone) {
         if (!splashDone) return@LaunchedEffect
@@ -74,18 +76,26 @@ private fun SenalRoot() {
         )
         AppRoute.Login -> LoginScreen(
             authRepository = container.authRepository,
-            onLoggedIn = { route = AppRoute.Home }
+            onLoggedIn = {
+                lastChannelAutoPlayed = false
+                route = AppRoute.Home
+            }
         )
         AppRoute.Home -> HomeScreen(
             container = container,
+            autoPlayLastChannel = !lastChannelAutoPlayed,
             onPlay = { item, start, neighbors ->
+                lastChannelAutoPlayed = true
                 route = AppRoute.Player(
                     item = item,
                     startPositionMs = start,
                     neighbors = neighbors.ifEmpty { listOf(item) }
                 )
             },
-            onLogout = { route = AppRoute.Login }
+            onLogout = {
+                lastChannelAutoPlayed = false
+                route = AppRoute.Login
+            }
         )
         is AppRoute.Player -> PlayerScreen(
             container = container,

@@ -79,6 +79,9 @@ interface HistoryDao {
     @Query("SELECT * FROM history ORDER BY watchedAt DESC LIMIT :limit")
     fun observe(limit: Int = 40): Flow<List<HistoryEntity>>
 
+    @Query("SELECT * FROM history ORDER BY watchedAt DESC LIMIT 1")
+    suspend fun latest(): HistoryEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(item: HistoryEntity)
 

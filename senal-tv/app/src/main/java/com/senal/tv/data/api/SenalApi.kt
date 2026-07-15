@@ -3,13 +3,14 @@ package com.senal.tv.data.api
 import com.senal.tv.data.model.LoginRequest
 import com.senal.tv.data.model.LoginResponse
 import retrofit2.http.Body
+import retrofit2.http.GET
 import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
 
 /**
- * El servidor SEÑAL solo gestiona usuarios (login / sesión JWT).
- * Catálogo y streams van embebidos en la APK — no hay endpoints de contenido aquí.
+ * El servidor SEÑAL gestiona usuarios (login / sesión JWT) y mensajes de banner.
+ * Catálogo y streams van embebidos en la APK.
  */
 interface SenalApi {
 
@@ -24,6 +25,10 @@ interface SenalApi {
         @Path("id") id: String,
         @Body body: PatchUserRequest
     ): ChangePasswordResponse
+
+    /** Public (or auth) banner/news messages for the home screen. */
+    @GET("api/banner")
+    suspend fun banner(): BannerResponse
 }
 
 @kotlinx.serialization.Serializable
@@ -47,3 +52,32 @@ data class ChangePasswordResponse(
     val error: String? = null,
     val message: String? = null
 )
+
+@kotlinx.serialization.Serializable
+data class BannerResponse(
+    val items: List<BannerItem> = emptyList(),
+    val title: String? = null,
+    val body: String? = null,
+    val message: String? = null,
+    val enabled: Boolean? = null
+)
+
+@kotlinx.serialization.Serializable
+data class BannerItem(
+    val id: String? = null,
+    val title: String? = null,
+    val body: String? = null,
+    val message: String? = null,
+    val imageUrl: String? = null,
+    val image: String? = null,
+    val active: Boolean? = true
+) {
+    fun headline(): String = title?.trim().orEmpty()
+        .ifBlank { message?.trim().orEmpty() }
+        .ifBlank { "SEÑAL" }
+
+    fun text(): String = body?.trim().orEmpty()
+        .ifBlank { message?.trim().orEmpty() }
+
+    fun art(): String? = imageUrl?.takeIf { it.isNotBlank() } ?: image?.takeIf { it.isNotBlank() }
+}

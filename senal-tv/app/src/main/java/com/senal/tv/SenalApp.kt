@@ -74,7 +74,8 @@ class AppContainer(app: Application) {
     val libraryRepository = LibraryRepository(
         favoriteDao = db.favorites(),
         historyDao = db.history(),
-        continueDao = db.continueWatching()
+        continueDao = db.continueWatching(),
+        settingsStore = settingsStore
     )
 
     /** Session unlock for parental PIN (resets on process death). */

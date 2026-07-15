@@ -19,7 +19,10 @@ data class AppSettings(
     val softSubtitles: Boolean = true,
     /** Parental lock: hide Adultos until PIN unlock (session or permanent off). */
     val adultsLocked: Boolean = false,
-    val adultPinHash: String = ""
+    val adultPinHash: String = "",
+    /** Last live channel for this device/user — used for autoplay on launch. */
+    val lastChannelId: String = "",
+    val lastChannelTitle: String = ""
 ) {
     val hasAdultPin: Boolean get() = adultPinHash.isNotBlank()
 }
@@ -30,6 +33,8 @@ class SettingsStore(private val context: Context) {
     private val subs = booleanPreferencesKey("subs")
     private val adultsLockedKey = booleanPreferencesKey("adults_locked")
     private val adultPinKey = stringPreferencesKey("adult_pin_hash")
+    private val lastChannelIdKey = stringPreferencesKey("last_channel_id")
+    private val lastChannelTitleKey = stringPreferencesKey("last_channel_title")
 
     val settings: Flow<AppSettings> = context.settingsStore.data.map {
         AppSettings(
@@ -37,8 +42,18 @@ class SettingsStore(private val context: Context) {
             playbackSpeed = it[speed] ?: 1f,
             softSubtitles = it[subs] ?: true,
             adultsLocked = it[adultsLockedKey] ?: false,
-            adultPinHash = it[adultPinKey].orEmpty()
+            adultPinHash = it[adultPinKey].orEmpty(),
+            lastChannelId = it[lastChannelIdKey].orEmpty(),
+            lastChannelTitle = it[lastChannelTitleKey].orEmpty()
         )
+    }
+
+    suspend fun setLastChannel(id: String, title: String) {
+        if (id.isBlank()) return
+        context.settingsStore.edit {
+            it[lastChannelIdKey] = id
+            it[lastChannelTitleKey] = title
+        }
     }
 
     suspend fun setAspect(value: String) {

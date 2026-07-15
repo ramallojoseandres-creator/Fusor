@@ -28,7 +28,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -38,7 +37,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -64,15 +62,13 @@ import com.senal.tv.ui.search.SearchScreen
 import com.senal.tv.ui.series.SeriesScreen
 import com.senal.tv.ui.settings.SettingsScreen
 import com.senal.tv.ui.theme.BrandOrange
-import com.senal.tv.ui.theme.LocalSenalTypography
-import com.senal.tv.ui.theme.TextMuted
-import com.senal.tv.ui.theme.TextPrimary
 import com.senal.tv.util.CatalogRules
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 
 /** Home nav tiles (no FLUJO mipmaps). */
 private data class NavTile(
@@ -92,13 +88,15 @@ private val navTiles = listOf(
 fun HomeScreen(
     container: AppContainer,
     onPlay: (CatalogItem, Long, List<CatalogItem>) -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    autoPlayLastChannel: Boolean = true
 ) {
     var section by remember { mutableStateOf<HomeSection?>(null) }
     var live by remember { mutableStateOf<List<CatalogItem>>(emptyList()) }
-    var movies by remember { mutableStateOf<List<CatalogItem>>(emptyList()) }
-    var bannerIndex by remember { mutableIntStateOf(0) }
+    var livePreview by remember { mutableStateOf<CatalogItem?>(null) }
+    var newsBanners by remember { mutableStateOf<List<com.senal.tv.data.api.BannerItem>>(emptyList()) }
     var clock by remember { mutableStateOf(nowParts()) }
+    var didAutoPlay by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -108,28 +106,65 @@ fun HomeScreen(
     }
 
     LaunchedEffect(Unit) {
-        val defaultLiveCategory = runCatching {
-            CatalogRules.defaultCategory(container.catalogRepository.categories("live"))
-        }.getOrNull()
-        runCatching {
-            container.catalogRepository.page(
-                type = "live",
-                category = defaultLiveCategory,
-                page = 1,
-                limit = 20
-            )
-        }.onSuccess {
-            live = CatalogRules.preferredLiveItems(it.resolveItems())
-        }
-        runCatching { container.catalogRepository.page("movie", page = 1, limit = 12) }
-            .onSuccess { movies = it.resolveItems() }
-    }
+        // Prefetch catalog + last channel + admin banners in parallel paths
+        val settings = runCatching { container.settingsStore.settings.first() }.getOrNull()
+        val lastId = settings?.lastChannelId.orEmpty()
 
-    LaunchedEffect(movies) {
-        if (movies.size < 2) return@LaunchedEffect
-        while (true) {
-            delay(3500)
-            bannerIndex = (bannerIndex + 1) % movies.size
+        if (lastId.isNotBlank()) {
+            runCatching { container.catalogRepository.get(lastId) }.getOrNull()?.let {
+                livePreview = it
+            }
+        }
+
+        runCatching {
+            container.catalogRepository.page(type = "live", category = null, page = 1, limit = 24)
+        }.onSuccess { page ->
+            live = CatalogRules.preferredLiveItems(page.resolveItems())
+            if (livePreview == null) livePreview = live.firstOrNull()
+        }
+
+        if (livePreview == null) {
+            val defaultLiveCategory = runCatching {
+                CatalogRules.defaultCategory(container.catalogRepository.categories("live"))
+            }.getOrNull()
+            runCatching {
+                container.catalogRepository.page(
+                    type = "live",
+                    category = defaultLiveCategory,
+                    page = 1,
+                    limit = 20
+                )
+            }.onSuccess {
+                live = CatalogRules.preferredLiveItems(it.resolveItems())
+                livePreview = live.firstOrNull()
+            }
+        }
+
+        // Admin news banner (server). Fail soft if endpoint missing.
+        runCatching { container.api.banner() }
+            .onSuccess { resp ->
+                val items = resp.items.filter { it.active != false }
+                newsBanners = when {
+                    items.isNotEmpty() -> items
+                    !resp.title.isNullOrBlank() || !resp.body.isNullOrBlank() || !resp.message.isNullOrBlank() ->
+                        listOf(
+                            com.senal.tv.data.api.BannerItem(
+                                title = resp.title,
+                                body = resp.body ?: resp.message,
+                                active = resp.enabled != false
+                            )
+                        )
+                    else -> emptyList()
+                }
+            }
+
+        // Autoplay last channel once per cold home entry
+        if (autoPlayLastChannel && !didAutoPlay && livePreview != null && lastId.isNotBlank()) {
+            didAutoPlay = true
+            val neighbors = runCatching {
+                container.playlistStore.neighborsFor(livePreview!!.resolveId())
+            }.getOrDefault(live.ifEmpty { listOf(livePreview!!) })
+            onPlay(livePreview!!, 0L, neighbors.ifEmpty { listOf(livePreview!!) })
         }
     }
 
@@ -138,14 +173,8 @@ fun HomeScreen(
             if (section == null) {
                 FlujoExactHome(
                     clock = clock,
-                    livePreview = live.firstOrNull(),
-                    banners = movies.ifEmpty { live }.let { list ->
-                        if (list.isEmpty()) emptyList()
-                        else listOf(
-                            list[bannerIndex % list.size],
-                            list[(bannerIndex + 1) % list.size]
-                        )
-                    },
+                    livePreview = livePreview,
+                    newsBanners = newsBanners,
                     onOpen = { section = it },
                     onPlayLive = { ch ->
                         onPlay(ch, 0L, live.ifEmpty { listOf(ch) })
@@ -170,7 +199,7 @@ fun HomeScreen(
 private fun FlujoExactHome(
     clock: ClockParts,
     livePreview: CatalogItem?,
-    banners: List<CatalogItem>,
+    newsBanners: List<com.senal.tv.data.api.BannerItem>,
     onOpen: (HomeSection) -> Unit,
     onPlayLive: (CatalogItem) -> Unit
 ) {
@@ -201,8 +230,8 @@ private fun FlujoExactHome(
                     .weight(1.15f)
                     .zIndex(2f)
             )
-            BannerStack(
-                items = banners,
+            NewsBannerStack(
+                items = newsBanners,
                 modifier = Modifier
                     .weight(0.85f)
                     .fillMaxHeight()
@@ -374,13 +403,32 @@ private fun LivePreviewCard(
 }
 
 @Composable
-private fun BannerStack(items: List<CatalogItem>, modifier: Modifier = Modifier) {
+private fun NewsBannerStack(
+    items: List<com.senal.tv.data.api.BannerItem>,
+    modifier: Modifier = Modifier
+) {
+    val display = if (items.isEmpty()) {
+        listOf(
+            com.senal.tv.data.api.BannerItem(
+                title = "SEÑAL",
+                body = "Noticias y avisos del administrador aparecerán aquí."
+            ),
+            com.senal.tv.data.api.BannerItem(
+                title = "Panel admin",
+                body = "Escribe mensajes desde el servidor SEÑAL."
+            )
+        )
+    } else {
+        items.take(2).let { list ->
+            if (list.size == 1) list + list else list
+        }
+    }
+
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        repeat(2) { i ->
-            val item = items.getOrNull(i)
+        display.take(2).forEach { item ->
             var focused by remember { mutableStateOf(false) }
             Surface(
                 onClick = {},
@@ -391,31 +439,61 @@ private fun BannerStack(items: List<CatalogItem>, modifier: Modifier = Modifier)
                     .onFocusChanged { focused = it.isFocused },
                 shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(5.dp)),
                 colors = ClickableSurfaceDefaults.colors(
-                    containerColor = Color(0xFF121218),
-                    focusedContainerColor = Color(0xFF121218)
+                    containerColor = Color(0xFF0E1520),
+                    focusedContainerColor = Color(0xFF121C28)
                 ),
                 scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
                 content = {
                     Box(Modifier.fillMaxSize()) {
-                        if (item != null) {
+                        item.art()?.let { url ->
                             AsyncImage(
-                                model = item.resolvePoster() ?: item.resolveLogo(),
-                                contentDescription = item.resolveTitle(),
+                                model = url,
+                                contentDescription = item.headline(),
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize()
                             )
-                            Box(Modifier.fillMaxSize().background(Color.Black.copy(0.25f)))
+                            Box(Modifier.fillMaxSize().background(Color.Black.copy(0.45f)))
+                        } ?: Box(
+                            Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.linearGradient(
+                                        listOf(Color(0xFF0B3A4A), Color(0xFF071018))
+                                    )
+                                )
+                        )
+                        Column(
+                            Modifier
+                                .align(Alignment.BottomStart)
+                                .padding(14.dp)
+                        ) {
                             Text(
-                                text = item.resolveTitle(),
-                                color = Color.White,
-                                fontSize = 14.sp,
+                                text = "AVISO",
+                                color = Color(0xFF3EC4E8),
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier
-                                    .align(Alignment.BottomStart)
-                                    .padding(12.dp),
+                                letterSpacing = 1.5.sp
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = item.headline(),
+                                color = Color.White,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis
                             )
+                            val body = item.text()
+                            if (body.isNotBlank() && body != item.headline()) {
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = body,
+                                    color = Color.White.copy(0.82f),
+                                    fontSize = 13.sp,
+                                    maxLines = 3,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
                     }
                 }
