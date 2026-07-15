@@ -79,8 +79,9 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 /**
- * Guía EN VIVO: categorías y canales **sobre** el reproductor desde el primer frame.
- * El vídeo arranca en segundo plano; la guía NUNCA espera a que el canal reproduzca.
+ * Guía EN VIVO sobre el reproductor.
+ * Scroll/foco por categorías/canales **NO** cambia el stream.
+ * Solo SELECT (OK) sintoniza el canal enfocado (o abre pantalla completa).
  */
 @OptIn(UnstableApi::class)
 @Composable
@@ -100,14 +101,14 @@ fun LiveTvScreen(
     var loadingChannels by remember { mutableStateOf(false) }
     var loadingMore by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    /** Guía lista: ya se puede navegar aunque el preview aún no reproduzca. */
     var guideReady by remember { mutableStateOf(false) }
 
+    /** Cursor visual al navegar (no implica reproducción). */
     var focusedChannelId by remember { mutableStateOf<String?>(null) }
-    var preview by remember { mutableStateOf<CatalogItem?>(null) }
+    /** Canal realmente en aire — solo cambia con SELECT. */
+    var playing by remember { mutableStateOf<CatalogItem?>(null) }
     var buffering by remember { mutableStateOf(false) }
-    var previewError by remember { mutableStateOf<String?>(null) }
-    /** No arrancar ExoPlayer hasta que haya categorías en pantalla + 1 frame. */
+    var playError by remember { mutableStateOf<String?>(null) }
     var allowPlayback by remember { mutableStateOf(false) }
 
     val listState = rememberLazyListState()
@@ -128,11 +129,11 @@ fun LiveTvScreen(
         val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
                 buffering = playbackState == Player.STATE_BUFFERING
-                if (playbackState == Player.STATE_READY) previewError = null
+                if (playbackState == Player.STATE_READY) playError = null
             }
 
             override fun onPlayerError(error: PlaybackException) {
-                previewError = "Señal inestable"
+                playError = "Señal inestable"
                 scope.launch {
                     delay(1_200)
                     player.prepare()
@@ -151,7 +152,12 @@ fun LiveTvScreen(
     val adultsSession by container.adultsUnlockedSession.collectAsState()
     val hideAdults = appSettings.adultsLocked && !adultsSession
 
-    // 1) Categorías PRIMERO — la guía aparece aunque el stream aún no arranque.
+    fun tune(channel: CatalogItem) {
+        playing = channel
+        focusedChannelId = channel.resolveId()
+    }
+
+    // 1) Categorías primero.
     LaunchedEffect(hideAdults) {
         loadingCats = true
         runCatching { container.catalogRepository.categories("live", hideAdults = hideAdults) }
@@ -164,12 +170,11 @@ fun LiveTvScreen(
             }
             .onFailure { error = it.message }
         loadingCats = false
-        // Deja pintar la guía un frame antes de saturar con ExoPlayer.
         delay(48)
         allowPlayback = true
     }
 
-    // 2) Canales de la categoría (independiente del reproductor).
+    // 2) Lista de canales al cambiar categoría — NO toca el stream en aire.
     LaunchedEffect(selected) {
         val category = selected ?: return@LaunchedEffect
         loadingChannels = true
@@ -177,7 +182,6 @@ fun LiveTvScreen(
         page = 1
         hasMore = true
         channels = emptyList()
-        focusedChannelId = null
         runCatching {
             container.catalogRepository.page(
                 type = "live",
@@ -188,12 +192,13 @@ fun LiveTvScreen(
         }.onSuccess { response ->
             channels = response.resolveItems()
             hasMore = response.resolveHasMore(pageSize)
-            // Solo fija preview si aún no hay; no bloquea la guía.
-            if (preview == null) {
-                channels.firstOrNull()?.let {
-                    preview = it
-                    focusedChannelId = it.resolveId()
-                }
+            // Primera carga: sintonizar un canal inicial si aún no hay ninguno.
+            if (playing == null) {
+                channels.firstOrNull()?.let { tune(it) }
+            } else {
+                // Mantener cursor en el canal en aire si está en esta categoría.
+                val keep = channels.firstOrNull { it.resolveId() == playing!!.resolveId() }
+                focusedChannelId = keep?.resolveId() ?: focusedChannelId
             }
         }.onFailure {
             error = it.message ?: "No se pudieron cargar los canales"
@@ -201,26 +206,17 @@ fun LiveTvScreen(
         loadingChannels = false
     }
 
-    // Debounce focus → switch stream (sin pausar al navegar con el D-pad)
-    LaunchedEffect(focusedChannelId, channels, allowPlayback) {
+    // 3) Reproducir SOLO cuando cambia el canal aprobado (SELECT), nunca por foco.
+    LaunchedEffect(playing?.resolveId(), allowPlayback) {
         if (!allowPlayback) return@LaunchedEffect
-        val id = focusedChannelId ?: return@LaunchedEffect
-        delay(220)
-        val next = channels.firstOrNull { it.resolveId() == id } ?: return@LaunchedEffect
-        if (preview?.resolveId() == next.resolveId()) return@LaunchedEffect
-        preview = next
-    }
-
-    LaunchedEffect(preview?.resolveId(), allowPlayback) {
-        if (!allowPlayback) return@LaunchedEffect
-        val item = preview ?: return@LaunchedEffect
-        previewError = null
+        val item = playing ?: return@LaunchedEffect
+        playError = null
         buffering = true
         runCatching { container.catalogRepository.playback(item.resolveId()) }
             .onSuccess { playback ->
                 val url = playback.resolveUrl() ?: item.resolveStreamUrl()
                 if (url.isNullOrBlank()) {
-                    previewError = "Sin URL"
+                    playError = "Sin URL"
                     return@onSuccess
                 }
                 val headers = playback.headers.orEmpty().toMutableMap()
@@ -248,7 +244,7 @@ fun LiveTvScreen(
                 scope.launch { container.libraryRepository.markHistory(item) }
             }
             .onFailure {
-                previewError = it.message
+                playError = it.message
             }
     }
 
@@ -420,13 +416,17 @@ fun LiveTvScreen(
                         items(channels, key = { it.resolveId() }) { channel ->
                             GuideChannelRow(
                                 item = channel,
-                                selected = channel.resolveId() == preview?.resolveId(),
+                                selected = channel.resolveId() == playing?.resolveId(),
                                 onFocused = { focusedChannelId = channel.resolveId() },
                                 onClick = {
-                                    preview = channel
-                                    scope.launch {
-                                        container.libraryRepository.markHistory(channel)
-                                        onPlay(channel, channels)
+                                    // SELECT: sintoniza este canal (o abre full si ya lo está).
+                                    if (playing?.resolveId() == channel.resolveId()) {
+                                        scope.launch {
+                                            container.libraryRepository.markHistory(channel)
+                                            onPlay(channel, channels)
+                                        }
+                                    } else {
+                                        tune(channel)
                                     }
                                 }
                             )
@@ -464,7 +464,7 @@ fun LiveTvScreen(
                         .padding(14.dp)
                 ) {
                     Text(
-                        text = preview?.resolveTitle() ?: "SEÑAL EN VIVO",
+                        text = playing?.resolveTitle() ?: "SEÑAL EN VIVO",
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp,
@@ -474,12 +474,12 @@ fun LiveTvScreen(
                     Text(
                         text = when {
                             !guideReady -> "Preparando guía…"
-                            previewError != null -> previewError!!
-                            !allowPlayback -> "Guía lista · sintonizando…"
+                            playError != null -> playError!!
+                            !allowPlayback -> "Guía lista…"
                             buffering -> "Sintonizando…"
-                            else -> "Explora categorías sin esperar · OK = pantalla completa"
+                            else -> "Navega sin cambiar · SELECT = sintonizar · otra vez = pantalla completa"
                         },
-                        color = if (previewError != null) Color(0xFFFF8A80) else BrandOrange,
+                        color = if (playError != null) Color(0xFFFF8A80) else BrandOrange,
                         fontSize = 13.sp,
                         modifier = Modifier.padding(top = 4.dp)
                     )

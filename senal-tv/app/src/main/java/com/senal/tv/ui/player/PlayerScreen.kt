@@ -85,8 +85,9 @@ import kotlinx.coroutines.launch
 
 /**
  * Reproducción a pantalla completa.
- * ▲ / ▼  → canal anterior / siguiente
- * OK     → guía categorías + canales (5 s de inactividad, o hasta elegir canal)
+ * ▲ / ▼ (sin guía) → canal anterior / siguiente
+ * OK     → guía categorías + canales (el stream actual NO se toca al navegar)
+ * SELECT sobre un canal en la guía → sintoniza ese canal
  * BACK   → si guía abierta la cierra; si no, sale
  */
 @OptIn(UnstableApi::class)
@@ -117,6 +118,7 @@ fun PlayerScreen(
         mutableStateOf(item.resolveCategory().ifBlank { null })
     }
     var guideChannels by remember { mutableStateOf(neighbors.ifEmpty { listOf(item) }) }
+    /** Lista para ▲▼ fuera de la guía — solo cambia al CONFIRMAR canal con SELECT. */
     var zapList by remember { mutableStateOf(neighbors.ifEmpty { listOf(item) }) }
 
     val guideFocus = remember { FocusRequester() }
@@ -165,6 +167,9 @@ fun PlayerScreen(
     }
 
     fun openGuide() {
+        // Abrir en la categoría del canal en aire — no saltar al primer grupo.
+        val cat = current.resolveCategory().ifBlank { selectedCategory }
+        selectedCategory = cat
         guideVisible = true
         bumpGuideTimer()
     }
@@ -182,7 +187,9 @@ fun PlayerScreen(
     }
 
     fun selectChannel(ch: CatalogItem) {
+        // Solo aquí se aprueba el canal y se cambia el stream.
         current = ch
+        if (guideChannels.isNotEmpty()) zapList = guideChannels
         requestKey++
         guideVisible = false
         infoVisible = true
@@ -196,10 +203,15 @@ fun PlayerScreen(
         }.getOrDefault(emptyList())
         categories = cats
         if (selectedCategory.isNullOrBlank() || cats.none { it.label() == selectedCategory }) {
-            selectedCategory = CatalogRules.defaultCategory(cats)
+            val fromItem = item.resolveCategory().ifBlank { null }
+            selectedCategory = when {
+                fromItem != null && cats.any { it.label() == fromItem } -> fromItem
+                else -> CatalogRules.defaultCategory(cats)
+            }
         }
     }
 
+    // Solo recarga la lista visible de la guía — NO cambia el stream ni zapList.
     LaunchedEffect(selectedCategory, guideVisible) {
         if (!guideVisible) return@LaunchedEffect
         val page = runCatching {
@@ -210,17 +222,16 @@ fun PlayerScreen(
                 limit = 400
             )
         }.getOrNull()
-        val list = page?.items.orEmpty()
+        val list = page?.resolveItems().orEmpty().ifEmpty { page?.items.orEmpty() }
         if (list.isNotEmpty()) {
             guideChannels = list
-            zapList = list
         }
         bumpGuideTimer()
     }
 
     LaunchedEffect(guideVisible, guideTick) {
         if (!guideVisible) return@LaunchedEffect
-        delay(5_000)
+        delay(8_000)
         guideVisible = false
     }
 
@@ -436,6 +447,7 @@ fun PlayerScreen(
                 currentId = current.resolveId(),
                 focusRequester = guideFocus,
                 onCategory = {
+                    // Solo cambia la lista visible — el vídeo sigue con current.
                     selectedCategory = it
                     bumpGuideTimer()
                 },
@@ -460,6 +472,14 @@ private fun PlayerGuideOverlay(
     val catState = rememberLazyListState()
     val chState = rememberLazyListState()
 
+    // Al abrir / cambiar lista: ir al canal en aire si está aquí (no al primero).
+    LaunchedEffect(channels, currentId) {
+        val idx = channels.indexOfFirst { it.resolveId() == currentId }
+        if (idx >= 0) {
+            runCatching { chState.scrollToItem(idx.coerceAtLeast(0)) }
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -470,75 +490,89 @@ private fun PlayerGuideOverlay(
             )
             .padding(18.dp)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .align(Alignment.CenterStart)
                 .fillMaxHeight()
                 .width(560.dp)
                 .background(Color(0xEE050810), RoundedCornerShape(18.dp))
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(12.dp)
         ) {
-            LazyColumn(
-                state = catState,
-                modifier = Modifier
-                    .width(200.dp)
-                    .fillMaxHeight(),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-                contentPadding = PaddingValues(4.dp)
-            ) {
-                item {
-                    Text(
-                        "CATEGORÍAS",
-                        color = BrandOrange,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(8.dp)
-                    )
-                }
-                items(categories, key = { it.label() }) { cat ->
-                    val active = cat.label() == selectedCategory
-                    GuideRow(
-                        label = cat.label(),
-                        selected = active,
-                        requestFocus = false,
-                        onClick = {
-                            onInteract()
-                            onCategory(cat.label())
-                        }
-                    )
-                }
-            }
-
-            LazyColumn(
-                state = chState,
+            Text(
+                text = "Navega libre · SELECT confirma el canal",
+                color = BrandOrange,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            )
+            Row(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxHeight()
-                    .focusRequester(focusRequester),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-                contentPadding = PaddingValues(4.dp)
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                item {
-                    Text(
-                        "CANALES",
-                        color = BrandOrange,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(8.dp)
-                    )
+                LazyColumn(
+                    state = catState,
+                    modifier = Modifier
+                        .width(200.dp)
+                        .fillMaxHeight(),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    contentPadding = PaddingValues(4.dp)
+                ) {
+                    item {
+                        Text(
+                            "CATEGORÍAS",
+                            color = BrandOrange,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
+                    items(categories, key = { it.label() }) { cat ->
+                        val active = cat.label() == selectedCategory
+                        GuideRow(
+                            label = cat.label(),
+                            selected = active,
+                            requestFocus = false,
+                            onClick = {
+                                onInteract()
+                                onCategory(cat.label())
+                            }
+                        )
+                    }
                 }
-                items(channels, key = { it.resolveId() }) { ch ->
-                    val selected = ch.resolveId() == currentId
-                    GuideRow(
-                        label = ch.resolveTitle(),
-                        selected = selected,
-                        requestFocus = selected,
-                        onClick = {
-                            onInteract()
-                            onChannel(ch)
-                        }
-                    )
+
+                LazyColumn(
+                    state = chState,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .focusRequester(focusRequester),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    contentPadding = PaddingValues(4.dp)
+                ) {
+                    item {
+                        Text(
+                            "CANALES",
+                            color = BrandOrange,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
+                    items(channels, key = { it.resolveId() }) { ch ->
+                        val isPlaying = ch.resolveId() == currentId
+                        GuideRow(
+                            label = ch.resolveTitle(),
+                            selected = isPlaying,
+                            // Solo pedir foco al canal en aire (nunca al primero por defecto).
+                            requestFocus = isPlaying,
+                            onClick = {
+                                onInteract()
+                                onChannel(ch)
+                            }
+                        )
+                    }
                 }
             }
         }

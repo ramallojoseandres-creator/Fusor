@@ -14,8 +14,8 @@ android {
         applicationId = "com.senal.tv"
         minSdk = 24
         targetSdk = 35
-        versionCode = 29
-        versionName = "1.10.1"
+        versionCode = 30
+        versionName = "1.10.2"
         buildConfigField("String", "API_BASE_URL", "\"http://185.192.20.245:3000/\"")
         vectorDrawables.useSupportLibrary = true
     }
