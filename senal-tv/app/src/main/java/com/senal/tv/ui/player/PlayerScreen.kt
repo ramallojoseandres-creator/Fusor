@@ -190,7 +190,7 @@ fun PlayerScreen(
     }
 
     LaunchedEffect(Unit) {
-        val settings = kotlinx.coroutines.flow.first(container.settingsStore.settings)
+        val settings = container.settingsStore.settings.first()
         val hideAdults = settings.adultsLocked && !container.adultsUnlockedSession.value
         val cats = runCatching {
             container.catalogRepository.categories("live", hideAdults = hideAdults)
