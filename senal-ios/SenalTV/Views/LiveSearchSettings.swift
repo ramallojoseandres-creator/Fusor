@@ -115,11 +115,25 @@ struct SettingsView: View {
                         LabeledContent("Canales", value: "\(catalog.channels.count)")
                     }
                     Section("Datos") {
-                        Text("Auth: solo login en el servidor SEÑAL")
-                        Text("Catálogo filtrado (health-check) embebido")
+                        Text("Auth: login JWT en el servidor SEÑAL")
+                        Text("Catálogo: 1ª descarga /playlist.m3u → disco")
                         Text("Streams: directo desde el iPhone al CDN")
-                        Text("Intro: splash TU VENTANA AL MUNDO")
-                        Text("TV en vivo: guía FLUJO sin pausar el vídeo")
+                        Text("TV en vivo: navega sin cambiar · tap sintoniza")
+                    }
+                    Section("Lista") {
+                        Button("Actualizar lista desde servidor") {
+                            Task {
+                                await catalog.refreshFromServer(token: session.token)
+                            }
+                        }
+                        .disabled(session.token == nil || catalog.isLoading)
+                        if catalog.isLoading {
+                            Text("Cargando canales…")
+                                .foregroundStyle(SenalColors.muted)
+                        }
+                        if let err = catalog.loadError {
+                            Text(err).foregroundStyle(.red.opacity(0.9))
+                        }
                     }
                     Section {
                         Button(role: .destructive) {

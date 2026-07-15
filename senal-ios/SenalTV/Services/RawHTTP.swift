@@ -46,7 +46,7 @@ enum RawHTTP {
         }
 
         private func receiveLoop() {
-            connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [weak self] data, _, isComplete, error in
+            connection.receive(minimumIncompleteLength: 1, maximumLength: 256 * 1024) { [weak self] data, _, isComplete, error in
                 guard let self else { return }
                 if let error {
                     self.finish(throwing: error)
@@ -138,6 +138,20 @@ enum RawHTTP {
 
     static func post(host: String, port: UInt16, request: Data) async throws -> Data {
         try await Session(host: host, port: port, request: request).run()
+    }
+
+    static func get(host: String, port: UInt16, path: String, headers: [String: String] = [:]) async throws -> Data {
+        var request = Data()
+        func append(_ s: String) { request.append(contentsOf: s.utf8) }
+        append("GET \(path) HTTP/1.1\r\n")
+        append("Host: \(host):\(port)\r\n")
+        append("Accept: */*\r\n")
+        append("Connection: close\r\n")
+        for (k, v) in headers {
+            append("\(k): \(v)\r\n")
+        }
+        append("\r\n")
+        return try await Session(host: host, port: port, request: request).run()
     }
 }
 

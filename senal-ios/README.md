@@ -1,6 +1,6 @@
 # SEÑAL para iPhone + LiveContainer
 
-Misma lógica que Android: **servidor solo login**, canales en la app (`lista_fusionada.m3u`).
+Misma lógica que Android: **login en servidor**; la lista se descarga **una vez** (`/playlist.m3u`) y se guarda en el iPhone (bundle solo de respaldo).
 
 ## Sí: con LiveContainer puedes usarlo
 

@@ -9,9 +9,24 @@ final class CatalogStore: ObservableObject {
     @Published private(set) var categories: [CategoryInfo] = []
     @Published private(set) var isLoading = false
     @Published private(set) var loadError: String?
+    @Published private(set) var statusMessage: String?
     @Published var selectedCategory: String?
 
     private var loaded = false
+
+    private var cacheURL: URL {
+        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("catalog", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent("playlist.m3u")
+    }
+
+    var hasLocalCache: Bool {
+        let url = cacheURL
+        guard let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+              let size = attrs[.size] as? NSNumber else { return false }
+        return size.intValue > 64
+    }
 
     var movieChannels: [Channel] {
         channels.filter(\.isMovieGroup)
@@ -21,21 +36,94 @@ final class CatalogStore: ObservableObject {
         channels.filter(\.isSeriesGroup)
     }
 
+    /// Disco primero; si no hay caché, bundle de respaldo (sin red).
     func loadIfNeeded() async {
         guard !loaded else { return }
         isLoading = true
         loadError = nil
         defer { isLoading = false }
         do {
-            let parsed = try await Task.detached(priority: .userInitiated) {
-                try PlaylistParser.parseBundled()
-            }.value
-            channels = parsed
-            categories = CatalogRules.sortCategories(buildCategories(from: parsed))
-            selectedCategory = CatalogRules.defaultCategory(categories)
+            let parsed: [Channel]
+            if hasLocalCache {
+                statusMessage = "Abriendo lista guardada…"
+                let url = cacheURL
+                parsed = try await Task.detached(priority: .userInitiated) {
+                    try PlaylistParser.parseFile(url)
+                }.value
+            } else {
+                statusMessage = "Cargando catálogo local…"
+                parsed = try await Task.detached(priority: .userInitiated) {
+                    try PlaylistParser.parseBundled()
+                }.value
+            }
+            apply(parsed)
             loaded = true
+            statusMessage = nil
         } catch {
             loadError = error.localizedDescription
+            statusMessage = nil
+        }
+    }
+
+    /// Primera vez con sesión: descarga /playlist.m3u y guarda en disco.
+    /// Si ya hay caché, solo lee disco (rápido).
+    func ensureReady(token: String?) async {
+        if hasLocalCache {
+            if !loaded { await loadIfNeeded() }
+            return
+        }
+        guard let token, !token.isEmpty else {
+            await loadIfNeeded()
+            return
+        }
+        isLoading = true
+        loadError = nil
+        statusMessage = "Cargando todos los canales…"
+        defer {
+            isLoading = false
+            statusMessage = nil
+        }
+        do {
+            let body = try await RawHTTP.get(
+                host: AuthService.host,
+                port: AuthService.port,
+                path: "/playlist.m3u",
+                headers: [
+                    "Authorization": "Bearer \(token)",
+                    "Accept": "audio/x-mpegurl, text/plain, */*"
+                ]
+            )
+            try body.write(to: cacheURL, options: .atomic)
+            let parsed = try await Task.detached(priority: .userInitiated) { [cacheURL] in
+                try PlaylistParser.parseFile(cacheURL)
+            }.value
+            apply(parsed)
+            loaded = true
+            UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "senal.playlist.syncedAt")
+            UserDefaults.standard.set(parsed.count, forKey: "senal.playlist.count")
+        } catch {
+            // Fallback a bundle si la red falla
+            loadError = error.localizedDescription
+            await loadIfNeeded()
+        }
+    }
+
+    func refreshFromServer(token: String?) async {
+        guard let token, !token.isEmpty else {
+            loadError = "Sin sesión"
+            return
+        }
+        // Borrar caché fuerza re-descarga
+        try? FileManager.default.removeItem(at: cacheURL)
+        loaded = false
+        await ensureReady(token: token)
+    }
+
+    private func apply(_ parsed: [Channel]) {
+        channels = parsed
+        categories = CatalogRules.sortCategories(buildCategories(from: parsed))
+        if selectedCategory == nil || !categories.contains(where: { $0.name == selectedCategory }) {
+            selectedCategory = CatalogRules.defaultCategory(categories)
         }
     }
 
@@ -65,6 +153,24 @@ final class CatalogStore: ObservableObject {
 }
 
 enum PlaylistParser {
+    static func parseFile(_ url: URL) throws -> [Channel] {
+        let data = try Data(contentsOf: url)
+        let name = url.lastPathComponent.lowercased()
+        let text: String
+        if name.hasSuffix(".gz") || name.hasSuffix(".dat") {
+            text = try String(decoding: gunzip(data), as: UTF8.self)
+        } else {
+            text = String(decoding: data, as: UTF8.self)
+        }
+        let channels = parse(text: text)
+        if channels.isEmpty {
+            throw NSError(domain: "SenalPlaylist", code: 2, userInfo: [
+                NSLocalizedDescriptionKey: "Lista vacía"
+            ])
+        }
+        return channels
+    }
+
     static func parseBundled() throws -> [Channel] {
         let url = try locatePlaylist()
         let data = try Data(contentsOf: url)

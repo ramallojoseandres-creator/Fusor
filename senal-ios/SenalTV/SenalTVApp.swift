@@ -26,7 +26,11 @@ struct SenalTVApp: App {
                 }
             }
             .task {
-                await catalog.loadIfNeeded()
+                if session.isLoggedIn {
+                    await catalog.ensureReady(token: session.token)
+                } else {
+                    await catalog.loadIfNeeded()
+                }
             }
         }
     }
