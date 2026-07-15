@@ -12,11 +12,14 @@ if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
 
 const excludes = [
   "node_modules/*",
+  "node_modules/**/*",
   ".env",
   "dist/*",
   ".git/*",
-  "data/db.json",
-  "data/*.m3u"
+  "data/*",
+  "data/**/*",
+  "senal-tv/*",
+  "senal-tv/**/*"
 ];
 const args = excludes.map((x) => `-x "${x}"`).join(" ");
 

@@ -9,8 +9,8 @@ import retrofit2.http.POST
 import retrofit2.http.Path
 
 /**
- * El servidor SEÑAL gestiona usuarios (login / sesión JWT) y mensajes de banner.
- * Catálogo y streams van embebidos en la APK.
+ * El servidor SEÑAL gestiona usuarios (login / sesión JWT), banner y
+ * catálogo rápido (`/api/catalog/fast` via OkHttp en LocalPlaylistStore).
  */
 interface SenalApi {
 

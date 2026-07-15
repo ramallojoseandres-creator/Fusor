@@ -29,9 +29,12 @@ class SenalApp : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
-        // Prefetch lista M3U embebida en background (sin tocar el servidor).
+        // Prefetch catálogo remoto (JSON.gz + cache). Sin M3U dentro del APK.
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             runCatching { container.playlistStore.ensureLoaded() }
+            // Si hay sesión, refresca con bouquet del usuario (ETag → 304 si no cambió).
+            val token = container.tokenStore.cachedToken
+            runCatching { container.playlistStore.syncFromServer(token) }
         }
     }
 

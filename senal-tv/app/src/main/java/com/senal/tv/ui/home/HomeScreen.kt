@@ -70,7 +70,7 @@ import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 
-/** Home nav tiles (no FLUJO mipmaps). */
+/** Home nav tiles — estilo gordo / brutalista (otra fuente). */
 private data class NavTile(
     val section: HomeSection,
     val label: String,
@@ -78,11 +78,11 @@ private data class NavTile(
 )
 
 private val navTiles = listOf(
-    NavTile(HomeSection.LIVE, "EN VIVO", Color(0xFF1A9BC4)),
-    NavTile(HomeSection.MOVIES, "PELÍCULAS", Color(0xFF2AA8C0)),
-    NavTile(HomeSection.SERIES, "SERIES", Color(0xFF4DB8A0)),
-    NavTile(HomeSection.FAVORITES, "FAVORITOS", Color(0xFF7EB8C8)),
-    NavTile(HomeSection.SEARCH, "BUSCAR", Color(0xFF3EC4E8)),
+    NavTile(HomeSection.LIVE, "EN VIVO", Color(0xFFFF6A00)),
+    NavTile(HomeSection.MOVIES, "PELÍCULAS", Color(0xFFE8C547)),
+    NavTile(HomeSection.SERIES, "SERIES", Color(0xFF3EC4E8)),
+    NavTile(HomeSection.FAVORITES, "FAVORITOS", Color(0xFFE15B8D)),
+    NavTile(HomeSection.SEARCH, "BUSCAR", Color(0xFF7CFF6B)),
 )
 @Composable
 fun HomeScreen(
@@ -106,6 +106,9 @@ fun HomeScreen(
     }
 
     LaunchedEffect(Unit) {
+        // Sync catálogo remoto (ETag) en paralelo al prefetch de home
+        runCatching { container.playlistStore.syncFromServer(container.tokenStore.cachedToken) }
+
         // Prefetch catalog + last channel + admin banners in parallel paths
         val settings = runCatching { container.settingsStore.settings.first() }.getOrNull()
         val lastId = settings?.lastChannelId.orEmpty()
@@ -158,14 +161,8 @@ fun HomeScreen(
                 }
             }
 
-        // Autoplay last channel once per cold home entry
-        if (autoPlayLastChannel && !didAutoPlay && livePreview != null && lastId.isNotBlank()) {
-            didAutoPlay = true
-            val neighbors = runCatching {
-                container.playlistStore.neighborsFor(livePreview!!.resolveId())
-            }.getOrDefault(live.ifEmpty { listOf(livePreview!!) })
-            onPlay(livePreview!!, 0L, neighbors.ifEmpty { listOf(livePreview!!) })
-        }
+        // Ya no saltamos a pantalla completa: EN VIVO abre la guía con categorías encima.
+        didAutoPlay = true
     }
 
     SenalBackground(
@@ -180,6 +177,16 @@ fun HomeScreen(
                         onPlay(ch, 0L, live.ifEmpty { listOf(ch) })
                     }
                 )
+            } else if (section == HomeSection.LIVE) {
+                // Guía a pantalla completa: categorías encima del reproductor al instante
+                Box(Modifier.fillMaxSize()) {
+                    LiveTvScreen(
+                        container = container,
+                        initialChannelId = livePreview?.resolveId(),
+                        onBack = { section = null },
+                        onPlay = { item, n -> onPlay(item, 0L, n) }
+                    )
+                }
             } else {
                 Box(Modifier.fillMaxSize().padding(20.dp)) {
                     SectionBody(
@@ -243,8 +250,8 @@ private fun FlujoExactHome(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(92.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                .height(118.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             navTiles.forEach { tile ->
@@ -510,12 +517,13 @@ private fun SenalNavTile(
     modifier: Modifier = Modifier
 ) {
     var focused by remember { mutableStateOf(false) }
+    // Botones "gordos y feos": serif negro, bordes gruesos, tipografía otra familia
     Surface(
         onClick = onClick,
         modifier = modifier
             .then(rememberFlujoFocusModifier(focused, big = true))
             .onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Transparent,
             focusedContainerColor = Color.Transparent
@@ -525,30 +533,32 @@ private fun SenalNavTile(
             Box(
                 Modifier
                     .fillMaxSize()
-                    .clip(RoundedCornerShape(14.dp))
+                    .clip(RoundedCornerShape(8.dp))
                     .background(
                         Brush.verticalGradient(
                             listOf(
-                                accent.copy(alpha = if (focused) 0.95f else 0.50f),
-                                Color(0xFF000910).copy(alpha = 0.92f)
+                                accent.copy(alpha = if (focused) 1f else 0.88f),
+                                Color(0xFF0A0600)
                             )
                         )
                     )
-                    .then(
-                        if (focused) {
-                            Modifier.border(2.dp, Color.White.copy(alpha = 0.85f), RoundedCornerShape(14.dp))
-                        } else {
-                            Modifier.border(1.dp, accent.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
-                        }
-                    ),
+                    .border(
+                        width = if (focused) 5.dp else 4.dp,
+                        color = if (focused) Color.White else Color.Black,
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                    .padding(horizontal = 6.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = label,
                     color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                    letterSpacing = 1.sp
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                    fontWeight = FontWeight.Black,
+                    fontSize = if (focused) 22.sp else 18.sp,
+                    letterSpacing = (-0.5).sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -618,7 +628,11 @@ private fun SectionBody(
             label = "section",
             content = { current ->
                 when (current) {
-                    HomeSection.LIVE -> LiveTvScreen(container) { item, n -> onPlay(item, 0L, n) }
+                    HomeSection.LIVE -> LiveTvScreen(
+                        container = container,
+                        onBack = onBack,
+                        onPlay = { item, n -> onPlay(item, 0L, n) }
+                    )
                     HomeSection.MOVIES -> MoviesScreen(container) { onPlay(it, 0L, listOf(it)) }
                     HomeSection.SERIES -> SeriesScreen(container) { onPlay(it, 0L, listOf(it)) }
                     HomeSection.FAVORITES -> FavoritesScreen(container) { onPlay(it, 0L, listOf(it)) }

@@ -115,12 +115,13 @@ class AuthRepository(
 }
 
 /**
- * Catálogo 100 % local desde la lista M3U embebida en la APK.
- * Búsqueda y playback resuelven URLs locales — sin round-trip al servidor.
+ * Catálogo desde cache local alimentada por `/api/catalog/fast` (JSON.gz).
+ * La APK ya no embute el M3U: descarga + ETag + exploración inmediata de categorías.
  */
 class CatalogRepository(
     private val playlist: LocalPlaylistStore
 ) {
+    suspend fun sync(authToken: String? = null): Boolean = playlist.syncFromServer(authToken)
     suspend fun categories(type: String): List<Category> = withContext(Dispatchers.IO) {
         playlist.categories(type)
     }

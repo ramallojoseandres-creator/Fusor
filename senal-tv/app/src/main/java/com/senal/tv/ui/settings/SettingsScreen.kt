@@ -111,9 +111,23 @@ fun SettingsScreen(
                         color = TextMuted
                     )
                     Text(
-                        "Catálogo jmrzcf embebido · streams directos",
+                        "Catálogo remoto /api/catalog/fast · cache local · sin M3U en APK",
                         style = LocalSenalTypography.current.caption,
                         color = Teal
+                    )
+                    FocusableButton(
+                        label = "Actualizar catálogo del servidor",
+                        onClick = {
+                            error = null
+                            status = "Descargando catálogo…"
+                            scope.launch {
+                                val ok = runCatching {
+                                    container.playlistStore.syncFromServer(container.tokenStore.cachedToken)
+                                }.getOrDefault(false)
+                                status = if (ok) "Catálogo actualizado" else "Sin cambios o sin red (usa cache)"
+                            }
+                        },
+                        primary = false
                     )
                     Text(
                         "v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",

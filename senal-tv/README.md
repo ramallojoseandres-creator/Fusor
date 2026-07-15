@@ -1,56 +1,51 @@
-# SEÑAL TV
+# SEÑAL TV 2.0
 
 Aplicación IPTV premium para **Android TV**, **Google TV**, **Fire TV Stick**, **Nvidia Shield** y **Xiaomi TV Box**.
 
 ## Características
 
 - Navegación 100% D-Pad (Leanback / Compose TV)
-- Login JWT contra API SEÑAL **solo para usuarios** (alta / sesión)
-- Catálogo **embebido** desde `lista_fusionada.m3u` (no viaja servidor → app)
-- Playback directo desde las URLs de la lista (app → stream CDN)
-- TV en vivo con categorías + paginación
-- Películas / series 24/7 (grupos de la lista)
-- Búsqueda local instantánea
-- Favoritos, historial y continuar viendo (Room, locales)
-- Reproductor Media3/ExoPlayer con overlay, CH+/CH−, audio, subtítulos, User-Agent de la lista
+- Login JWT contra API SEÑAL
+- **Catálogo remoto rápido** (`/api/catalog/fast` JSON.gz + ETag) — **sin M3U dentro del APK**
+- Cache local → categorías al instante al abrir EN VIVO (no esperan al player)
+- Guía EN VIVO: categorías | canales **sobre** el reproductor
+- Botones home gruesos (estilo brutalista / otra tipografía)
+- Playback directo (ExoPlayer / Media3) desde las URLs del catálogo
+- Favoritos, historial y continuar viendo (Room)
 - Solo landscape · Android 7+ (API 24)
 
 ## Arquitectura de datos
 
 ```
-Servidor SEÑAL  →  solo POST /api/auth/login (JWT)
-APK assets      →  catalog/lista_fusionada.m3u.gz  (filtrada / health-check)
-Cliente         →  ExoPlayer abre la URL del canal directamente
+Panel SEÑAL 3.1  →  importa/ordena/renombra → genera catalog.fast.json.gz
+APK             →  GET /api/catalog/fast (+ If-None-Match) → cache en disco
+EN VIVO         →  pinta categorías YA; el player sintoniza en paralelo
+Streams         →  ExoPlayer abre la URL del canal directamente
 ```
-
-No se llama a `/api/catalog`, `/api/search` ni `/api/playback`.
 
 ## Seguridad
 
 No almacena usuario/contraseña Xtream. Solo JWT de sesión, preferencias, favoritos e historial.
 
-## API (auth)
+## API
 
 Base URL: `BuildConfig.API_BASE_URL` → `http://185.192.20.245:3000/`
 
-- `POST /api/auth/login` `{username, password, deviceId, deviceName}`
+- `POST /api/auth/login`
+- `GET /api/banner`
+- `GET /api/catalog/meta`
+- `GET /api/catalog/fast` (JSON gzip, ETag)
 
-## Actualizar la lista embebida
+## Actualizar el catálogo (ya no se empaqueta en el APK)
 
-Filtrar enlaces muertos (health-check estilo [kamalsoft/m3u-editor](https://github.com/kamalsoft/m3u-editor)):
-
-```bash
-python3 tools/filter_m3u.py lista_fusionada.m3u -o lista_fusionada.m3u
-gzip -c -9 lista_fusionada.m3u > senal-tv/app/src/main/assets/catalog/lista_fusionada.m3u.gz
-```
-
-Cuando `fusor.sh` regenera `lista_fusionada.m3u` en la raíz del repo, vuelve a filtrar y empaquetar como arriba.
+1. Importa o edita en el **panel** (`senal-server`)
+2. El servidor regenera `data/catalog.fast.json.gz`
+3. Las apps refrescan con ETag (304 si no hay cambios)
 
 ## Build (GitHub Actions)
 
-1. **Actions** → **Build SEÑAL TV APK** (o **Releases**)
-2. Si usas Actions: descarga el artefacto **SenalTV-apk**, descomprime el ZIP y usa `SenalTV.apk`
-3. No instales el `.zip` en el TV
+1. **Actions** → **Build SEÑAL TV APK**
+2. Descarga el artefacto **SenalTV-apk**
 
 ## Build local
 

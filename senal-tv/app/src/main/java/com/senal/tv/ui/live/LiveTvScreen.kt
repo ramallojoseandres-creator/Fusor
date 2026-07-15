@@ -79,13 +79,16 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 /**
- * Guía FLUJO: categorías | canales | vídeo en vivo de fondo
- * que **no se pausa** al cambiar de categoría o recorrer la lista.
+ * Guía EN VIVO: categorías | canales **sobre** el reproductor.
+ * Las categorías aparecen en cuanto hay catálogo en cache — no esperan
+ * a que el canal empiece a reproducir.
  */
 @OptIn(UnstableApi::class)
 @Composable
 fun LiveTvScreen(
     container: AppContainer,
+    initialChannelId: String? = null,
+    onBack: (() -> Unit)? = null,
     onPlay: (CatalogItem, List<CatalogItem>) -> Unit
 ) {
     val context = LocalContext.current
@@ -105,9 +108,11 @@ fun LiveTvScreen(
     var preview by remember { mutableStateOf<CatalogItem?>(null) }
     var buffering by remember { mutableStateOf(false) }
     var previewError by remember { mutableStateOf<String?>(null) }
+    var preferInitial by remember { mutableStateOf(!initialChannelId.isNullOrBlank()) }
 
     val listState = rememberLazyListState()
     val pageSize = 60
+    val catalogVersion by container.playlistStore.catalogVersion.collectAsState()
 
     val player = remember {
         ExoPlayer.Builder(context)
@@ -147,17 +152,31 @@ fun LiveTvScreen(
     val adultsSession by container.adultsUnlockedSession.collectAsState()
     val hideAdults = appSettings.adultsLocked && !adultsSession
 
-    LaunchedEffect(hideAdults) {
-        loadingCats = true
+    // Categorías YA — independientes del estado del player (READY / buffering).
+    LaunchedEffect(hideAdults, catalogVersion) {
+        loadingCats = categories.isEmpty()
         runCatching { container.catalogRepository.categories("live", hideAdults = hideAdults) }
             .onSuccess {
                 categories = it
                 if (selected == null || categories.none { c -> c.label() == selected }) {
                     selected = CatalogRules.defaultCategory(it)
                 }
+                error = null
             }
-            .onFailure { error = it.message }
+            .onFailure { if (categories.isEmpty()) error = it.message }
         loadingCats = false
+    }
+
+    // Resolver canal inicial (último visto) sin bloquear la lista de categorías.
+    LaunchedEffect(initialChannelId) {
+        val id = initialChannelId ?: return@LaunchedEffect
+        runCatching { container.catalogRepository.get(id) }.getOrNull()?.let { item ->
+            preview = item
+            focusedChannelId = item.resolveId()
+            val cat = item.resolveCategory()
+            if (cat.isNotBlank()) selected = cat
+            preferInitial = true
+        }
     }
 
     LaunchedEffect(selected) {
@@ -167,8 +186,7 @@ fun LiveTvScreen(
         page = 1
         hasMore = true
         channels = emptyList()
-        focusedChannelId = null
-        // No paramos el player: sigue el canal anterior hasta elegir otro.
+        // No tocamos focusedChannelId/preview: el vídeo anterior sigue hasta elegir otro.
         runCatching {
             container.catalogRepository.page(
                 type = "live",
@@ -184,6 +202,9 @@ fun LiveTvScreen(
                     preview = it
                     focusedChannelId = it.resolveId()
                 }
+            } else if (preferInitial) {
+                // Mantener preview inicial aunque esté en otra página; ya no forzar first.
+                preferInitial = false
             }
         }.onFailure {
             error = it.message ?: "No se pudieron cargar los canales"
@@ -320,51 +341,79 @@ fun LiveTvScreen(
                 .fillMaxSize()
                 .padding(start = 18.dp, top = 18.dp, bottom = 18.dp, end = 18.dp)
         ) {
-            // —— Categorías ——
+            // —— Categorías (siempre visibles sobre el vídeo; navegables sin WAIT del player) ——
             Column(
                 modifier = Modifier
                     .width(210.dp)
                     .fillMaxHeight()
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color.Black.copy(alpha = 0.55f))
+                    .background(Color.Black.copy(alpha = 0.62f))
+                    .border(1.dp, BrandOrange.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
                     .padding(10.dp)
             ) {
-                Text(
-                    "CATEGORÍAS",
-                    color = BrandOrangeHot,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                    letterSpacing = 1.5.sp,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
-                )
-                if (loadingCats) {
-                    Text("Cargando…", color = TextMuted, modifier = Modifier.padding(8.dp))
-                } else {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        items(categories, key = { it.label() }) { category ->
-                            val active = category.label() == selected
-                            Surface(
-                                onClick = { selected = category.label() },
-                                shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
-                                colors = ClickableSurfaceDefaults.colors(
-                                    containerColor = if (active) BrandOrange else Color.Transparent,
-                                    focusedContainerColor = if (active) BrandOrangeHot else Color.White.copy(alpha = 0.18f)
-                                ),
-                                scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(
-                                    text = category.label(),
-                                    color = if (active) Color.White else TextPrimary,
-                                    fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
-                                    fontSize = 15.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 11.dp)
-                                )
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "CATEGORÍAS",
+                        color = BrandOrangeHot,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        letterSpacing = 1.5.sp,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (onBack != null) {
+                        Surface(
+                            onClick = onBack,
+                            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
+                            colors = ClickableSurfaceDefaults.colors(
+                                containerColor = Color.White.copy(alpha = 0.12f),
+                                focusedContainerColor = BrandOrange
+                            ),
+                            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f)
+                        ) {
+                            Text(
+                                "INICIO",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
+                when {
+                    categories.isNotEmpty() -> {
+                        // Explorar YA — aunque el canal aún esté en "Sintonizando…"
+                        LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            items(categories, key = { it.label() }) { category ->
+                                val active = category.label() == selected
+                                Surface(
+                                    onClick = { selected = category.label() },
+                                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
+                                    colors = ClickableSurfaceDefaults.colors(
+                                        containerColor = if (active) BrandOrange else Color.Transparent,
+                                        focusedContainerColor = if (active) BrandOrangeHot else Color.White.copy(alpha = 0.18f)
+                                    ),
+                                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = category.label(),
+                                        color = if (active) Color.White else TextPrimary,
+                                        fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                                        fontSize = 15.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 11.dp)
+                                    )
+                                }
                             }
                         }
                     }
+                    loadingCats -> Text("Cargando…", color = TextMuted, modifier = Modifier.padding(8.dp))
+                    else -> Text(error ?: "Sin categorías", color = TextMuted, modifier = Modifier.padding(8.dp))
                 }
             }
 
