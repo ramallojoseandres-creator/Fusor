@@ -1,0 +1,8 @@
+
+data/
+data/db.json
+data/*.m3u
+.env
+*.json.gz
+*.log
+node_modules/

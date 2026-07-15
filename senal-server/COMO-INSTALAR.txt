@@ -1,0 +1,40 @@
+SEÑAL SERVER IPTV PRO 3.1 — Windows VPS
+=======================================
+
+Novedades 3.1:
+  - Catálogo PRO: renombrar / borrar / crear categorías y canales
+  - Orden drag&drop (igual que 3.0)
+  - Catálogo rápido JSON.gz para la APK: /api/catalog/fast (+ ETag)
+  - La APK YA NO lleva el M3U embutido → descarga + cache local
+  - Seed automático desde lista_fusionada.m3u si data/ está vacío
+  - Paquetes / bouquets, usuarios, banner, logs, /get.php
+
+PASOS (instalación nueva o actualización):
+1) Detén el servidor viejo (cierra INICIAR-SENAL o mata el proceso node).
+
+2) Copia TODA esta carpeta a C:\Senal-Server-PRO
+   (o reemplaza los archivos del servidor actual).
+
+3) CONSERVA tu data\ y .env:
+      C:\Senal-Server-PRO\data\db.json
+      C:\Senal-Server-PRO\.env
+
+4) Si es la primera vez o no tienes .env:
+      INSTALAR-WINDOWS.bat
+
+5) INSTALAR-WINDOWS.bat   (npm install)
+6) INICIAR-SENAL.bat
+7) Navegador:  http://127.0.0.1:3000
+   Login master (el de tu .env)
+
+FLUJO TÍPICO IPTV:
+  1. Importar M3U (pestaña Importar) — o deja que haga seed solo
+  2. Catálogo PRO → ordenar, renombrar, borrar, mover canales
+  3. (Opcional) Paquetes → categorías por plan
+  4. Usuarios → asignar paquete; copiar URL /get.php
+  5. APK SEÑAL 2.0 descarga /api/catalog/fast automáticamente
+
+APK SEÑAL 2.0:
+  GET /api/catalog/fast  → JSON.gz preindexado
+  Header If-None-Match   → 304 si no cambió (carga instantánea)
+  EN VIVO muestra categorías sobre el player sin esperar al stream
