@@ -3,10 +3,15 @@ package com.senal.tv.ui.live
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.annotation.OptIn
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,7 +21,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,8 +33,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -41,10 +45,18 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -74,6 +86,7 @@ import com.senal.tv.ui.theme.Graphite
 import com.senal.tv.ui.theme.TextMuted
 import com.senal.tv.ui.theme.TextPrimary
 import com.senal.tv.util.CatalogRules
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -81,7 +94,8 @@ import kotlinx.coroutines.launch
 /**
  * Guía EN VIVO sobre el reproductor.
  * Scroll/foco por categorías/canales **NO** cambia el stream.
- * Solo SELECT (OK) sintoniza el canal enfocado (o abre pantalla completa).
+ * SELECT en un canal → sintoniza y oculta la guía (el vídeo sigue).
+ * SELECT / toque con guía oculta → vuelve a mostrar la lista (sin pausar).
  */
 @OptIn(UnstableApi::class)
 @Composable
@@ -102,10 +116,12 @@ fun LiveTvScreen(
     var loadingMore by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var guideReady by remember { mutableStateOf(false) }
+    /** Lista categorías/canales visible. SELECT la oculta/muestra; el vídeo no se pausa. */
+    var guideVisible by remember { mutableStateOf(true) }
 
     /** Cursor visual al navegar (no implica reproducción). */
     var focusedChannelId by remember { mutableStateOf<String?>(null) }
-    /** Canal realmente en aire — solo cambia con SELECT. */
+    /** Canal realmente en aire — solo cambia al confirmar un canal en la lista. */
     var playing by remember { mutableStateOf<CatalogItem?>(null) }
     var buffering by remember { mutableStateOf(false) }
     var playError by remember { mutableStateOf<String?>(null) }
@@ -113,6 +129,16 @@ fun LiveTvScreen(
 
     val listState = rememberLazyListState()
     val pageSize = 60
+    val rootFocus = remember { FocusRequester() }
+    val guideVisibleRef = remember { AtomicBoolean(true) }
+
+    LaunchedEffect(guideVisible) {
+        guideVisibleRef.set(guideVisible)
+        if (!guideVisible) {
+            delay(40)
+            runCatching { rootFocus.requestFocus() }
+        }
+    }
 
     val player = remember {
         ExoPlayer.Builder(context)
@@ -155,6 +181,21 @@ fun LiveTvScreen(
     fun tune(channel: CatalogItem) {
         playing = channel
         focusedChannelId = channel.resolveId()
+    }
+
+    /** Confirmar canal: sintoniza (si hace falta) y oculta la guía. No pausa el vídeo. */
+    fun confirmChannel(channel: CatalogItem) {
+        if (playing?.resolveId() != channel.resolveId()) {
+            tune(channel)
+        } else {
+            focusedChannelId = channel.resolveId()
+        }
+        guideVisible = false
+        scope.launch { container.libraryRepository.markHistory(channel) }
+    }
+
+    fun showGuide() {
+        guideVisible = true
     }
 
     // 1) Categorías primero.
@@ -279,8 +320,37 @@ fun LiveTvScreen(
             }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        // —— Vídeo de fondo (sigue reproduciendo) ——
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .focusRequester(rootFocus)
+            .focusable()
+            .onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                val guiding = guideVisibleRef.get()
+                val code = event.key.keyCode.toInt()
+                val isSelect =
+                    event.key == Key.DirectionCenter ||
+                        event.key == Key.Enter ||
+                        event.key == Key.NumPadEnter ||
+                        code == android.view.KeyEvent.KEYCODE_DPAD_CENTER ||
+                        code == android.view.KeyEvent.KEYCODE_ENTER
+                when {
+                    isSelect && !guiding -> {
+                        showGuide()
+                        true
+                    }
+                    else -> false
+                }
+            }
+            .pointerInput(guideVisible) {
+                if (!guideVisible) {
+                    detectTapGestures { showGuide() }
+                }
+            }
+    ) {
+        // —— Vídeo de fondo (sigue reproduciendo con guía abierta o cerrada) ——
         AndroidView(
             factory = { ctx ->
                 PlayerView(ctx).apply {
@@ -292,197 +362,246 @@ fun LiveTvScreen(
                         ViewGroup.LayoutParams.MATCH_PARENT
                     )
                     setShutterBackgroundColor(android.graphics.Color.BLACK)
+                    isFocusable = false
+                    descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
                 }
             },
             update = { it.player = player },
             modifier = Modifier.fillMaxSize()
         )
 
-        // Scrims para legibilidad de la guía (el vídeo no se corta)
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.horizontalGradient(
-                        0f to Color.Black.copy(alpha = 0.78f),
-                        0.42f to Color.Black.copy(alpha = 0.45f),
-                        0.72f to Color.Black.copy(alpha = 0.15f),
-                        1f to Color.Transparent
-                    )
-                )
-        )
-
-        if (buffering) {
+        if (buffering && !guideVisible) {
             CircularProgressIndicator(
                 color = BrandOrange,
                 strokeWidth = 3.dp,
                 modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = 48.dp)
+                    .align(Alignment.Center)
                     .size(36.dp)
             )
         }
 
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(start = 18.dp, top = 18.dp, bottom = 18.dp, end = 18.dp)
+        AnimatedVisibility(
+            visible = !guideVisible,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.BottomStart)
         ) {
-            // —— Categorías ——
             Column(
                 modifier = Modifier
-                    .width(210.dp)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color.Black.copy(alpha = 0.55f))
-                    .padding(10.dp)
+                    .padding(24.dp)
+                    .background(Color(0xAA050810), RoundedCornerShape(12.dp))
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
             ) {
                 Text(
-                    "CATEGORÍAS",
-                    color = BrandOrangeHot,
+                    text = playing?.resolveTitle() ?: "SEÑAL EN VIVO",
+                    color = Color.White,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                    letterSpacing = 1.5.sp,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
-                )
-                // Siempre visible: nunca ocultar la columna esperando al vídeo.
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    if (loadingCats && categories.isEmpty()) {
-                        item {
-                            Text(
-                                "Cargando categorías…",
-                                color = TextMuted,
-                                modifier = Modifier.padding(8.dp)
-                            )
-                        }
-                    }
-                    items(categories, key = { it.label() }) { category ->
-                        val active = category.label() == selected
-                        Surface(
-                            onClick = { selected = category.label() },
-                            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
-                            colors = ClickableSurfaceDefaults.colors(
-                                containerColor = if (active) BrandOrange else Color.Transparent,
-                                focusedContainerColor = if (active) BrandOrangeHot else Color.White.copy(alpha = 0.18f)
-                            ),
-                            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = category.label(),
-                                color = if (active) Color.White else TextPrimary,
-                                fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
-                                fontSize = 15.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 11.dp)
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            // —— Canales de la categoría ——
-            Column(
-                modifier = Modifier
-                    .width(360.dp)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color.Black.copy(alpha = 0.52f))
-                    .padding(10.dp)
-            ) {
-                Text(
-                    selected?.uppercase() ?: "CANALES",
-                    color = TextPrimary,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
+                    fontSize = 18.sp,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                    overflow = TextOverflow.Ellipsis
                 )
-                when {
-                    error != null -> Text(error!!, color = Color(0xFFFF8A80), modifier = Modifier.padding(8.dp))
-                    loadingChannels && channels.isEmpty() ->
-                        Text("Cargando canales…", color = TextMuted, modifier = Modifier.padding(8.dp))
-                    channels.isEmpty() ->
-                        Text("Sin canales", color = TextMuted, modifier = Modifier.padding(8.dp))
-                    else -> LazyColumn(
-                        state = listState,
-                        verticalArrangement = Arrangement.spacedBy(3.dp),
-                        contentPadding = PaddingValues(bottom = 16.dp)
-                    ) {
-                        items(channels, key = { it.resolveId() }) { channel ->
-                            GuideChannelRow(
-                                item = channel,
-                                selected = channel.resolveId() == playing?.resolveId(),
-                                onFocused = { focusedChannelId = channel.resolveId() },
-                                onClick = {
-                                    // SELECT: sintoniza este canal (o abre full si ya lo está).
-                                    if (playing?.resolveId() == channel.resolveId()) {
-                                        scope.launch {
-                                            container.libraryRepository.markHistory(channel)
-                                            onPlay(channel, channels)
-                                        }
-                                    } else {
-                                        tune(channel)
-                                    }
-                                }
+                Text(
+                    text = when {
+                        playError != null -> playError!!
+                        buffering -> "Sintonizando…"
+                        else -> "SELECT / toque = categorías y canales"
+                    },
+                    color = if (playError != null) Color(0xFFFF8A80) else BrandOrange,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
+        }
+
+        AnimatedVisibility(
+            visible = guideVisible,
+            enter = fadeIn(tween(160)),
+            exit = fadeOut(tween(140))
+        ) {
+            Box(Modifier.fillMaxSize()) {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.horizontalGradient(
+                                0f to Color.Black.copy(alpha = 0.78f),
+                                0.42f to Color.Black.copy(alpha = 0.45f),
+                                0.72f to Color.Black.copy(alpha = 0.15f),
+                                1f to Color.Transparent
                             )
-                        }
-                        if (loadingMore) {
-                            item {
-                                Text(
-                                    "Más canales…",
-                                    color = TextMuted,
-                                    modifier = Modifier.padding(12.dp)
-                                )
+                        )
+                )
+
+                if (buffering) {
+                    CircularProgressIndicator(
+                        color = BrandOrange,
+                        strokeWidth = 3.dp,
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .padding(end = 48.dp)
+                            .size(36.dp)
+                    )
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(start = 18.dp, top = 18.dp, bottom = 18.dp, end = 18.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .width(210.dp)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color.Black.copy(alpha = 0.55f))
+                            .padding(10.dp)
+                    ) {
+                        Text(
+                            "CATEGORÍAS",
+                            color = BrandOrangeHot,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            letterSpacing = 1.5.sp,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                        )
+                        LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            if (loadingCats && categories.isEmpty()) {
+                                item {
+                                    Text(
+                                        "Cargando categorías…",
+                                        color = TextMuted,
+                                        modifier = Modifier.padding(8.dp)
+                                    )
+                                }
+                            }
+                            items(categories, key = { it.label() }) { category ->
+                                val active = category.label() == selected
+                                Surface(
+                                    onClick = { selected = category.label() },
+                                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
+                                    colors = ClickableSurfaceDefaults.colors(
+                                        containerColor = if (active) BrandOrange else Color.Transparent,
+                                        focusedContainerColor = if (active) {
+                                            BrandOrangeHot
+                                        } else {
+                                            Color.White.copy(alpha = 0.18f)
+                                        }
+                                    ),
+                                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = category.label(),
+                                        color = if (active) Color.White else TextPrimary,
+                                        fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                                        fontSize = 15.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 11.dp)
+                                    )
+                                }
                             }
                         }
                     }
-                }
-            }
 
-            // —— Zona libre a la derecha: vídeo a pantalla completa ——
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .padding(start = 16.dp),
-                contentAlignment = Alignment.BottomStart
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f))
-                            ),
-                            RoundedCornerShape(14.dp)
+                    Spacer(Modifier.width(12.dp))
+
+                    Column(
+                        modifier = Modifier
+                            .width(360.dp)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color.Black.copy(alpha = 0.52f))
+                            .padding(10.dp)
+                    ) {
+                        Text(
+                            selected?.uppercase() ?: "CANALES",
+                            color = TextPrimary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
                         )
-                        .padding(14.dp)
-                ) {
-                    Text(
-                        text = playing?.resolveTitle() ?: "SEÑAL EN VIVO",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = when {
-                            !guideReady -> "Preparando guía…"
-                            playError != null -> playError!!
-                            !allowPlayback -> "Guía lista…"
-                            buffering -> "Sintonizando…"
-                            else -> "Navega sin cambiar · SELECT = sintonizar · otra vez = pantalla completa"
-                        },
-                        color = if (playError != null) Color(0xFFFF8A80) else BrandOrange,
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
+                        when {
+                            error != null -> Text(
+                                error!!,
+                                color = Color(0xFFFF8A80),
+                                modifier = Modifier.padding(8.dp)
+                            )
+                            loadingChannels && channels.isEmpty() ->
+                                Text("Cargando canales…", color = TextMuted, modifier = Modifier.padding(8.dp))
+                            channels.isEmpty() ->
+                                Text("Sin canales", color = TextMuted, modifier = Modifier.padding(8.dp))
+                            else -> LazyColumn(
+                                state = listState,
+                                verticalArrangement = Arrangement.spacedBy(3.dp),
+                                contentPadding = PaddingValues(bottom = 16.dp)
+                            ) {
+                                items(channels, key = { it.resolveId() }) { channel ->
+                                    GuideChannelRow(
+                                        item = channel,
+                                        selected = channel.resolveId() == playing?.resolveId(),
+                                        onFocused = { focusedChannelId = channel.resolveId() },
+                                        onClick = { confirmChannel(channel) }
+                                    )
+                                }
+                                if (loadingMore) {
+                                    item {
+                                        Text(
+                                            "Más canales…",
+                                            color = TextMuted,
+                                            modifier = Modifier.padding(12.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .padding(start = 16.dp)
+                            .pointerInput(Unit) {
+                                detectTapGestures { guideVisible = false }
+                            },
+                        contentAlignment = Alignment.BottomStart
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f))
+                                    ),
+                                    RoundedCornerShape(14.dp)
+                                )
+                                .padding(14.dp)
+                        ) {
+                            Text(
+                                text = playing?.resolveTitle() ?: "SEÑAL EN VIVO",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 20.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = when {
+                                    !guideReady -> "Preparando guía…"
+                                    playError != null -> playError!!
+                                    !allowPlayback -> "Guía lista…"
+                                    buffering -> "Sintonizando…"
+                                    else -> "Navega libre · SELECT canal = ver · SELECT otra vez = guía"
+                                },
+                                color = if (playError != null) Color(0xFFFF8A80) else BrandOrange,
+                                fontSize = 13.sp,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                    }
                 }
             }
         }

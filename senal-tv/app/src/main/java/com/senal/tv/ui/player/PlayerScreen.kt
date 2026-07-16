@@ -86,8 +86,8 @@ import kotlinx.coroutines.launch
 /**
  * Reproducción a pantalla completa.
  * ▲ / ▼ (sin guía) → canal anterior / siguiente
- * OK     → guía categorías + canales (el stream actual NO se toca al navegar)
- * SELECT sobre un canal en la guía → sintoniza ese canal
+ * OK     → muestra/oculta guía (el stream NO se pausa)
+ * SELECT sobre un canal en la guía → sintoniza y oculta la lista
  * BACK   → si guía abierta la cierra; si no, sale
  */
 @OptIn(UnstableApi::class)
@@ -187,12 +187,14 @@ fun PlayerScreen(
     }
 
     fun selectChannel(ch: CatalogItem) {
-        // Solo aquí se aprueba el canal y se cambia el stream.
-        current = ch
-        if (guideChannels.isNotEmpty()) zapList = guideChannels
-        requestKey++
+        // Confirmar canal: sintoniza si cambió y oculta la guía. No pausa el vídeo.
+        if (ch.resolveId() != current.resolveId()) {
+            current = ch
+            if (guideChannels.isNotEmpty()) zapList = guideChannels
+            requestKey++
+            infoVisible = true
+        }
         guideVisible = false
-        infoVisible = true
     }
 
     LaunchedEffect(Unit) {
@@ -499,7 +501,7 @@ private fun PlayerGuideOverlay(
                 .padding(12.dp)
         ) {
             Text(
-                text = "Navega libre · SELECT confirma el canal",
+                text = "Navega libre · SELECT canal = ver (sin pausar)",
                 color = BrandOrange,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
