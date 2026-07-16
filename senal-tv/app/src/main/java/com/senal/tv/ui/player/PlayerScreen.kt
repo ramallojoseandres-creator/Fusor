@@ -121,18 +121,27 @@ fun PlayerScreen(
     /** Lista para ▲▼ fuera de la guía — solo cambia al CONFIRMAR canal con SELECT. */
     var zapList by remember { mutableStateOf(neighbors.ifEmpty { listOf(item) }) }
 
-    val guideFocus = remember { FocusRequester() }
+    val channelFocus = remember { FocusRequester() }
     val rootFocus = remember { FocusRequester() }
     val guideVisibleRef = remember { java.util.concurrent.atomic.AtomicBoolean(false) }
+    var guideOpenTick by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(guideVisible) {
         guideVisibleRef.set(guideVisible)
-        if (guideVisible) {
-            delay(50)
-            runCatching { guideFocus.requestFocus() }
-        } else {
+        if (!guideVisible) {
             delay(40)
             runCatching { rootFocus.requestFocus() }
+        }
+    }
+
+    // SELECT abre guía: categoría del canal en aire + foco/scroll en ese canal (no en categorías).
+    LaunchedEffect(guideVisible, guideOpenTick, guideChannels, current.resolveId()) {
+        if (!guideVisible) return@LaunchedEffect
+        val id = current.resolveId()
+        val idx = guideChannels.indexOfFirst { it.resolveId() == id }
+        if (idx >= 0) {
+            delay(60)
+            runCatching { channelFocus.requestFocus() }
         }
     }
 
@@ -168,10 +177,11 @@ fun PlayerScreen(
     }
 
     fun openGuide() {
-        // Abrir en la categoría del canal en aire — no saltar al primer grupo.
+        // Abrir en la categoría del canal en aire — navegación parte de ese canal.
         val cat = current.resolveCategory().ifBlank { selectedCategory }
-        selectedCategory = cat
+        if (!cat.isNullOrBlank()) selectedCategory = cat
         guideVisible = true
+        guideOpenTick++
         bumpGuideTimer()
     }
 
@@ -455,7 +465,7 @@ fun PlayerScreen(
                 selectedCategory = selectedCategory,
                 channels = guideChannels,
                 currentId = current.resolveId(),
-                focusRequester = guideFocus,
+                channelFocusRequester = channelFocus,
                 onCategory = {
                     // Solo cambia la lista visible — el vídeo sigue con current.
                     selectedCategory = it
@@ -480,7 +490,7 @@ private fun PlayerGuideOverlay(
     selectedCategory: String?,
     channels: List<CatalogItem>,
     currentId: String,
-    focusRequester: FocusRequester,
+    channelFocusRequester: FocusRequester,
     onCategory: (String) -> Unit,
     onChannel: (CatalogItem) -> Unit,
     onFavorite: (CatalogItem) -> Unit,
@@ -489,11 +499,17 @@ private fun PlayerGuideOverlay(
     val catState = rememberLazyListState()
     val chState = rememberLazyListState()
 
-    // Al abrir / cambiar lista: ir al canal en aire si está aquí (no al primero).
+    // Al abrir: categoría activa visible + canal en aire centrado (navegación desde ahí).
+    LaunchedEffect(selectedCategory, categories) {
+        val catIdx = categories.indexOfFirst { it.label() == selectedCategory }
+        if (catIdx >= 0) runCatching { catState.scrollToItem(catIdx) }
+    }
     LaunchedEffect(channels, currentId) {
         val idx = channels.indexOfFirst { it.resolveId() == currentId }
         if (idx >= 0) {
             runCatching { chState.scrollToItem(idx.coerceAtLeast(0)) }
+            delay(80)
+            runCatching { channelFocusRequester.requestFocus() }
         }
     }
 
@@ -563,8 +579,7 @@ private fun PlayerGuideOverlay(
                     state = chState,
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxHeight()
-                        .focusRequester(focusRequester),
+                        .fillMaxHeight(),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                     contentPadding = PaddingValues(4.dp)
                 ) {
@@ -582,8 +597,8 @@ private fun PlayerGuideOverlay(
                         GuideRow(
                             label = ch.resolveTitle(),
                             selected = isPlaying,
-                            // Solo pedir foco al canal en aire (nunca al primero por defecto).
-                            requestFocus = isPlaying,
+                            // Foco externo en el canal en aire (desde SELECT al abrir guía).
+                            focusRequester = if (isPlaying) channelFocusRequester else null,
                             onClick = {
                                 onInteract()
                                 onChannel(ch)
@@ -604,14 +619,19 @@ private fun PlayerGuideOverlay(
 private fun GuideRow(
     label: String,
     selected: Boolean,
-    requestFocus: Boolean,
     onClick: () -> Unit,
-    onLongClick: (() -> Unit)? = null
+    onLongClick: (() -> Unit)? = null,
+    focusRequester: FocusRequester? = null,
+    requestFocus: Boolean = false
 ) {
     var focused by remember { mutableStateOf(false) }
-    val fr = remember { FocusRequester() }
-    LaunchedEffect(requestFocus) {
-        if (requestFocus) runCatching { fr.requestFocus() }
+    val localFr = remember { FocusRequester() }
+    val fr = focusRequester ?: localFr
+    LaunchedEffect(requestFocus, focusRequester) {
+        if (requestFocus || focusRequester != null && selected) {
+            // El padre ya pide foco al abrir; aquí solo si requestFocus legacy.
+            if (requestFocus) runCatching { fr.requestFocus() }
+        }
     }
     Surface(
         onClick = onClick,

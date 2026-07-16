@@ -129,15 +129,37 @@ fun LiveTvScreen(
     var allowPlayback by remember { mutableStateOf(false) }
 
     val listState = rememberLazyListState()
+    val catListState = rememberLazyListState()
     val pageSize = 60
     val rootFocus = remember { FocusRequester() }
+    val playingFocus = remember { FocusRequester() }
     val guideVisibleRef = remember { AtomicBoolean(true) }
+    var guideFocusTick by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(guideVisible) {
         guideVisibleRef.set(guideVisible)
         if (!guideVisible) {
             delay(40)
             runCatching { rootFocus.requestFocus() }
+        }
+    }
+
+    // Al abrir la guía: categoría del canal en aire + scroll + foco en ese canal (no en categorías).
+    LaunchedEffect(guideVisible, guideFocusTick, channels, playing?.resolveId()) {
+        if (!guideVisible) return@LaunchedEffect
+        val id = playing?.resolveId() ?: return@LaunchedEffect
+        val cat = playing?.resolveCategory().orEmpty()
+        if (cat.isNotBlank()) {
+            val catIdx = categories.indexOfFirst { it.label() == cat }
+            if (catIdx >= 0) {
+                runCatching { catListState.scrollToItem(catIdx) }
+            }
+        }
+        val idx = channels.indexOfFirst { it.resolveId() == id }
+        if (idx >= 0) {
+            runCatching { listState.scrollToItem(idx) }
+            delay(90)
+            runCatching { playingFocus.requestFocus() }
         }
     }
 
@@ -196,7 +218,16 @@ fun LiveTvScreen(
     }
 
     fun showGuide() {
+        val ch = playing
+        if (ch != null) {
+            val cat = ch.resolveCategory()
+            if (cat.isNotBlank() && categories.any { it.label() == cat }) {
+                selected = cat
+            }
+            focusedChannelId = ch.resolveId()
+        }
         guideVisible = true
+        guideFocusTick++
     }
 
     // 1) Categorías primero.
@@ -475,7 +506,10 @@ fun LiveTvScreen(
                             letterSpacing = 1.5.sp,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
                         )
-                        LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        LazyColumn(
+                            state = catListState,
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
                             if (loadingCats && categories.isEmpty()) {
                                 item {
                                     Text(
@@ -550,9 +584,11 @@ fun LiveTvScreen(
                                 contentPadding = PaddingValues(bottom = 16.dp)
                             ) {
                                 items(channels, key = { it.resolveId() }) { channel ->
+                                    val isOnAir = channel.resolveId() == playing?.resolveId()
                                     GuideChannelRow(
                                         item = channel,
-                                        selected = channel.resolveId() == playing?.resolveId(),
+                                        selected = isOnAir,
+                                        focusRequester = if (isOnAir) playingFocus else null,
                                         onFocused = { focusedChannelId = channel.resolveId() },
                                         onClick = { confirmChannel(channel) },
                                         onLongClick = {
@@ -630,7 +666,8 @@ private fun GuideChannelRow(
     selected: Boolean,
     onFocused: () -> Unit,
     onClick: () -> Unit,
-    onLongClick: (() -> Unit)? = null
+    onLongClick: (() -> Unit)? = null,
+    focusRequester: FocusRequester? = null
 ) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
@@ -657,6 +694,7 @@ private fun GuideChannelRow(
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
         modifier = Modifier
             .fillMaxWidth()
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
