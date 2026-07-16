@@ -86,6 +86,7 @@ import com.senal.tv.ui.theme.Graphite
 import com.senal.tv.ui.theme.TextMuted
 import com.senal.tv.ui.theme.TextPrimary
 import com.senal.tv.util.CatalogRules
+import com.senal.tv.util.DeviceUi
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -448,9 +449,11 @@ fun LiveTvScreen(
                         .fillMaxSize()
                         .padding(start = 18.dp, top = 18.dp, bottom = 18.dp, end = 18.dp)
                 ) {
+                    val catW = if (DeviceUi.isTabletBuild) 240.dp else 210.dp
+                    val chW = if (DeviceUi.isTabletBuild) 400.dp else 360.dp
                     Column(
                         modifier = Modifier
-                            .width(210.dp)
+                            .width(catW)
                             .fillMaxHeight()
                             .clip(RoundedCornerShape(16.dp))
                             .background(Color.Black.copy(alpha = 0.55f))
@@ -508,7 +511,7 @@ fun LiveTvScreen(
 
                     Column(
                         modifier = Modifier
-                            .width(360.dp)
+                            .width(chW)
                             .fillMaxHeight()
                             .clip(RoundedCornerShape(16.dp))
                             .background(Color.Black.copy(alpha = 0.52f))
@@ -655,10 +658,11 @@ private fun GuideChannelRow(
                 }
             )
     ) {
+        val rowPadV = if (DeviceUi.isTabletBuild) 14.dp else 8.dp
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 8.dp),
+                .padding(horizontal = 10.dp, vertical = rowPadV),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(

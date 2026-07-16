@@ -82,6 +82,8 @@ import com.senal.tv.ui.theme.BrandOrange
 import com.senal.tv.ui.theme.BrandOrangeHot
 import com.senal.tv.ui.theme.TextMuted
 import com.senal.tv.util.CatalogRules
+import com.senal.tv.util.DeviceUi
+import com.senal.tv.util.rememberTabletLayout
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -118,7 +120,7 @@ private val navTiles = listOf(
         Color(0xFF4DB8A0)
     ),
     NavTile(
-        HomeSection.FAVORITES, "FAVORITOS", "Juegos / Apps",
+        HomeSection.FAVORITES, "FAVORITOS", "Mis favoritos",
         R.mipmap.bg_main_game_category_item_n,
         R.mipmap.bg_main_game_category_item_f,
         Color(0xFF7EB8C8)
@@ -285,16 +287,36 @@ private fun SpotlightHome(
     onPlayLive: (CatalogItem) -> Unit
 ) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val compact = maxWidth < 900.dp
-        val padH = if (compact) 28.dp else 48.dp
-        val padV = if (compact) 18.dp else 24.dp
-        val tileH = if (compact) 96.dp else 112.dp
-        val sideW = if (compact) 0.38f else 0.34f
+        val layout = rememberTabletLayout()
+        val compact = maxWidth < 900.dp && !layout.isTablet
+        val padH = when {
+            layout.isTablet -> layout.padH
+            compact -> 28.dp
+            else -> 48.dp
+        }
+        val padV = when {
+            layout.isTablet -> layout.padV
+            compact -> 18.dp
+            else -> 24.dp
+        }
+        val tileH = when {
+            layout.isTablet -> layout.tileHeight
+            compact -> 96.dp
+            else -> 112.dp
+        }
+        val sideW = when {
+            layout.isTablet -> layout.sideWeight
+            compact -> 0.38f
+            else -> 0.34f
+        }
         val liveFocus = remember { FocusRequester() }
 
+        // En TV pedimos foco D-pad; en tablet SM-X200 el usuario toca.
         LaunchedEffect(Unit) {
-            delay(120)
-            runCatching { liveFocus.requestFocus() }
+            if (!DeviceUi.isTabletBuild) {
+                delay(120)
+                runCatching { liveFocus.requestFocus() }
+            }
         }
 
         Column(

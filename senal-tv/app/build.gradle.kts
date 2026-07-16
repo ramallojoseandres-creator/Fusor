@@ -17,7 +17,29 @@ android {
         versionCode = 33
         versionName = "1.10.6"
         buildConfigField("String", "API_BASE_URL", "\"http://185.192.20.245:3000/\"")
+        buildConfigField("boolean", "IS_TABLET", "false")
         vectorDrawables.useSupportLibrary = true
+    }
+
+    flavorDimensions += "device"
+    productFlavors {
+        create("tv") {
+            dimension = "device"
+            applicationId = "com.senal.tv"
+            buildConfigField("boolean", "IS_TABLET", "false")
+        }
+        /** Galaxy Tab A8 SM-X200 (10.5" táctil) y tablets similares. */
+        create("tablet") {
+            dimension = "device"
+            applicationId = "com.senal.tablet"
+            versionCode = 1200
+            versionName = "1.20.0-x200"
+            buildConfigField("boolean", "IS_TABLET", "true")
+            buildConfigField("String", "TABLET_MODEL", "\"SM-X200\"")
+            ndk {
+                abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+            }
+        }
     }
 
     signingConfigs {
