@@ -132,6 +132,9 @@ fun CatalogGridScreen(
                                 container.libraryRepository.markHistory(item)
                                 onPlay(item)
                             }
+                        },
+                        onLongClick = {
+                            scope.launch { container.libraryRepository.toggleFavorite(item) }
                         }
                     )
                 }

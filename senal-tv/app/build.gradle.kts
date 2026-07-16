@@ -13,9 +13,9 @@ android {
     defaultConfig {
         applicationId = "com.senal.tv"
         minSdk = 24
-        targetSdk = 35
-        versionCode = 33
-        versionName = "1.10.6"
+        targetSdk = 34
+        versionCode = 120
+        versionName = "1.2.0"
         buildConfigField("String", "API_BASE_URL", "\"http://185.192.20.245:3000/\"")
         buildConfigField("boolean", "IS_TABLET", "false")
         vectorDrawables.useSupportLibrary = true
@@ -23,10 +23,17 @@ android {
 
     flavorDimensions += "device"
     productFlavors {
+        /** Fire TV + Android TV (Leanback). ARM only — sticks/boxes reales. */
         create("tv") {
             dimension = "device"
             applicationId = "com.senal.tv"
+            versionCode = 120
+            versionName = "1.2.0"
             buildConfigField("boolean", "IS_TABLET", "false")
+            ndk {
+                // Fire Stick / Android TV boxes: ARM. Sin x86 para APK más liviana.
+                abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+            }
         }
         /** Galaxy Tab A8 SM-X200 (10.5" táctil) y tablets similares. */
         create("tablet") {

@@ -1,7 +1,6 @@
 package com.senal.tv.ui.favorites
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,6 +10,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.senal.tv.AppContainer
@@ -18,6 +18,7 @@ import com.senal.tv.data.model.CatalogItem
 import com.senal.tv.ui.components.EmptyState
 import com.senal.tv.ui.components.PosterCard
 import com.senal.tv.ui.components.SectionHeader
+import kotlinx.coroutines.launch
 
 @Composable
 fun FavoritesScreen(
@@ -25,10 +26,11 @@ fun FavoritesScreen(
     onPlay: (CatalogItem) -> Unit
 ) {
     val favorites by container.libraryRepository.favorites().collectAsState(initial = emptyList())
+    val scope = rememberCoroutineScope()
     Column(modifier = Modifier.fillMaxSize()) {
-        SectionHeader("FAVORITOS", "Canales, películas y series sin duplicados")
+        SectionHeader("FAVORITOS", "SELECT = reproducir · Mantener = quitar")
         if (favorites.isEmpty()) {
-            EmptyState("Aún no hay favoritos")
+            EmptyState("Aún no hay favoritos. En la guía, mantén SELECT sobre un canal.")
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(170.dp),
@@ -44,7 +46,13 @@ fun FavoritesScreen(
                         category = fav.category,
                         type = fav.type.lowercase()
                     )
-                    PosterCard(item = item, onClick = { onPlay(item) })
+                    PosterCard(
+                        item = item,
+                        onClick = { onPlay(item) },
+                        onLongClick = {
+                            scope.launch { container.libraryRepository.toggleFavorite(item) }
+                        }
+                    )
                 }
             }
         }

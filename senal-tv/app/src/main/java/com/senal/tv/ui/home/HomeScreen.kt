@@ -753,7 +753,7 @@ private fun NewsPickCard(
                         .padding(12.dp)
                 ) {
                     Text(
-                        text = "Geek Picks",
+                        text = "DESTACADOS",
                         color = BrandOrangeHot,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
@@ -807,13 +807,13 @@ private fun SystemStatusCard(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "System Status",
+            text = "Estado",
             color = Color.White,
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold
         )
         Text(
-            text = "Señal · catálogo local",
+            text = "SEÑAL · lista en el dispositivo",
             color = TextMuted,
             fontSize = 10.sp
         )
@@ -874,7 +874,7 @@ private fun NewReleasesCard(
                     .padding(10.dp)
             ) {
                 Text(
-                    text = "New Releases",
+                    text = "Novedades",
                     color = Color.White,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold

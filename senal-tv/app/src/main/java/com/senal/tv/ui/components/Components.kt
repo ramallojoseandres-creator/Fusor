@@ -290,11 +290,13 @@ fun PosterCard(
     item: CatalogItem,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    showMeta: Boolean = true
+    showMeta: Boolean = true,
+    onLongClick: (() -> Unit)? = null
 ) {
     var focused by remember { mutableStateOf(false) }
     Surface(
         onClick = onClick,
+        onLongClick = onLongClick,
         modifier = modifier
             .width(170.dp)
             .then(rememberFlujoFocusModifier(focused, big = true))

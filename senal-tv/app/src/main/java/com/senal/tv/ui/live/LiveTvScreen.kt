@@ -337,9 +337,17 @@ fun LiveTvScreen(
                         event.key == Key.NumPadEnter ||
                         code == android.view.KeyEvent.KEYCODE_DPAD_CENTER ||
                         code == android.view.KeyEvent.KEYCODE_ENTER
+                val isMenu =
+                    code == android.view.KeyEvent.KEYCODE_MENU ||
+                        code == android.view.KeyEvent.KEYCODE_TV_CONTENTS_MENU ||
+                        event.key == Key.Menu
                 when {
-                    isSelect && !guiding -> {
+                    (isSelect || isMenu) && !guiding -> {
                         showGuide()
+                        true
+                    }
+                    isMenu && guiding -> {
+                        guideVisible = false
                         true
                     }
                     else -> false
@@ -546,7 +554,12 @@ fun LiveTvScreen(
                                         item = channel,
                                         selected = channel.resolveId() == playing?.resolveId(),
                                         onFocused = { focusedChannelId = channel.resolveId() },
-                                        onClick = { confirmChannel(channel) }
+                                        onClick = { confirmChannel(channel) },
+                                        onLongClick = {
+                                            scope.launch {
+                                                container.libraryRepository.toggleFavorite(channel)
+                                            }
+                                        }
                                     )
                                 }
                                 if (loadingMore) {
@@ -597,7 +610,7 @@ fun LiveTvScreen(
                                     playError != null -> playError!!
                                     !allowPlayback -> "Guía lista…"
                                     buffering -> "Sintonizando…"
-                                    else -> "Navega libre · SELECT canal = ver · SELECT otra vez = guía"
+                                    else -> "SELECT = ver · Mantener = favorito · SELECT otra vez = guía"
                                 },
                                 color = if (playError != null) Color(0xFFFF8A80) else BrandOrange,
                                 fontSize = 13.sp,
@@ -616,7 +629,8 @@ private fun GuideChannelRow(
     item: CatalogItem,
     selected: Boolean,
     onFocused: () -> Unit,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null
 ) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
@@ -630,10 +644,11 @@ private fun GuideChannelRow(
         else -> Color.White.copy(alpha = 0.06f)
     }
     val fg = if (focused) Color.White else TextPrimary
-    val epg = item.resolveNow().ifBlank { "No información" }
+    val epg = item.resolveNow().ifBlank { "En vivo" }
 
     Surface(
         onClick = onClick,
+        onLongClick = onLongClick,
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = bg,

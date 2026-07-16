@@ -146,9 +146,10 @@ fun PlayerScreen(
             setParameters(buildUponParameters().setPreferredAudioLanguage("es"))
         }
     }
+    // Buffers moderados: Fire Stick / boxes con poca RAM no aguantan 50s de buffer.
     val loadControl = remember {
         DefaultLoadControl.Builder()
-            .setBufferDurationsMs(2_500, 50_000, 1_500, 2_000)
+            .setBufferDurationsMs(1_500, 22_000, 1_000, 1_500)
             .setPrioritizeTimeOverSizeThresholds(true)
             .build()
     }
@@ -221,7 +222,7 @@ fun PlayerScreen(
                 type = "live",
                 category = selectedCategory,
                 page = 1,
-                limit = 400
+                limit = 120
             )
         }.getOrNull()
         val list = page?.resolveItems().orEmpty().ifEmpty { page?.items.orEmpty() }
@@ -377,6 +378,13 @@ fun PlayerScreen(
                             false
                         }
                     }
+                    // Botón Menú del Fire TV / Android TV → abrir/cerrar guía
+                    code == android.view.KeyEvent.KEYCODE_MENU ||
+                        code == android.view.KeyEvent.KEYCODE_TV_CONTENTS_MENU ||
+                        event.key == Key.Menu -> {
+                        if (guiding) guideVisible = false else openGuide()
+                        true
+                    }
                     else -> {
                         if (guiding) bumpGuideTimer()
                         false
@@ -454,6 +462,12 @@ fun PlayerScreen(
                     bumpGuideTimer()
                 },
                 onChannel = { selectChannel(it) },
+                onFavorite = { ch ->
+                    scope.launch {
+                        container.libraryRepository.toggleFavorite(ch)
+                        bumpGuideTimer()
+                    }
+                },
                 onInteract = { bumpGuideTimer() }
             )
         }
@@ -469,6 +483,7 @@ private fun PlayerGuideOverlay(
     focusRequester: FocusRequester,
     onCategory: (String) -> Unit,
     onChannel: (CatalogItem) -> Unit,
+    onFavorite: (CatalogItem) -> Unit,
     onInteract: () -> Unit
 ) {
     val catState = rememberLazyListState()
@@ -501,7 +516,7 @@ private fun PlayerGuideOverlay(
                 .padding(12.dp)
         ) {
             Text(
-                text = "Navega libre · SELECT canal = ver (sin pausar)",
+                text = "SELECT = ver · Mantener = favorito · Menú = guía",
                 color = BrandOrange,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
@@ -572,6 +587,10 @@ private fun PlayerGuideOverlay(
                             onClick = {
                                 onInteract()
                                 onChannel(ch)
+                            },
+                            onLongClick = {
+                                onInteract()
+                                onFavorite(ch)
                             }
                         )
                     }
@@ -586,7 +605,8 @@ private fun GuideRow(
     label: String,
     selected: Boolean,
     requestFocus: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null
 ) {
     var focused by remember { mutableStateOf(false) }
     val fr = remember { FocusRequester() }
@@ -595,6 +615,7 @@ private fun GuideRow(
     }
     Surface(
         onClick = onClick,
+        onLongClick = onLongClick,
         modifier = Modifier
             .fillMaxWidth()
             .focusRequester(fr)
