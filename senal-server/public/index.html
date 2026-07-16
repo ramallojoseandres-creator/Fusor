@@ -78,12 +78,25 @@ th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px
 .cat-checks{max-height:220px;overflow:auto;display:grid;gap:6px;margin-top:10px}
 .cat-checks label{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted)}
 .m3u-box{background:#0a1018;border:1px dashed var(--line);border-radius:12px;padding:12px;margin-top:8px}
+/* Barra móvil: el sidebar se oculta en pantallas estrechas */
+.mobile-nav{display:none}
 @media(max-width:1100px){
   .grid{grid-template-columns:1fr 1fr}
   .catalog{grid-template-columns:1fr}
   .log-item{grid-template-columns:1fr}
   .app{grid-template-columns:1fr}
   .side{display:none}
+  .main{padding:16px 14px 40px}
+  .mobile-nav{
+    display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+    padding:10px 12px;margin:-4px -14px 14px;border-bottom:1px solid var(--line);
+    background:#0b121a;position:sticky;top:0;z-index:20;
+  }
+  .mobile-nav button{
+    flex:0 0 auto;background:#152032;border:1px solid var(--line);color:var(--muted);
+    padding:9px 12px;border-radius:999px;cursor:pointer;font-weight:700;font-size:13px;white-space:nowrap;
+  }
+  .mobile-nav button.active{color:#041018;background:linear-gradient(135deg,var(--cyan),#1688a0);border-color:transparent}
 }
 </style>
 </head>
@@ -120,6 +133,16 @@ th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px
   </aside>
 
   <main class="main">
+    <nav class="mobile-nav" id="mobileNav" aria-label="Secciones">
+      <button class="active" data-tab="dash">Dashboard</button>
+      <button data-tab="catalog">Catálogo</button>
+      <button data-tab="bouquets">Paquetes</button>
+      <button data-tab="users">Usuarios</button>
+      <button data-tab="banners">Banner</button>
+      <button data-tab="logs">Logs</button>
+      <button data-tab="import">Importar</button>
+      <button data-tab="logout" id="mobileLogoutBtn" style="color:#ffb4b4;border-color:#5c2228;background:#2a1418">Salir</button>
+    </nav>
     <section id="tab-dash">
       <div class="top"><div><h2>Dashboard</h2><p>Servidor IPTV reseller</p></div>
         <div class="actions">
