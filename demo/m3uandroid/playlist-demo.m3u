@@ -1,0 +1,15 @@
+#EXTM3U
+# PLAYLIST DEMO — NO es la lista oficial SEÑAL
+# Solo para probar M3UAndroid / Fire TV / tablet
+#EXTINF:-1 tvg-id="BigBuckBunny" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Big_buck_bunny_poster_big.jpg/320px-Big_buck_bunny_poster_big.jpg" group-title="Demo",Big Buck Bunny (VOD demo)
+https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4
+#EXTINF:-1 tvg-id="ElephantsDream" tvg-logo="" group-title="Demo",Elephants Dream (VOD demo)
+https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4
+#EXTINF:-1 tvg-id="Sintel" tvg-logo="" group-title="Demo",Sintel (VOD demo)
+https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4
+#EXTINF:-1 tvg-id="TearsOfSteel" tvg-logo="" group-title="Demo",Tears of Steel (VOD demo)
+https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4
+#EXTINF:-1 tvg-id="ForBiggerBlazes" tvg-logo="" group-title="Demo",For Bigger Blazes (VOD demo)
+https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4
+#EXTINF:-1 tvg-id="ForBiggerEscapes" tvg-logo="" group-title="Demo",For Bigger Escapes (VOD demo)
+https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4
