@@ -587,7 +587,7 @@ private fun SpotlightTag(label: String) {
 private fun tagForType(item: CatalogItem?): String = when (item?.contentType()) {
     ContentType.LIVE -> "LIVE"
     ContentType.MOVIE -> "4K"
-    ContentType.SERIES -> "HD"
+    ContentType.SERIES, ContentType.EPISODE -> "HD"
     null -> "SEÑAL"
 }
 
