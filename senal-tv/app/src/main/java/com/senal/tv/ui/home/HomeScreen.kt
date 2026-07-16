@@ -1325,15 +1325,8 @@ private fun SectionBody(
                 Box(Modifier.fillMaxSize()) {
                     when (current) {
                         HomeSection.LIVE -> {
+                            // Sin botón INICIO: BACK del mando vuelve al home.
                             LiveTvScreen(container) { item, n -> onPlay(item, 0L, n) }
-                            FocusableButton(
-                                label = "INICIO",
-                                onClick = onBack,
-                                primary = true,
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .padding(16.dp)
-                            )
                         }
                         HomeSection.MOVIES -> MoviesScreen(container) { onPlay(it, 0L, listOf(it)) }
                         HomeSection.SERIES -> SeriesScreen(container) { onPlay(it, 0L, listOf(it)) }

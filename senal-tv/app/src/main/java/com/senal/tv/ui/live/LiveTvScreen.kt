@@ -124,6 +124,8 @@ fun LiveTvScreen(
     var guideReady by remember { mutableStateOf(false) }
     /** Lista categorías/canales visible. SELECT la oculta/muestra; el vídeo no se pausa. */
     var guideVisible by remember { mutableStateOf(true) }
+    /** HUD inferior: se muestra al cerrar guía / cambiar canal y se oculta a los 5 s. */
+    var hudVisible by remember { mutableStateOf(false) }
 
     /** Cursor visual al navegar (no implica reproducción). */
     var focusedChannelId by remember { mutableStateOf<String?>(null) }
@@ -147,6 +149,23 @@ fun LiveTvScreen(
             delay(40)
             runCatching { rootFocus.requestFocus() }
         }
+    }
+
+    // HUD: visible al salir de la guía o al cambiar de canal; desaparece a los 5 s de reproducción.
+    LaunchedEffect(guideVisible, playing?.resolveId(), playError) {
+        if (guideVisible) {
+            hudVisible = false
+            return@LaunchedEffect
+        }
+        hudVisible = true
+        // Espera a que deje de bufferizar (reproducción iniciada) y luego 5 s.
+        var waited = 0
+        while (buffering && waited < 15_000) {
+            delay(100)
+            waited += 100
+        }
+        delay(5_000)
+        if (playError == null) hudVisible = false
     }
 
     // Al abrir la guía: categoría del canal en aire + scroll + foco en ese canal (no en categorías).
@@ -426,7 +445,7 @@ fun LiveTvScreen(
         }
 
         AnimatedVisibility(
-            visible = !guideVisible,
+            visible = (!guideVisible && hudVisible) || playError != null,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter)
