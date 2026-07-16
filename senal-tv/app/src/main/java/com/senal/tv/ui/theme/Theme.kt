@@ -13,31 +13,47 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.darkColorScheme
 
 /**
- * Palette sampled from the SEÑAL intro (splash.mp4):
- * deep navy void + cyan signal rings + silver highlight.
+ * SEÑAL ATV v2 — navy void + neon cyan / magenta / gold accents (mockup atv-00 / guía / player).
  */
-val Graphite = Color(0xFF000810)
-val GraphiteElevated = Color(0xFF0A1820)
-val GraphiteCard = Color(0xFF102028)
+val Graphite = Color(0xFF060A14)
+val GraphiteElevated = Color(0xFF0C1424)
+val GraphiteCard = Color(0xFF121C30)
+val PanelGlass = Color(0xE60A1220)
+val PanelBorder = Color(0x33FFFFFF)
 
-/** Primary accent = ring cyan from intro. */
-val BrandOrange = Color(0xFF1A9BC4)
-val BrandOrangeHot = Color(0xFF3EC4E8)
+/** Primary accent = neon cyan (home focus, brand glow). */
+val BrandOrange = Color(0xFF00E8FF)
+val BrandOrangeHot = Color(0xFF5CF0FF)
 val SignalCyan = BrandOrange
 val SignalCyanHot = BrandOrangeHot
-val Violet = Color(0xFF7EB8C8)
-val Teal = Color(0xFF2AA8C0)
-val TilePurple = Color(0xFF3A6A80)
-val TileCyan = Color(0xFF3EC4E8)
-val TileGreen = Color(0xFF4DB8A0)
-val TileCoral = Color(0xFF6A9BB0)
-val FocusWhite = Color(0xFFE8F4F8)
-val TextPrimary = Color(0xFFE8F0F4)
-val TextMuted = Color(0xFF8AA0AE)
+val NeonMagenta = Color(0xFFFF2D95)
+val NeonPurple = Color(0xFFB24CFF)
+val NeonBlue = Color(0xFF4AA8FF)
+val LiveYellow = Color(0xFFFFC107)
+val LiveGreen = Color(0xFF39E56A)
+val ChannelGold = Color(0xFFFFD54A)
+val LiveRed = Color(0xFFE53935)
+val Violet = NeonPurple
+val Teal = Color(0xFF2AD4C8)
+val TilePurple = NeonPurple
+val TileCyan = BrandOrange
+val TileGreen = LiveGreen
+val TileCoral = NeonMagenta
+val FocusWhite = Color(0xFFEAF6FF)
+val TextPrimary = Color(0xFFEAF2FA)
+val TextMuted = Color(0xFF8A9BB0)
 val Danger = Color(0xFFFF8A80)
 
 val SplashGradient = Brush.radialGradient(
-    colors = listOf(Color(0xFF001828), Graphite, Color(0xFF000408))
+    colors = listOf(Color(0xFF0A2038), Graphite, Color(0xFF020408))
+)
+
+val HomeAtmosphere = Brush.verticalGradient(
+    colors = listOf(
+        Color(0xFF0A1228),
+        Color(0xFF060A14),
+        Color(0xFF040810)
+    )
 )
 
 data class SenalTypography(
@@ -92,7 +108,7 @@ val LocalSenalTypography = staticCompositionLocalOf { SenalTypography() }
 private val SenalDarkScheme = darkColorScheme(
     primary = BrandOrange,
     onPrimary = Color.Black,
-    secondary = Teal,
+    secondary = NeonMagenta,
     onSecondary = Graphite,
     background = Graphite,
     onBackground = TextPrimary,

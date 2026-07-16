@@ -114,8 +114,31 @@ fun SenalBackground(content: @Composable () -> Unit) {
         Box(
             Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.45f))
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color(0xCC060A14),
+                            Color(0xE0060A14),
+                            Color(0xF2060A14)
+                        )
+                    )
+                )
         )
+        // Subtle grid atmosphere (ATV v2)
+        androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+            val step = 48.dp.toPx()
+            val line = Color(0x14FFFFFF)
+            var x = 0f
+            while (x < size.width) {
+                drawLine(line, androidx.compose.ui.geometry.Offset(x, 0f), androidx.compose.ui.geometry.Offset(x, size.height), 1f)
+                x += step
+            }
+            var y = 0f
+            while (y < size.height) {
+                drawLine(line, androidx.compose.ui.geometry.Offset(0f, y), androidx.compose.ui.geometry.Offset(size.width, y), 1f)
+                y += step
+            }
+        }
         content()
     }
 }

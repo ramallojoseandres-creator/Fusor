@@ -80,6 +80,10 @@ import com.senal.tv.ui.series.SeriesScreen
 import com.senal.tv.ui.settings.SettingsScreen
 import com.senal.tv.ui.theme.BrandOrange
 import com.senal.tv.ui.theme.BrandOrangeHot
+import com.senal.tv.ui.theme.LiveGreen
+import com.senal.tv.ui.theme.NeonBlue
+import com.senal.tv.ui.theme.NeonMagenta
+import com.senal.tv.ui.theme.NeonPurple
 import com.senal.tv.ui.theme.TextMuted
 import com.senal.tv.util.CatalogRules
 import com.senal.tv.util.DeviceUi
@@ -100,36 +104,49 @@ private data class NavTile(
     val accent: Color
 )
 
+private data class RailShortcut(
+    val label: String,
+    val section: HomeSection?
+)
+
+private val railShortcuts = listOf(
+    RailShortcut("TV", HomeSection.LIVE),
+    RailShortcut("PEL", HomeSection.MOVIES),
+    RailShortcut("SER", HomeSection.SERIES),
+    RailShortcut("FAV", HomeSection.FAVORITES),
+    RailShortcut("TV+", HomeSection.LIVE),
+)
+
 private val navTiles = listOf(
     NavTile(
         HomeSection.LIVE, "EN VIVO", "TV en directo",
         R.mipmap.bg_main_live_category_item_n,
         R.mipmap.bg_main_live_category_item_f,
-        Color(0xFF1A9BC4)
+        BrandOrange
     ),
     NavTile(
         HomeSection.MOVIES, "PELÍCULAS", "Catálogo VOD",
         R.mipmap.bg_main_vod_category_item_n,
         R.mipmap.bg_main_vod_category_item_f,
-        Color(0xFF2AA8C0)
+        NeonMagenta
     ),
     NavTile(
         HomeSection.SERIES, "SERIES", "Temporadas",
         R.mipmap.bg_main_special_category_item_n,
         R.mipmap.bg_main_special_category_item_f,
-        Color(0xFF4DB8A0)
+        NeonPurple
     ),
     NavTile(
         HomeSection.FAVORITES, "FAVORITOS", "Mis favoritos",
         R.mipmap.bg_main_game_category_item_n,
         R.mipmap.bg_main_game_category_item_f,
-        Color(0xFF7EB8C8)
+        NeonPurple
     ),
     NavTile(
         HomeSection.SEARCH, "BUSCAR", "Búsqueda universal",
         R.mipmap.bg_main_special_category_item_n,
         R.mipmap.bg_main_special_category_item_f,
-        Color(0xFF3EC4E8)
+        NeonBlue
     ),
 )
 
@@ -319,94 +336,217 @@ private fun SpotlightHome(
             }
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(start = padH, end = padH, top = padV, bottom = padV)
-        ) {
-            HeaderBar(
-                clock = clock,
-                onSettings = { onOpen(HomeSection.SETTINGS) }
+        Row(Modifier.fillMaxSize()) {
+            LeftNavRail(
+                compact = compact,
+                onOpen = onOpen,
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .padding(start = 10.dp, top = padV, bottom = padV)
             )
 
-            Spacer(Modifier.height(if (compact) 14.dp else 18.dp))
-
-            Row(
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 16.dp)
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .padding(start = 12.dp, end = padH, top = padV, bottom = padV)
             ) {
-                Column(
-                    modifier = Modifier
-                        .weight(1f - sideW)
-                        .fillMaxHeight()
-                        .zIndex(2f)
-                ) {
-                    SpotlightHero(
-                        item = spotlight,
-                        onClick = { spotlight?.let(onPlaySpotlight) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    LiveNowChip(
-                        item = livePreview,
-                        onClick = { livePreview?.let(onPlayLive) }
-                    )
-                }
-
-                RightRail(
-                    newsBanners = newsBanners,
-                    newReleases = newReleases,
-                    onOpenCatalog = { onOpen(HomeSection.MOVIES) },
-                    onPlayItem = onPlaySpotlight,
-                    modifier = Modifier
-                        .weight(sideW)
-                        .fillMaxHeight()
+                HeaderBar(
+                    clock = clock,
+                    onSettings = { onOpen(HomeSection.SETTINGS) }
                 )
-            }
 
-            Spacer(Modifier.height(if (compact) 14.dp else 18.dp))
+                Spacer(Modifier.height(if (compact) 12.dp else 16.dp))
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(tileH),
-                horizontalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                navTiles.forEachIndexed { index, tile ->
-                    SpotlightNavTile(
-                        tile = tile,
-                        showVisualizer = tile.section == HomeSection.LIVE,
-                        onClick = { onOpen(tile.section) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .then(
-                                if (index == 0) Modifier.focusRequester(liveFocus) else Modifier
-                            )
-                    )
-                }
-                Column(
-                    modifier = Modifier.width(if (compact) 40.dp else 44.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 16.dp)
                 ) {
-                    IconFocusButton(
-                        normal = R.mipmap.history_btn_n,
-                        focused = R.mipmap.history_btn,
-                        onClick = { onOpen(HomeSection.RECENTS) }
-                    )
-                    IconFocusButton(
-                        normal = R.mipmap.fav_btn_n,
-                        focused = R.mipmap.fav_btn,
-                        onClick = { onOpen(HomeSection.FAVORITES) }
+                    Column(
+                        modifier = Modifier
+                            .weight(1f - sideW)
+                            .fillMaxHeight()
+                            .zIndex(2f)
+                    ) {
+                        SpotlightHero(
+                            item = spotlight,
+                            onClick = { spotlight?.let(onPlaySpotlight) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        LiveNowChip(
+                            item = livePreview,
+                            onClick = { livePreview?.let(onPlayLive) }
+                        )
+                    }
+
+                    RightRail(
+                        newsBanners = newsBanners,
+                        newReleases = newReleases,
+                        onOpenCatalog = { onOpen(HomeSection.MOVIES) },
+                        onPlayItem = onPlaySpotlight,
+                        modifier = Modifier
+                            .weight(sideW)
+                            .fillMaxHeight()
                     )
                 }
+
+                Spacer(Modifier.height(if (compact) 12.dp else 16.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(tileH),
+                    horizontalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    navTiles.forEachIndexed { index, tile ->
+                        SpotlightNavTile(
+                            tile = tile,
+                            showVisualizer = tile.section == HomeSection.LIVE,
+                            onClick = { onOpen(tile.section) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .then(
+                                    if (index == 0) Modifier.focusRequester(liveFocus) else Modifier
+                                )
+                        )
+                    }
+                    Column(
+                        modifier = Modifier.width(if (compact) 40.dp else 44.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        IconFocusButton(
+                            normal = R.mipmap.history_btn_n,
+                            focused = R.mipmap.history_btn,
+                            onClick = { onOpen(HomeSection.RECENTS) }
+                        )
+                        IconFocusButton(
+                            normal = R.mipmap.fav_btn_n,
+                            focused = R.mipmap.fav_btn,
+                            onClick = { onOpen(HomeSection.FAVORITES) }
+                        )
+                    }
+                }
             }
+        }
+    }
+}
+
+@Composable
+private fun LeftNavRail(
+    compact: Boolean,
+    onOpen: (HomeSection) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val railW = if (compact) 52.dp else 64.dp
+    Column(
+        modifier = modifier
+            .width(railW)
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0x66060A14))
+            .border(1.dp, Color.White.copy(0.08f), RoundedCornerShape(16.dp))
+            .padding(vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        RailIconButton(
+            label = "⌕",
+            accent = NeonBlue,
+            onClick = { onOpen(HomeSection.SEARCH) }
+        )
+        Spacer(Modifier.height(4.dp))
+        railShortcuts.forEach { shortcut ->
+            RailTextButton(
+                label = shortcut.label,
+                highlighted = shortcut.label == "TV",
+                onClick = { shortcut.section?.let(onOpen) }
+            )
+        }
+        Spacer(Modifier.weight(1f))
+        RailTextButton(
+            label = "S",
+            highlighted = false,
+            accent = BrandOrange,
+            onClick = { onOpen(HomeSection.SETTINGS) }
+        )
+    }
+}
+
+@Composable
+private fun RailIconButton(
+    label: String,
+    accent: Color,
+    onClick: () -> Unit
+) {
+    var focused by remember { mutableStateOf(false) }
+    Surface(
+        onClick = onClick,
+        modifier = Modifier
+            .size(40.dp)
+            .onFocusChanged { focused = it.isFocused },
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = if (focused) accent.copy(0.25f) else Color.Transparent,
+            focusedContainerColor = accent.copy(0.3f)
+        ),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f)
+    ) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                text = label,
+                color = if (focused) accent else Color.White.copy(0.75f),
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
+private fun RailTextButton(
+    label: String,
+    highlighted: Boolean,
+    onClick: () -> Unit,
+    accent: Color = BrandOrange
+) {
+    var focused by remember { mutableStateOf(false) }
+    val active = highlighted || focused
+    Surface(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 6.dp)
+            .height(34.dp)
+            .onFocusChanged { focused = it.isFocused },
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = when {
+                highlighted && !focused -> Color(0xFF102848)
+                focused -> accent.copy(0.35f)
+                else -> Color.Transparent
+            },
+            focusedContainerColor = accent.copy(0.4f)
+        ),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.04f)
+    ) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                text = label,
+                color = when {
+                    active -> BrandOrangeHot
+                    else -> Color.White.copy(0.55f)
+                },
+                fontSize = 11.sp,
+                fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                letterSpacing = 0.6.sp
+            )
         }
     }
 }
@@ -430,13 +570,24 @@ private fun HeaderBar(
                 .height(38.dp)
                 .widthIn(max = 160.dp)
         )
-        Box(modifier = Modifier.weight(1f))
-        Image(
-            painter = painterResource(R.mipmap.ic_ethernet_connect),
-            contentDescription = null,
-            modifier = Modifier.height(20.dp)
+        Spacer(Modifier.width(10.dp))
+        Text(
+            text = "SEÑAL",
+            color = BrandOrangeHot,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Black,
+            fontFamily = FontFamily.SansSerif,
+            letterSpacing = 3.sp,
+            modifier = Modifier.drawBehind {
+                drawRoundRect(
+                    color = BrandOrange.copy(alpha = 0.22f),
+                    cornerRadius = CornerRadius(8.dp.toPx()),
+                    size = Size(size.width + 12.dp.toPx(), size.height + 6.dp.toPx()),
+                    topLeft = Offset(-6.dp.toPx(), -3.dp.toPx())
+                )
+            }
         )
-        Spacer(Modifier.width(16.dp))
+        Box(modifier = Modifier.weight(1f))
         Text(
             text = clock.time,
             color = Color.White,
@@ -445,20 +596,13 @@ private fun HeaderBar(
             fontFamily = FontFamily.SansSerif,
             letterSpacing = 0.5.sp
         )
-        Spacer(Modifier.width(8.dp))
-        Column {
-            Text(
-                text = clock.week,
-                color = Color.White.copy(0.9f),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium
-            )
-            Text(
-                text = clock.date,
-                color = Color.White.copy(0.75f),
-                fontSize = 11.sp
-            )
-        }
+        Spacer(Modifier.width(10.dp))
+        Text(
+            text = clock.date,
+            color = Color.White.copy(0.78f),
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium
+        )
         Spacer(Modifier.width(18.dp))
         IconFocusButton(
             normal = R.mipmap.ic_settings_n,
@@ -564,7 +708,14 @@ private fun SpotlightHero(
                     )
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        text = item?.resolveTitle()?.let { "“$it”" } ?: "Tu señal, al instante",
+                        text = item?.resolveTitle()?.let { title ->
+                            val kind = when (item.contentType()) {
+                                ContentType.SERIES, ContentType.EPISODE -> "Serie"
+                                ContentType.MOVIE -> "Película"
+                                else -> "En vivo"
+                            }
+                            "“$title” ($kind)"
+                        } ?: "Tu señal, al instante",
                         color = Color.White,
                         fontSize = 26.sp,
                         fontWeight = FontWeight.Bold,
@@ -575,11 +726,11 @@ private fun SpotlightHero(
                     Spacer(Modifier.height(10.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         SpotlightTag(tagForType(item))
+                        if (item?.contentType() == ContentType.MOVIE) SpotlightTag("ATMOS")
                         item?.year?.let { SpotlightTag("$it") }
+                        if (item?.contentType() == ContentType.SERIES) SpotlightTag("Serie")
                         item?.resolveGenre()?.takeIf { it.isNotBlank() }?.split(",")?.firstOrNull()
                             ?.trim()?.take(12)?.let { SpotlightTag(it) }
-                        if (item?.contentType() == ContentType.SERIES) SpotlightTag("Series")
-                        if (item?.contentType() == ContentType.MOVIE) SpotlightTag("Film")
                     }
                 }
             }
@@ -640,21 +791,14 @@ private fun LiveNowChip(
             ) {
                 Box(
                     Modifier
-                        .size(7.dp)
+                        .size(8.dp)
                         .clip(RoundedCornerShape(50))
-                        .background(if (focused) BrandOrangeHot else BrandOrange)
+                        .background(NeonBlue)
                 )
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(10.dp))
                 Text(
-                    text = "✓",
-                    color = BrandOrangeHot,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    text = item?.resolveTitle() ?: "Señal en vivo",
-                    color = Color.White.copy(if (focused) 1f else 0.88f),
+                    text = item?.let { "${it.resolveTitle()} · en vivo" } ?: "SEÑAL · en vivo",
+                    color = Color.White.copy(if (focused) 1f else 0.9f),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
@@ -753,11 +897,11 @@ private fun NewsPickCard(
                         .padding(12.dp)
                 ) {
                     Text(
-                        text = "DESTACADOS",
+                        text = "Recomendado",
                         color = BrandOrangeHot,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
+                        letterSpacing = 0.8.sp
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
@@ -806,29 +950,43 @@ private fun SystemStatusCard(modifier: Modifier = Modifier) {
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.Center
     ) {
-        Text(
-            text = "Estado",
-            color = Color.White,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold
-        )
-        Text(
-            text = "SEÑAL · lista en el dispositivo",
-            color = TextMuted,
-            fontSize = 10.sp
-        )
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = "Estado del sistema",
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "Conexión y señal",
+                    color = TextMuted,
+                    fontSize = 10.sp
+                )
+            }
+            Text(
+                text = "● ESTABLE",
+                color = LiveGreen,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
         Spacer(Modifier.height(6.dp))
         Canvas(
             Modifier
                 .fillMaxWidth()
-                .height(10.dp)
+                .height(12.dp)
         ) {
             val colors = listOf(
-                Color(0xFF1A9BC4),
-                Color(0xFF3EC4E8),
-                Color(0xFF4DB8A0),
-                Color(0xFF7EB8C8),
-                Color(0xFF2AA8C0)
+                BrandOrange,
+                NeonMagenta,
+                NeonPurple,
+                LiveGreen,
+                NeonBlue
             )
             val seg = size.width / colors.size
             colors.forEachIndexed { i, c ->
@@ -874,7 +1032,7 @@ private fun NewReleasesCard(
                     .padding(10.dp)
             ) {
                 Text(
-                    text = "Novedades",
+                    text = "Nuevos estrenos",
                     color = Color.White,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
@@ -1005,8 +1163,8 @@ private fun SpotlightNavTile(
                     .clip(RoundedCornerShape(10.dp))
                     .border(
                         width = if (focused) 2.5.dp else 1.dp,
-                        color = if (focused) BrandOrangeHot else Color.White.copy(0.14f),
-                        shape = RoundedCornerShape(10.dp)
+                        color = if (focused) tile.accent else Color.White.copy(0.14f),
+                        shape = RoundedCornerShape(12.dp)
                     )
             ) {
                 Image(
@@ -1021,8 +1179,8 @@ private fun SpotlightNavTile(
                         .background(
                             Brush.verticalGradient(
                                 listOf(
-                                    Color.Black.copy(if (focused) 0.15f else 0.35f),
-                                    Color.Black.copy(if (focused) 0.45f else 0.62f)
+                                    tile.accent.copy(if (focused) 0.22f else 0.08f),
+                                    Color.Black.copy(if (focused) 0.55f else 0.68f)
                                 )
                             )
                         )
@@ -1051,7 +1209,7 @@ private fun SpotlightNavTile(
                     if (showVisualizer && focused) {
                         Spacer(Modifier.height(6.dp))
                         AudioBars(
-                            color = BrandOrangeHot,
+                            color = tile.accent,
                             modifier = Modifier
                                 .fillMaxWidth(0.55f)
                                 .height(12.dp)

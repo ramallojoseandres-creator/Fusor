@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -57,6 +58,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -82,12 +84,17 @@ import com.senal.tv.data.model.CatalogItem
 import com.senal.tv.data.model.Category
 import com.senal.tv.ui.theme.BrandOrange
 import com.senal.tv.ui.theme.BrandOrangeHot
+import com.senal.tv.ui.theme.ChannelGold
 import com.senal.tv.ui.theme.Graphite
+import com.senal.tv.ui.theme.LiveGreen
+import com.senal.tv.ui.theme.LiveRed
+import com.senal.tv.ui.theme.LiveYellow
 import com.senal.tv.ui.theme.TextMuted
 import com.senal.tv.ui.theme.TextPrimary
 import com.senal.tv.util.CatalogRules
 import com.senal.tv.util.DeviceUi
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.abs
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -424,33 +431,16 @@ fun LiveTvScreen(
             visible = !guideVisible,
             enter = fadeIn(),
             exit = fadeOut(),
-            modifier = Modifier.align(Alignment.BottomStart)
+            modifier = Modifier.align(Alignment.BottomCenter)
         ) {
-            Column(
+            LivePlayerHud(
+                channel = playing,
+                error = playError,
+                buffering = buffering,
                 modifier = Modifier
-                    .padding(24.dp)
-                    .background(Color(0xAA050810), RoundedCornerShape(12.dp))
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
-            ) {
-                Text(
-                    text = playing?.resolveTitle() ?: "SEÑAL EN VIVO",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = when {
-                        playError != null -> playError!!
-                        buffering -> "Sintonizando…"
-                        else -> "SELECT / toque = categorías y canales"
-                    },
-                    color = if (playError != null) Color(0xFFFF8A80) else BrandOrange,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(top = 2.dp)
-                )
-            }
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 18.dp)
+            )
         }
 
         AnimatedVisibility(
@@ -495,12 +485,13 @@ fun LiveTvScreen(
                             .width(catW)
                             .fillMaxHeight()
                             .clip(RoundedCornerShape(16.dp))
-                            .background(Color.Black.copy(alpha = 0.55f))
+                            .background(Color(0xCC0A0E14))
+                            .border(1.dp, Color.White.copy(0.08f), RoundedCornerShape(16.dp))
                             .padding(10.dp)
                     ) {
                         Text(
                             "CATEGORÍAS",
-                            color = BrandOrangeHot,
+                            color = LiveYellow,
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
                             letterSpacing = 1.5.sp,
@@ -525,19 +516,24 @@ fun LiveTvScreen(
                                     onClick = { selected = category.label() },
                                     shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
                                     colors = ClickableSurfaceDefaults.colors(
-                                        containerColor = if (active) BrandOrange else Color.Transparent,
+                                        containerColor = if (active) LiveYellow else Color.Transparent,
                                         focusedContainerColor = if (active) {
-                                            BrandOrangeHot
+                                            LiveYellow
                                         } else {
-                                            Color.White.copy(alpha = 0.18f)
+                                            Color.White.copy(alpha = 0.14f)
                                         }
                                     ),
                                     scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
+                                    val count = category.count
                                     Text(
-                                        text = category.label(),
-                                        color = if (active) Color.White else TextPrimary,
+                                        text = if (count != null && count > 0) {
+                                            "${category.label()} ($count)"
+                                        } else {
+                                            category.label()
+                                        },
+                                        color = if (active) Color.Black else TextPrimary,
                                         fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
                                         fontSize = 15.sp,
                                         maxLines = 1,
@@ -556,7 +552,8 @@ fun LiveTvScreen(
                             .width(chW)
                             .fillMaxHeight()
                             .clip(RoundedCornerShape(16.dp))
-                            .background(Color.Black.copy(alpha = 0.52f))
+                            .background(Color(0xCC0A0E14))
+                            .border(1.dp, Color.White.copy(0.08f), RoundedCornerShape(16.dp))
                             .padding(10.dp)
                     ) {
                         Text(
@@ -580,7 +577,7 @@ fun LiveTvScreen(
                                 Text("Sin canales", color = TextMuted, modifier = Modifier.padding(8.dp))
                             else -> LazyColumn(
                                 state = listState,
-                                verticalArrangement = Arrangement.spacedBy(3.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
                                 contentPadding = PaddingValues(bottom = 16.dp)
                             ) {
                                 items(channels, key = { it.resolveId() }) { channel ->
@@ -611,52 +608,258 @@ fun LiveTvScreen(
                         }
                     }
 
-                    Box(
+                    GuidePreviewPane(
+                        channel = playing,
+                        status = when {
+                            !guideReady -> "Preparando guía…"
+                            playError != null -> playError!!
+                            !allowPlayback -> "Guía lista…"
+                            buffering -> "Sintonizando…"
+                            else -> "OK = pantalla completa · ← → cambiar categoría"
+                        },
+                        statusError = playError != null,
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
                             .padding(start = 16.dp)
                             .pointerInput(Unit) {
                                 detectTapGestures { guideVisible = false }
-                            },
-                        contentAlignment = Alignment.BottomStart
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(
-                                    Brush.verticalGradient(
-                                        listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f))
-                                    ),
-                                    RoundedCornerShape(14.dp)
-                                )
-                                .padding(14.dp)
-                        ) {
-                            Text(
-                                text = playing?.resolveTitle() ?: "SEÑAL EN VIVO",
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 20.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = when {
-                                    !guideReady -> "Preparando guía…"
-                                    playError != null -> playError!!
-                                    !allowPlayback -> "Guía lista…"
-                                    buffering -> "Sintonizando…"
-                                    else -> "SELECT = ver · Mantener = favorito · SELECT otra vez = guía"
-                                },
-                                color = if (playError != null) Color(0xFFFF8A80) else BrandOrange,
-                                fontSize = 13.sp,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
-                        }
-                    }
+                            }
+                    )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun GuidePreviewPane(
+    channel: CatalogItem?,
+    status: String,
+    statusError: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val progress = remember(channel?.resolveId()) { fakeProgress(channel) }
+    val next = channel?.resolveNext().orEmpty()
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xB0060A14))
+            .border(1.dp, Color.White.copy(0.08f), RoundedCornerShape(16.dp))
+            .padding(14.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0xFF0A1820))
+        ) {
+            val art = channel?.resolvePoster() ?: channel?.resolveLogo()
+            if (!art.isNullOrBlank()) {
+                AsyncImage(
+                    model = art,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+                Box(Modifier.fillMaxSize().background(Color.Black.copy(0.35f)))
+            }
+            Row(
+                Modifier
+                    .align(Alignment.TopStart)
+                    .padding(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(LiveRed)
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Text("● EN VIVO", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(10.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(Color.Black.copy(0.55f))
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            ) {
+                Text("HD", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+        val num = channel?.resolveNumber()
+        Text(
+            text = if (num != null) "$num ${channel.resolveTitle()}" else (channel?.resolveTitle() ?: "SEÑAL EN VIVO"),
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            fontSize = 20.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            text = channel?.resolveNow()?.ifBlank { "Programación en vivo" } ?: "Programación en vivo",
+            color = TextMuted,
+            fontSize = 13.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 2.dp)
+        )
+        Spacer(Modifier.height(8.dp))
+        ProgressBar(progress = progress, color = LiveYellow)
+        Spacer(Modifier.height(14.dp))
+        Text(
+            "A CONTINUACIÓN",
+            color = LiveYellow,
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp,
+            letterSpacing = 1.sp
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = next.ifBlank { "Próximo programa próximamente" },
+            color = TextPrimary,
+            fontSize = 14.sp,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+        Spacer(Modifier.height(10.dp))
+        Text(
+            text = status,
+            color = if (statusError) Color(0xFFFF8A80) else BrandOrangeHot,
+            fontSize = 12.sp
+        )
+    }
+}
+
+@Composable
+private fun LivePlayerHud(
+    channel: CatalogItem?,
+    error: String?,
+    buffering: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val progress = remember(channel?.resolveId()) { fakeProgress(channel) }
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color(0xE6080C14))
+            .border(1.dp, Color.White.copy(0.12f), RoundedCornerShape(14.dp))
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        ChannelMark(channel)
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val num = channel?.resolveNumber()
+                if (num != null) {
+                    Text(
+                        text = "$num",
+                        color = ChannelGold,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 26.sp
+                    )
+                    Spacer(Modifier.width(10.dp))
+                }
+                Text(
+                    text = channel?.resolveTitle() ?: "SEÑAL EN VIVO",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                Spacer(Modifier.width(10.dp))
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(LiveRed)
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text("● EN VIVO", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+            Text(
+                text = when {
+                    error != null -> error
+                    buffering -> "Sintonizando…"
+                    else -> channel?.resolveNow()?.ifBlank { "Programación en vivo" }
+                        ?: "SELECT = guía · Mantener = favorito"
+                },
+                color = if (error != null) Color(0xFFFF8A80) else TextPrimary,
+                fontSize = 14.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+            Spacer(Modifier.height(8.dp))
+            ProgressBar(progress = progress, color = ChannelGold)
+        }
+        Spacer(Modifier.width(16.dp))
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                "★ Favorito",
+                color = Color.White.copy(0.9f),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                "Guía del canal",
+                color = TextMuted,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(top = 6.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ChannelMark(channel: CatalogItem?) {
+    val initials = channelInitials(channel)
+    val color = logoColor(channel)
+    Box(
+        modifier = Modifier
+            .size(52.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(color),
+        contentAlignment = Alignment.Center
+    ) {
+        val logo = channel?.resolveLogo()
+        if (!logo.isNullOrBlank()) {
+            AsyncImage(
+                model = logo,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Text(initials, color = Color.Black, fontWeight = FontWeight.Black, fontSize = 18.sp)
+        }
+    }
+}
+
+@Composable
+private fun ProgressBar(progress: Float, color: Color) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(4.dp)
+            .clip(RoundedCornerShape(2.dp))
+            .background(Color.White.copy(0.15f))
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth(progress.coerceIn(0.08f, 0.95f))
+                .fillMaxHeight()
+                .background(color)
+        )
     }
 }
 
@@ -671,25 +874,29 @@ private fun GuideChannelRow(
 ) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
-        targetValue = if (focused) 1.02f else 1f,
+        targetValue = if (focused) 1.015f else 1f,
         animationSpec = tween(140),
         label = "chScale"
     )
-    val bg = when {
-        focused -> BrandOrange
-        selected -> BrandOrange.copy(alpha = 0.35f)
-        else -> Color.White.copy(alpha = 0.06f)
-    }
-    val fg = if (focused) Color.White else TextPrimary
+    val progress = remember(item.resolveId()) { fakeProgress(item) }
     val epg = item.resolveNow().ifBlank { "En vivo" }
+    val borderColor = when {
+        focused -> LiveYellow
+        selected -> LiveGreen
+        else -> Color.Transparent
+    }
 
     Surface(
         onClick = onClick,
         onLongClick = onLongClick,
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = bg,
-            focusedContainerColor = BrandOrange
+            containerColor = when {
+                focused -> Color(0xFF1A2438)
+                selected -> Color(0xFF121C28)
+                else -> Color.White.copy(alpha = 0.05f)
+            },
+            focusedContainerColor = Color(0xFF1A2438)
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
         modifier = Modifier
@@ -703,54 +910,84 @@ private fun GuideChannelRow(
                 focused = it.isFocused
                 if (it.isFocused) onFocused()
             }
-            .then(
-                if (selected && !focused) {
-                    Modifier.border(1.dp, BrandOrange.copy(alpha = 0.7f), RoundedCornerShape(10.dp))
-                } else {
-                    Modifier
-                }
+            .border(
+                width = if (selected || focused) 1.5.dp else 0.dp,
+                color = borderColor,
+                shape = RoundedCornerShape(12.dp)
             )
     ) {
-        val rowPadV = if (DeviceUi.isTabletBuild) 14.dp else 8.dp
+        val rowPadV = if (DeviceUi.isTabletBuild) 12.dp else 9.dp
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 10.dp, vertical = rowPadV),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = (item.resolveNumber() ?: "·").toString(),
-                color = if (focused) Color.White else BrandOrange,
-                fontWeight = FontWeight.Bold,
-                fontSize = 13.sp,
-                modifier = Modifier.width(40.dp)
-            )
-            AsyncImage(
-                model = item.resolveLogo(),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(Graphite)
-            )
+            ChannelMark(item)
             Spacer(modifier = Modifier.width(10.dp))
-            androidx.compose.foundation.layout.Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (selected) {
+                        Box(
+                            Modifier
+                                .size(7.dp)
+                                .clip(RoundedCornerShape(50))
+                                .background(LiveRed)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                    }
+                    Text(
+                        text = listOfNotNull(
+                            item.resolveNumber()?.toString(),
+                            item.resolveTitle()
+                        ).joinToString(" "),
+                        color = TextPrimary,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 Text(
-                    text = item.resolveTitle(),
-                    color = fg,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = epg,
-                    color = if (focused) Color.White.copy(alpha = 0.85f) else TextMuted,
+                    text = "$epg · ${(progress * 100).toInt()}%",
+                    color = TextMuted,
                     fontSize = 11.sp,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 2.dp)
                 )
+                Spacer(Modifier.height(5.dp))
+                ProgressBar(progress = progress, color = if (focused) LiveYellow else BrandOrange)
             }
         }
     }
+}
+
+private fun channelInitials(channel: CatalogItem?): String {
+    val title = channel?.resolveTitle().orEmpty().trim()
+    if (title.isBlank()) return "S"
+    val parts = title.split(Regex("\\s+")).filter { it.isNotBlank() }
+    return when {
+        parts.size >= 2 -> "${parts[0].first().uppercaseChar()}${parts[1].first().uppercaseChar()}"
+        else -> title.take(2).uppercase()
+    }
+}
+
+private fun logoColor(channel: CatalogItem?): Color {
+    val seed = abs((channel?.resolveId() ?: channel?.resolveTitle().orEmpty()).hashCode())
+    val palette = listOf(
+        Color(0xFF39E56A),
+        Color(0xFF4AA8FF),
+        Color(0xFFE53935),
+        Color(0xFF2AD4C8),
+        Color(0xFFC6FF00),
+        Color(0xFFFF2D95),
+        Color(0xFFFF9800)
+    )
+    return palette[seed % palette.size]
+}
+
+private fun fakeProgress(channel: CatalogItem?): Float {
+    val seed = abs((channel?.resolveId() ?: "senal").hashCode())
+    return 0.28f + (seed % 55) / 100f
 }

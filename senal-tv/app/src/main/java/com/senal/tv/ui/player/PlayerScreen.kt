@@ -15,11 +15,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -38,6 +40,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -48,6 +51,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -69,16 +73,20 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface
+import coil.compose.AsyncImage
 import com.senal.tv.AppContainer
 import com.senal.tv.data.model.CatalogItem
 import com.senal.tv.data.model.Category
 import com.senal.tv.ui.theme.BrandOrange
 import com.senal.tv.ui.theme.BrandOrangeHot
+import com.senal.tv.ui.theme.ChannelGold
 import com.senal.tv.ui.theme.Graphite
-import com.senal.tv.ui.theme.LocalSenalTypography
+import com.senal.tv.ui.theme.LiveRed
+import com.senal.tv.ui.theme.LiveYellow
 import com.senal.tv.ui.theme.TextMuted
 import com.senal.tv.ui.theme.TextPrimary
 import com.senal.tv.util.CatalogRules
+import kotlin.math.abs
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -437,31 +445,21 @@ fun PlayerScreen(
             )
         }
 
-        // OSD mínimo: nombre/categoría 5s al cambiar de canal
+        // HUD inferior (mockup atv-02-reproductor)
         AnimatedVisibility(
             visible = (infoVisible && !guideVisible) || error != null,
             enter = fadeIn(),
-            exit = fadeOut()
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter)
         ) {
-            Column(
+            PlayerInfoHud(
+                channel = current,
+                error = error,
+                buffering = buffering,
                 modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(28.dp)
-                    .background(Color(0xAA050810), RoundedCornerShape(14.dp))
-                    .padding(horizontal = 18.dp, vertical = 12.dp)
-            ) {
-                Text("SEÑAL", style = LocalSenalTypography.current.caption, color = BrandOrange)
-                Text(current.resolveTitle(), style = LocalSenalTypography.current.title, color = TextPrimary)
-                Text(
-                    current.resolveCategory().ifBlank { "EN VIVO" },
-                    style = LocalSenalTypography.current.caption,
-                    color = TextMuted
-                )
-                error?.let {
-                    Spacer(Modifier.height(8.dp))
-                    Text(it, color = Color(0xFFFFB4BC), style = LocalSenalTypography.current.body)
-                }
-            }
+                    .fillMaxWidth()
+                    .padding(horizontal = 22.dp, vertical = 20.dp)
+            )
         }
 
         AnimatedVisibility(
@@ -542,7 +540,7 @@ private fun PlayerGuideOverlay(
         ) {
             Text(
                 text = "SELECT = ver · Mantener = favorito · Menú = guía",
-                color = BrandOrange,
+                color = LiveYellow,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -564,7 +562,7 @@ private fun PlayerGuideOverlay(
                     item {
                         Text(
                             "CATEGORÍAS",
-                            color = BrandOrange,
+                            color = LiveYellow,
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp,
                             modifier = Modifier.padding(8.dp)
@@ -576,6 +574,7 @@ private fun PlayerGuideOverlay(
                             label = cat.label(),
                             selected = active,
                             requestFocus = false,
+                            categoryStyle = true,
                             onClick = {
                                 onInteract()
                                 onCategory(cat.label())
@@ -595,7 +594,7 @@ private fun PlayerGuideOverlay(
                     item {
                         Text(
                             "CANALES",
-                            color = BrandOrange,
+                            color = TextPrimary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp,
                             modifier = Modifier.padding(8.dp)
@@ -631,7 +630,8 @@ private fun GuideRow(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
     focusRequester: FocusRequester? = null,
-    requestFocus: Boolean = false
+    requestFocus: Boolean = false,
+    categoryStyle: Boolean = false
 ) {
     var focused by remember { mutableStateOf(false) }
     val localFr = remember { FocusRequester() }
@@ -652,22 +652,147 @@ private fun GuideRow(
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = when {
+                focused && categoryStyle -> LiveYellow
                 focused -> BrandOrange
-                selected -> BrandOrange.copy(alpha = 0.35f)
+                selected && categoryStyle -> LiveYellow
+                selected -> BrandOrange.copy(alpha = 0.3f)
                 else -> Color.White.copy(alpha = 0.06f)
             },
-            focusedContainerColor = BrandOrangeHot
+            focusedContainerColor = if (categoryStyle) LiveYellow else BrandOrangeHot
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f)
     ) {
         Text(
             text = label,
-            color = TextPrimary,
+            color = if ((focused || selected) && categoryStyle) Color.Black else TextPrimary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             fontSize = 14.sp,
             fontWeight = if (focused || selected) FontWeight.Bold else FontWeight.Medium
         )
+    }
+}
+
+@Composable
+private fun PlayerInfoHud(
+    channel: CatalogItem,
+    error: String?,
+    buffering: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val progress = remember(channel.resolveId()) {
+        0.28f + (abs(channel.resolveId().hashCode()) % 55) / 100f
+    }
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color(0xE6080C14))
+            .border(1.dp, Color.White.copy(0.12f), RoundedCornerShape(14.dp))
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        val initials = channel.resolveTitle().trim().split(Regex("\\s+"))
+            .filter { it.isNotBlank() }
+            .let { parts ->
+                when {
+                    parts.size >= 2 -> "${parts[0].first().uppercaseChar()}${parts[1].first().uppercaseChar()}"
+                    else -> channel.resolveTitle().take(2).uppercase().ifBlank { "S" }
+                }
+            }
+        val markColor = listOf(
+            Color(0xFF39E56A), Color(0xFF4AA8FF), Color(0xFFE53935),
+            Color(0xFF2AD4C8), Color(0xFFFF9800)
+        )[abs(channel.resolveId().hashCode()) % 5]
+        Box(
+            modifier = Modifier
+                .size(52.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(markColor),
+            contentAlignment = Alignment.Center
+        ) {
+            val logo = channel.resolveLogo()
+            if (!logo.isNullOrBlank()) {
+                AsyncImage(
+                    model = logo,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Text(initials, color = Color.Black, fontWeight = FontWeight.Black, fontSize = 18.sp)
+            }
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                channel.resolveNumber()?.let { num ->
+                    Text(
+                        text = "$num",
+                        color = ChannelGold,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 26.sp
+                    )
+                    Spacer(Modifier.width(10.dp))
+                }
+                Text(
+                    text = channel.resolveTitle(),
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                Spacer(Modifier.width(10.dp))
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(LiveRed)
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text("● EN VIVO", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+            Text(
+                text = when {
+                    error != null -> error
+                    buffering -> "Sintonizando…"
+                    else -> channel.resolveNow().ifBlank {
+                        channel.resolveCategory().ifBlank { "Programación en vivo" }
+                    }
+                },
+                color = if (error != null) Color(0xFFFFB4BC) else TextPrimary,
+                fontSize = 14.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+            Spacer(Modifier.height(8.dp))
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(Color.White.copy(0.15f))
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxWidth(progress.coerceIn(0.08f, 0.95f))
+                        .fillMaxHeight()
+                        .background(ChannelGold)
+                )
+            }
+        }
+        Spacer(Modifier.width(16.dp))
+        Column(horizontalAlignment = Alignment.End) {
+            Text("★ Favorito", color = Color.White.copy(0.9f), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                "Guía del canal",
+                color = TextMuted,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(top = 6.dp)
+            )
+        }
     }
 }
