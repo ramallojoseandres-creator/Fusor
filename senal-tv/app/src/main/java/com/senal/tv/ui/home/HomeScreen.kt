@@ -1,11 +1,17 @@
 package com.senal.tv.ui.home
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,10 +25,11 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,13 +41,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -49,12 +65,13 @@ import androidx.tv.material3.Surface
 import coil.compose.AsyncImage
 import com.senal.tv.AppContainer
 import com.senal.tv.R
+import com.senal.tv.data.api.BannerItem
 import com.senal.tv.data.model.CatalogItem
+import com.senal.tv.data.model.ContentType
 import com.senal.tv.data.model.HomeSection
 import com.senal.tv.ui.common.ContinueRecentsScreen
 import com.senal.tv.ui.components.FocusableButton
 import com.senal.tv.ui.components.SenalBackground
-import com.senal.tv.ui.components.rememberFlujoFocusModifier
 import com.senal.tv.ui.favorites.FavoritesScreen
 import com.senal.tv.ui.live.LiveTvScreen
 import com.senal.tv.ui.movies.MoviesScreen
@@ -62,28 +79,58 @@ import com.senal.tv.ui.search.SearchScreen
 import com.senal.tv.ui.series.SeriesScreen
 import com.senal.tv.ui.settings.SettingsScreen
 import com.senal.tv.ui.theme.BrandOrange
+import com.senal.tv.ui.theme.BrandOrangeHot
+import com.senal.tv.ui.theme.TextMuted
 import com.senal.tv.util.CatalogRules
 import java.text.SimpleDateFormat
-import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlin.math.sin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 
-/** Home nav tiles (no FLUJO mipmaps). */
 private data class NavTile(
     val section: HomeSection,
     val label: String,
+    val subtitle: String,
+    val normalRes: Int,
+    val focusedRes: Int,
     val accent: Color
 )
 
 private val navTiles = listOf(
-    NavTile(HomeSection.LIVE, "EN VIVO", Color(0xFF1A9BC4)),
-    NavTile(HomeSection.MOVIES, "PELÍCULAS", Color(0xFF2AA8C0)),
-    NavTile(HomeSection.SERIES, "SERIES", Color(0xFF4DB8A0)),
-    NavTile(HomeSection.FAVORITES, "FAVORITOS", Color(0xFF7EB8C8)),
-    NavTile(HomeSection.SEARCH, "BUSCAR", Color(0xFF3EC4E8)),
+    NavTile(
+        HomeSection.LIVE, "EN VIVO", "TV en directo",
+        R.mipmap.bg_main_live_category_item_n,
+        R.mipmap.bg_main_live_category_item_f,
+        Color(0xFF1A9BC4)
+    ),
+    NavTile(
+        HomeSection.MOVIES, "PELÍCULAS", "Catálogo VOD",
+        R.mipmap.bg_main_vod_category_item_n,
+        R.mipmap.bg_main_vod_category_item_f,
+        Color(0xFF2AA8C0)
+    ),
+    NavTile(
+        HomeSection.SERIES, "SERIES", "Temporadas",
+        R.mipmap.bg_main_special_category_item_n,
+        R.mipmap.bg_main_special_category_item_f,
+        Color(0xFF4DB8A0)
+    ),
+    NavTile(
+        HomeSection.FAVORITES, "FAVORITOS", "Juegos / Apps",
+        R.mipmap.bg_main_game_category_item_n,
+        R.mipmap.bg_main_game_category_item_f,
+        Color(0xFF7EB8C8)
+    ),
+    NavTile(
+        HomeSection.SEARCH, "BUSCAR", "Búsqueda universal",
+        R.mipmap.bg_main_special_category_item_n,
+        R.mipmap.bg_main_special_category_item_f,
+        Color(0xFF3EC4E8)
+    ),
 )
+
 @Composable
 fun HomeScreen(
     container: AppContainer,
@@ -94,7 +141,9 @@ fun HomeScreen(
     var section by remember { mutableStateOf<HomeSection?>(null) }
     var live by remember { mutableStateOf<List<CatalogItem>>(emptyList()) }
     var livePreview by remember { mutableStateOf<CatalogItem?>(null) }
-    var newsBanners by remember { mutableStateOf<List<com.senal.tv.data.api.BannerItem>>(emptyList()) }
+    var spotlight by remember { mutableStateOf<CatalogItem?>(null) }
+    var newReleases by remember { mutableStateOf<List<CatalogItem>>(emptyList()) }
+    var newsBanners by remember { mutableStateOf<List<BannerItem>>(emptyList()) }
     var clock by remember { mutableStateOf(nowParts()) }
     var didAutoPlay by remember { mutableStateOf(false) }
 
@@ -106,7 +155,6 @@ fun HomeScreen(
     }
 
     LaunchedEffect(Unit) {
-        // Prefetch catalog + last channel + admin banners in parallel paths
         val settings = runCatching { container.settingsStore.settings.first() }.getOrNull()
         val lastId = settings?.lastChannelId.orEmpty()
 
@@ -140,7 +188,26 @@ fun HomeScreen(
             }
         }
 
-        // Admin news banner (server). Fail soft if endpoint missing.
+        val movies = runCatching {
+            container.catalogRepository.page(type = "movie", category = null, page = 1, limit = 12)
+                .resolveItems()
+        }.getOrDefault(emptyList())
+        val series = runCatching {
+            container.catalogRepository.page(type = "series", category = null, page = 1, limit = 12)
+                .resolveItems()
+        }.getOrDefault(emptyList())
+
+        spotlight = series.firstOrNull { !it.resolvePoster().isNullOrBlank() }
+            ?: movies.firstOrNull { !it.resolvePoster().isNullOrBlank() }
+            ?: series.firstOrNull()
+            ?: movies.firstOrNull()
+            ?: livePreview
+
+        newReleases = (series + movies)
+            .filter { !it.resolvePoster().isNullOrBlank() }
+            .distinctBy { it.resolveId() }
+            .take(4)
+
         runCatching { container.api.banner() }
             .onSuccess { resp ->
                 val items = resp.items.filter { it.active != false }
@@ -148,7 +215,7 @@ fun HomeScreen(
                     items.isNotEmpty() -> items
                     !resp.title.isNullOrBlank() || !resp.body.isNullOrBlank() || !resp.message.isNullOrBlank() ->
                         listOf(
-                            com.senal.tv.data.api.BannerItem(
+                            BannerItem(
                                 title = resp.title,
                                 body = resp.body ?: resp.message,
                                 active = resp.enabled != false
@@ -158,7 +225,6 @@ fun HomeScreen(
                 }
             }
 
-        // Autoplay last channel once per cold home entry
         if (autoPlayLastChannel && !didAutoPlay && livePreview != null && lastId.isNotBlank()) {
             didAutoPlay = true
             val neighbors = runCatching {
@@ -171,11 +237,19 @@ fun HomeScreen(
     SenalBackground(
         content = {
             if (section == null) {
-                FlujoExactHome(
+                SpotlightHome(
                     clock = clock,
                     livePreview = livePreview,
+                    spotlight = spotlight,
                     newsBanners = newsBanners,
+                    newReleases = newReleases,
                     onOpen = { section = it },
+                    onPlaySpotlight = { item ->
+                        when (item.contentType()) {
+                            ContentType.LIVE -> onPlay(item, 0L, live.ifEmpty { listOf(item) })
+                            else -> onPlay(item, 0L, listOf(item))
+                        }
+                    },
                     onPlayLive = { ch ->
                         onPlay(ch, 0L, live.ifEmpty { listOf(ch) })
                     }
@@ -200,82 +274,116 @@ fun HomeScreen(
 }
 
 @Composable
-private fun FlujoExactHome(
+private fun SpotlightHome(
     clock: ClockParts,
     livePreview: CatalogItem?,
-    newsBanners: List<com.senal.tv.data.api.BannerItem>,
+    spotlight: CatalogItem?,
+    newsBanners: List<BannerItem>,
+    newReleases: List<CatalogItem>,
     onOpen: (HomeSection) -> Unit,
+    onPlaySpotlight: (CatalogItem) -> Unit,
     onPlayLive: (CatalogItem) -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(start = 56.dp, end = 56.dp, top = 28.dp, bottom = 28.dp)
-    ) {
-        HeaderBar(
-            clock = clock,
-            onSettings = { onOpen(HomeSection.SETTINGS) },
-            onSearch = { onOpen(HomeSection.SEARCH) }
-        )
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val compact = maxWidth < 900.dp
+        val padH = if (compact) 28.dp else 48.dp
+        val padV = if (compact) 18.dp else 24.dp
+        val tileH = if (compact) 96.dp else 112.dp
+        val sideW = if (compact) 0.38f else 0.34f
+        val liveFocus = remember { FocusRequester() }
 
-        Spacer(Modifier.height(22.dp))
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            LivePreviewCard(
-                item = livePreview,
-                onClick = { livePreview?.let(onPlayLive) },
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .weight(1.15f)
-                    .zIndex(2f)
-            )
-            NewsBannerStack(
-                items = newsBanners,
-                modifier = Modifier
-                    .weight(0.85f)
-                    .fillMaxHeight()
-            )
+        LaunchedEffect(Unit) {
+            delay(120)
+            runCatching { liveFocus.requestFocus() }
         }
 
-        Spacer(Modifier.height(20.dp))
-
-        Row(
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(118.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxSize()
+                .padding(start = padH, end = padH, top = padV, bottom = padV)
         ) {
-            navTiles.forEach { tile ->
-                SenalNavTile(
-                    label = tile.label,
-                    accent = tile.accent,
-                    onClick = { onOpen(tile.section) },
+            HeaderBar(
+                clock = clock,
+                onSettings = { onOpen(HomeSection.SETTINGS) }
+            )
+
+            Spacer(Modifier.height(if (compact) 14.dp else 18.dp))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 16.dp)
+            ) {
+                Column(
                     modifier = Modifier
-                        .weight(1f)
+                        .weight(1f - sideW)
+                        .fillMaxHeight()
+                        .zIndex(2f)
+                ) {
+                    SpotlightHero(
+                        item = spotlight,
+                        onClick = { spotlight?.let(onPlaySpotlight) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    LiveNowChip(
+                        item = livePreview,
+                        onClick = { livePreview?.let(onPlayLive) }
+                    )
+                }
+
+                RightRail(
+                    newsBanners = newsBanners,
+                    newReleases = newReleases,
+                    onOpenCatalog = { onOpen(HomeSection.MOVIES) },
+                    onPlayItem = onPlaySpotlight,
+                    modifier = Modifier
+                        .weight(sideW)
                         .fillMaxHeight()
                 )
             }
-            Column(
-                modifier = Modifier.width(44.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+
+            Spacer(Modifier.height(if (compact) 14.dp else 18.dp))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(tileH),
+                horizontalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                IconFocusButton(
-                    normal = R.mipmap.history_btn_n,
-                    focused = R.mipmap.history_btn,
-                    onClick = { onOpen(HomeSection.RECENTS) }
-                )
-                IconFocusButton(
-                    normal = R.mipmap.fav_btn_n,
-                    focused = R.mipmap.fav_btn,
-                    onClick = { onOpen(HomeSection.FAVORITES) }
-                )
+                navTiles.forEachIndexed { index, tile ->
+                    SpotlightNavTile(
+                        tile = tile,
+                        showVisualizer = tile.section == HomeSection.LIVE,
+                        onClick = { onOpen(tile.section) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .then(
+                                if (index == 0) Modifier.focusRequester(liveFocus) else Modifier
+                            )
+                    )
+                }
+                Column(
+                    modifier = Modifier.width(if (compact) 40.dp else 44.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    IconFocusButton(
+                        normal = R.mipmap.history_btn_n,
+                        focused = R.mipmap.history_btn,
+                        onClick = { onOpen(HomeSection.RECENTS) }
+                    )
+                    IconFocusButton(
+                        normal = R.mipmap.fav_btn_n,
+                        focused = R.mipmap.fav_btn,
+                        onClick = { onOpen(HomeSection.FAVORITES) }
+                    )
+                }
             }
         }
     }
@@ -284,121 +392,172 @@ private fun FlujoExactHome(
 @Composable
 private fun HeaderBar(
     clock: ClockParts,
-    onSettings: () -> Unit,
-    onSearch: () -> Unit
+    onSettings: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(40.dp),
+            .height(42.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Image(
             painter = painterResource(R.drawable.brand_logo),
             contentDescription = "SEÑAL",
             contentScale = ContentScale.Fit,
-            modifier = Modifier.height(36.dp)
+            modifier = Modifier
+                .height(38.dp)
+                .widthIn(max = 160.dp)
         )
         Box(modifier = Modifier.weight(1f))
         Image(
             painter = painterResource(R.mipmap.ic_ethernet_connect),
             contentDescription = null,
-            modifier = Modifier.height(22.dp)
+            modifier = Modifier.height(20.dp)
         )
-        Spacer(Modifier.width(18.dp))
+        Spacer(Modifier.width(16.dp))
         Text(
             text = clock.time,
             color = Color.White,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Medium
+            fontSize = 26.sp,
+            fontWeight = FontWeight.SemiBold,
+            fontFamily = FontFamily.SansSerif,
+            letterSpacing = 0.5.sp
         )
-        Spacer(Modifier.width(6.dp))
+        Spacer(Modifier.width(8.dp))
         Column {
-            Text(clock.week, color = Color.White, fontSize = 10.sp)
-            Text(clock.date, color = Color.White, fontSize = 10.sp)
+            Text(
+                text = clock.week,
+                color = Color.White.copy(0.9f),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = clock.date,
+                color = Color.White.copy(0.75f),
+                fontSize = 11.sp
+            )
         }
-        Spacer(Modifier.width(20.dp))
+        Spacer(Modifier.width(18.dp))
         IconFocusButton(
             normal = R.mipmap.ic_settings_n,
             focused = R.mipmap.ic_settings_h,
             onClick = onSettings,
-            size = 30.dp
+            size = 32.dp
         )
     }
 }
 
 @Composable
-private fun LivePreviewCard(
+private fun SpotlightHero(
     item: CatalogItem?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var focused by remember { mutableStateOf(false) }
+    val pulse by animateFloatAsState(
+        targetValue = if (focused) 1f else 0f,
+        animationSpec = tween(220),
+        label = "heroPulse"
+    )
+
     Surface(
         onClick = onClick,
         modifier = modifier
-            .then(rememberFlujoFocusModifier(focused, big = true))
+            .graphicsLayer {
+                scaleX = 1f + 0.02f * pulse
+                scaleY = 1f + 0.02f * pulse
+            }
+            .drawBehind {
+                if (pulse > 0f) {
+                    drawRoundRect(
+                        color = BrandOrangeHot.copy(alpha = 0.28f * pulse),
+                        cornerRadius = CornerRadius(18.dp.toPx()),
+                        size = Size(size.width + 10.dp.toPx(), size.height + 10.dp.toPx()),
+                        topLeft = Offset(-5.dp.toPx(), -5.dp.toPx())
+                    )
+                }
+            }
             .onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color.Black,
-            focusedContainerColor = Color.Black
+            containerColor = Color(0xFF071018),
+            focusedContainerColor = Color(0xFF071018)
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
         content = {
-            Box(Modifier.fillMaxSize()) {
-                if (focused) {
-                    Image(
-                        painter = painterResource(R.mipmap.bg_shadow_large),
-                        contentDescription = null,
-                        contentScale = ContentScale.FillBounds,
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(12.dp))
+                    .border(
+                        width = if (focused) 2.5.dp else 1.dp,
+                        color = if (focused) BrandOrangeHot else Color.White.copy(0.12f),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+            ) {
+                val art = item?.resolvePoster() ?: item?.resolveLogo()
+                if (!art.isNullOrBlank()) {
+                    AsyncImage(
+                        model = art,
+                        contentDescription = item?.resolveTitle(),
+                        contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
+                } else {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(Color(0xFF0A2A38), Color(0xFF050A10))
+                                )
+                            )
+                    )
                 }
+
                 Box(
                     Modifier
                         .fillMaxSize()
-                        .padding(if (focused) 7.dp else 0.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(Color.Black)
-                ) {
-                    if (item != null) {
-                        AsyncImage(
-                            model = item.resolvePoster() ?: item.resolveLogo(),
-                            contentDescription = item.resolveTitle(),
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                0f to Color.Black.copy(0.15f),
+                                0.45f to Color.Black.copy(0.35f),
+                                1f to Color.Black.copy(0.88f)
+                            )
                         )
-                    }
-                    Box(
-                        Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth()
-                            .height(39.dp)
-                            .background(
-                                Brush.horizontalGradient(
-                                    listOf(Color(0xCC000000), Color(0x99000000))
-                                )
-                            )
-                            .padding(horizontal = 16.dp),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                Modifier
-                                    .size(6.dp)
-                                    .background(BrandOrange, RoundedCornerShape(50))
-                            )
-                            Spacer(Modifier.width(9.dp))
-                            Text(
-                                text = item?.resolveTitle() ?: "Señal en vivo",
-                                color = Color.White,
-                                fontSize = 12.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
+                )
+
+                Column(
+                    Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(horizontal = 20.dp, vertical = 18.dp)
+                        .fillMaxWidth(0.92f)
+                ) {
+                    Text(
+                        text = "SEÑAL Spotlight",
+                        color = BrandOrangeHot,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.2.sp
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = item?.resolveTitle()?.let { "“$it”" } ?: "Tu señal, al instante",
+                        color = Color.White,
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        lineHeight = 30.sp
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SpotlightTag(tagForType(item))
+                        item?.year?.let { SpotlightTag("$it") }
+                        item?.resolveGenre()?.takeIf { it.isNotBlank() }?.split(",")?.firstOrNull()
+                            ?.trim()?.take(12)?.let { SpotlightTag(it) }
+                        if (item?.contentType() == ContentType.SERIES) SpotlightTag("Series")
+                        if (item?.contentType() == ContentType.MOVIE) SpotlightTag("Film")
                     }
                 }
             }
@@ -407,157 +566,75 @@ private fun LivePreviewCard(
 }
 
 @Composable
-private fun NewsBannerStack(
-    items: List<com.senal.tv.data.api.BannerItem>,
-    modifier: Modifier = Modifier
-) {
-    val display = if (items.isEmpty()) {
-        listOf(
-            com.senal.tv.data.api.BannerItem(
-                title = "SEÑAL",
-                body = "Noticias y avisos del administrador aparecerán aquí."
-            ),
-            com.senal.tv.data.api.BannerItem(
-                title = "Panel admin",
-                body = "Escribe mensajes desde el servidor SEÑAL."
-            )
-        )
-    } else {
-        items.take(2).let { list ->
-            if (list.size == 1) list + list else list
-        }
-    }
-
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+private fun SpotlightTag(label: String) {
+    Box(
+        Modifier
+            .clip(RoundedCornerShape(4.dp))
+            .background(Color.White.copy(0.14f))
+            .border(1.dp, Color.White.copy(0.22f), RoundedCornerShape(4.dp))
+            .padding(horizontal = 8.dp, vertical = 3.dp)
     ) {
-        display.take(2).forEach { item ->
-            var focused by remember { mutableStateOf(false) }
-            Surface(
-                onClick = {},
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .then(rememberFlujoFocusModifier(focused, big = false))
-                    .onFocusChanged { focused = it.isFocused },
-                shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(5.dp)),
-                colors = ClickableSurfaceDefaults.colors(
-                    containerColor = Color(0xFF0E1520),
-                    focusedContainerColor = Color(0xFF121C28)
-                ),
-                scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
-                content = {
-                    Box(Modifier.fillMaxSize()) {
-                        item.art()?.let { url ->
-                            AsyncImage(
-                                model = url,
-                                contentDescription = item.headline(),
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                            Box(Modifier.fillMaxSize().background(Color.Black.copy(0.45f)))
-                        } ?: Box(
-                            Modifier
-                                .fillMaxSize()
-                                .background(
-                                    Brush.linearGradient(
-                                        listOf(Color(0xFF0B3A4A), Color(0xFF071018))
-                                    )
-                                )
-                        )
-                        Column(
-                            Modifier
-                                .align(Alignment.BottomStart)
-                                .padding(14.dp)
-                        ) {
-                            Text(
-                                text = "AVISO",
-                                color = Color(0xFF3EC4E8),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.5.sp
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = item.headline(),
-                                color = Color.White,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            val body = item.text()
-                            if (body.isNotBlank() && body != item.headline()) {
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    text = body,
-                                    color = Color.White.copy(0.82f),
-                                    fontSize = 13.sp,
-                                    maxLines = 3,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                    }
-                }
-            )
-        }
+        Text(
+            text = label,
+            color = Color.White.copy(0.92f),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 0.4.sp
+        )
     }
 }
 
+private fun tagForType(item: CatalogItem?): String = when (item?.contentType()) {
+    ContentType.LIVE -> "LIVE"
+    ContentType.MOVIE -> "4K"
+    ContentType.SERIES -> "HD"
+    null -> "SEÑAL"
+}
+
 @Composable
-private fun SenalNavTile(
-    label: String,
-    accent: Color,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+private fun LiveNowChip(
+    item: CatalogItem?,
+    onClick: () -> Unit
 ) {
     var focused by remember { mutableStateOf(false) }
-    // Botones «gordos»: tipografía Display negra, bordes gruesos, bloque sólido.
     Surface(
         onClick = onClick,
-        modifier = modifier
-            .then(rememberFlujoFocusModifier(focused, big = true))
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(36.dp)
             .onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(6.dp)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Transparent,
-            focusedContainerColor = Color.Transparent
+            focusedContainerColor = Color.White.copy(0.06f)
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
         content = {
-            Box(
+            Row(
                 Modifier
                     .fillMaxSize()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(
-                        if (focused) {
-                            Brush.verticalGradient(listOf(accent, accent.copy(alpha = 0.75f)))
-                        } else {
-                            Brush.verticalGradient(
-                                listOf(
-                                    Color(0xFF1A222C),
-                                    Color(0xFF0A0E14)
-                                )
-                            )
-                        }
-                    )
-                    .border(
-                        width = if (focused) 4.dp else 3.dp,
-                        color = if (focused) Color.White else accent,
-                        shape = RoundedCornerShape(8.dp)
-                    )
-                    .padding(horizontal = 6.dp),
-                contentAlignment = Alignment.Center
+                    .padding(horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                Box(
+                    Modifier
+                        .size(7.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(if (focused) BrandOrangeHot else BrandOrange)
+                )
+                Spacer(Modifier.width(8.dp))
                 Text(
-                    text = label,
-                    color = Color.White,
-                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                    fontWeight = FontWeight.Black,
-                    fontSize = if (focused) 20.sp else 18.sp,
-                    letterSpacing = (-0.5).sp,
+                    text = "✓",
+                    color = BrandOrangeHot,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = item?.resolveTitle() ?: "Señal en vivo",
+                    color = Color.White.copy(if (focused) 1f else 0.88f),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -567,18 +644,451 @@ private fun SenalNavTile(
 }
 
 @Composable
+private fun RightRail(
+    newsBanners: List<BannerItem>,
+    newReleases: List<CatalogItem>,
+    onOpenCatalog: () -> Unit,
+    onPlayItem: (CatalogItem) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val news = newsBanners.firstOrNull() ?: BannerItem(
+        title = "SEÑAL News",
+        body = "Avisos del administrador aparecen aquí."
+    )
+
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        NewsPickCard(
+            item = news,
+            modifier = Modifier
+                .weight(0.42f)
+                .fillMaxWidth()
+        )
+        SystemStatusCard(
+            modifier = Modifier
+                .heightIn(min = 56.dp, max = 72.dp)
+                .fillMaxWidth()
+        )
+        NewReleasesCard(
+            items = newReleases,
+            onOpen = onOpenCatalog,
+            onPlayItem = onPlayItem,
+            modifier = Modifier
+                .weight(0.58f)
+                .fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+private fun NewsPickCard(
+    item: BannerItem,
+    modifier: Modifier = Modifier
+) {
+    var focused by remember { mutableStateOf(false) }
+    Surface(
+        onClick = {},
+        modifier = modifier.onFocusChanged { focused = it.isFocused },
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = Color(0xFF0B141C),
+            focusedContainerColor = Color(0xFF12202C)
+        ),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
+        content = {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(10.dp))
+                    .border(
+                        1.dp,
+                        if (focused) BrandOrangeHot.copy(0.7f) else Color.White.copy(0.1f),
+                        RoundedCornerShape(10.dp)
+                    )
+            ) {
+                item.art()?.let { url ->
+                    AsyncImage(
+                        model = url,
+                        contentDescription = item.headline(),
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    Box(Modifier.fillMaxSize().background(Color.Black.copy(0.5f)))
+                } ?: Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.linearGradient(
+                                listOf(Color(0xFF123848), Color(0xFF071018))
+                            )
+                        )
+                )
+                Column(
+                    Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(12.dp)
+                ) {
+                    Text(
+                        text = "Geek Picks",
+                        color = BrandOrangeHot,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = item.headline(),
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    val body = item.text()
+                    if (body.isNotBlank() && body != item.headline()) {
+                        Spacer(Modifier.height(3.dp))
+                        Text(
+                            text = body,
+                            color = Color.White.copy(0.8f),
+                            fontSize = 12.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        }
+    )
+}
+
+@Composable
+private fun SystemStatusCard(modifier: Modifier = Modifier) {
+    val shimmer = rememberInfiniteTransition(label = "status")
+    val phase by shimmer.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "phase"
+    )
+
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color(0xFF0B141C))
+            .border(1.dp, Color.White.copy(0.1f), RoundedCornerShape(10.dp))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = "System Status",
+            color = Color.White,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+        Text(
+            text = "Señal · catálogo local",
+            color = TextMuted,
+            fontSize = 10.sp
+        )
+        Spacer(Modifier.height(6.dp))
+        Canvas(
+            Modifier
+                .fillMaxWidth()
+                .height(10.dp)
+        ) {
+            val colors = listOf(
+                Color(0xFF1A9BC4),
+                Color(0xFF3EC4E8),
+                Color(0xFF4DB8A0),
+                Color(0xFF7EB8C8),
+                Color(0xFF2AA8C0)
+            )
+            val seg = size.width / colors.size
+            colors.forEachIndexed { i, c ->
+                val boost = 0.55f + 0.45f * ((sin((phase + i * 0.18f) * Math.PI * 2).toFloat() + 1f) / 2f)
+                drawRoundRect(
+                    color = c.copy(alpha = boost),
+                    topLeft = Offset(i * seg + 1.dp.toPx(), 0f),
+                    size = Size(seg - 2.dp.toPx(), size.height),
+                    cornerRadius = CornerRadius(3.dp.toPx())
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun NewReleasesCard(
+    items: List<CatalogItem>,
+    onOpen: () -> Unit,
+    onPlayItem: (CatalogItem) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var focused by remember { mutableStateOf(false) }
+    Surface(
+        onClick = onOpen,
+        modifier = modifier.onFocusChanged { focused = it.isFocused },
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = Color(0xFF0B141C),
+            focusedContainerColor = Color(0xFF12202C)
+        ),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
+        content = {
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(10.dp))
+                    .border(
+                        1.dp,
+                        if (focused) BrandOrangeHot.copy(0.7f) else Color.White.copy(0.1f),
+                        RoundedCornerShape(10.dp)
+                    )
+                    .padding(10.dp)
+            ) {
+                Text(
+                    text = "New Releases",
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(8.dp))
+                Column(
+                    Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    items.take(3).forEach { item ->
+                        ReleaseRow(item = item, onClick = { onPlayItem(item) })
+                    }
+                    if (items.isEmpty()) {
+                        Text(
+                            text = "El catálogo se llenará al sincronizar.",
+                            color = TextMuted,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+            }
+        }
+    )
+}
+
+@Composable
+private fun ReleaseRow(
+    item: CatalogItem,
+    onClick: () -> Unit
+) {
+    var focused by remember { mutableStateOf(false) }
+    Surface(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .onFocusChanged { focused = it.isFocused },
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(6.dp)),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = if (focused) Color.White.copy(0.08f) else Color.Transparent,
+            focusedContainerColor = Color.White.copy(0.1f)
+        ),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
+        content = {
+            Row(
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AsyncImage(
+                    model = item.resolvePoster() ?: item.resolveLogo(),
+                    contentDescription = item.resolveTitle(),
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(width = 34.dp, height = 44.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(Color(0xFF152028))
+                )
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = item.resolveTitle(),
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = when (item.contentType()) {
+                            ContentType.SERIES -> "Serie"
+                            ContentType.MOVIE -> "Película"
+                            else -> "Contenido"
+                        },
+                        color = TextMuted,
+                        fontSize = 11.sp,
+                        maxLines = 1
+                    )
+                }
+            }
+        }
+    )
+}
+
+@Composable
+private fun SpotlightNavTile(
+    tile: NavTile,
+    showVisualizer: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var focused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (focused) 1.04f else 1f,
+        animationSpec = tween(180),
+        label = "tileScale"
+    )
+
+    Surface(
+        onClick = onClick,
+        modifier = modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .drawBehind {
+                if (focused) {
+                    drawRoundRect(
+                        color = tile.accent.copy(alpha = 0.4f),
+                        cornerRadius = CornerRadius(14.dp.toPx()),
+                        size = Size(size.width + 8.dp.toPx(), size.height + 8.dp.toPx()),
+                        topLeft = Offset(-4.dp.toPx(), -4.dp.toPx())
+                    )
+                }
+            }
+            .onFocusChanged { focused = it.isFocused },
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = Color.Transparent,
+            focusedContainerColor = Color.Transparent
+        ),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
+        content = {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(10.dp))
+                    .border(
+                        width = if (focused) 2.5.dp else 1.dp,
+                        color = if (focused) BrandOrangeHot else Color.White.copy(0.14f),
+                        shape = RoundedCornerShape(10.dp)
+                    )
+            ) {
+                Image(
+                    painter = painterResource(if (focused) tile.focusedRes else tile.normalRes),
+                    contentDescription = tile.label,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    Color.Black.copy(if (focused) 0.15f else 0.35f),
+                                    Color.Black.copy(if (focused) 0.45f else 0.62f)
+                                )
+                            )
+                        )
+                )
+                Column(
+                    Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                ) {
+                    Text(
+                        text = tile.label,
+                        color = Color.White,
+                        fontSize = if (focused) 16.sp else 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.6.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = tile.subtitle,
+                        color = Color.White.copy(0.72f),
+                        fontSize = 10.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (showVisualizer && focused) {
+                        Spacer(Modifier.height(6.dp))
+                        AudioBars(
+                            color = BrandOrangeHot,
+                            modifier = Modifier
+                                .fillMaxWidth(0.55f)
+                                .height(12.dp)
+                        )
+                    }
+                }
+            }
+        }
+    )
+}
+
+@Composable
+private fun AudioBars(
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    val t = rememberInfiniteTransition(label = "bars")
+    val phase by t.animateFloat(
+        initialValue = 0f,
+        targetValue = (Math.PI * 2).toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(900, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "barPhase"
+    )
+    Canvas(modifier) {
+        val bars = 7
+        val gap = 3.dp.toPx()
+        val w = (size.width - gap * (bars - 1)) / bars
+        for (i in 0 until bars) {
+            val h = size.height * (0.25f + 0.75f * ((sin(phase + i * 0.7f) + 1f) / 2f))
+            drawRoundRect(
+                color = color,
+                topLeft = Offset(i * (w + gap), size.height - h),
+                size = Size(w, h),
+                cornerRadius = CornerRadius(2.dp.toPx())
+            )
+        }
+    }
+}
+
+@Composable
 private fun IconFocusButton(
     normal: Int,
     focused: Int,
     onClick: () -> Unit,
-    size: androidx.compose.ui.unit.Dp = 30.dp
+    size: Dp = 30.dp
 ) {
     var isFocused by remember { mutableStateOf(false) }
     Surface(
         onClick = onClick,
         modifier = Modifier
             .size(size)
-            .then(rememberFlujoFocusModifier(isFocused, big = false))
+            .graphicsLayer {
+                val s = if (isFocused) 1.08f else 1f
+                scaleX = s
+                scaleY = s
+            }
             .onFocusChanged { isFocused = it.isFocused },
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(4.dp)),
         colors = ClickableSurfaceDefaults.colors(
@@ -616,7 +1126,9 @@ private fun SectionBody(
                     painter = painterResource(R.drawable.brand_logo),
                     contentDescription = "SEÑAL",
                     contentScale = ContentScale.Fit,
-                    modifier = Modifier.height(32.dp)
+                    modifier = Modifier
+                        .height(32.dp)
+                        .widthIn(max = 140.dp)
                 )
                 FocusableButton(label = "INICIO", onClick = onBack, primary = true)
             }
@@ -625,7 +1137,7 @@ private fun SectionBody(
         AnimatedContent(
             targetState = section,
             transitionSpec = {
-                fadeIn(tween(220)) togetherWith fadeOut(tween(160))
+                fadeIn(tween(200)) togetherWith fadeOut(tween(140))
             },
             modifier = Modifier.weight(1f),
             label = "section",
@@ -634,7 +1146,6 @@ private fun SectionBody(
                     when (current) {
                         HomeSection.LIVE -> {
                             LiveTvScreen(container) { item, n -> onPlay(item, 0L, n) }
-                            // Volver sin tapar la guía de categorías (esquina superior derecha).
                             FocusableButton(
                                 label = "INICIO",
                                 onClick = onBack,
@@ -666,9 +1177,8 @@ private data class ClockParts(val time: String, val week: String, val date: Stri
 
 private fun nowParts(): ClockParts {
     val now = Date()
-    val cal = Calendar.getInstance()
     val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(now)
-    val week = SimpleDateFormat("EEE", Locale("es")).format(now).uppercase(Locale.getDefault())
+    val week = SimpleDateFormat("EEE", Locale("es")).format(now).lowercase(Locale.getDefault())
     val date = SimpleDateFormat("dd/MM", Locale.getDefault()).format(now)
     return ClockParts(time, week, date)
 }
