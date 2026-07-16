@@ -21,6 +21,7 @@ import com.senal.tv.ui.login.LoginScreen
 import com.senal.tv.ui.player.PlayerScreen
 import com.senal.tv.ui.splash.SplashScreen
 import com.senal.tv.ui.theme.SenalTheme
+import com.senal.tv.util.DeviceUi
 import com.senal.tv.util.rememberAppContainer
 
 class MainActivity : ComponentActivity() {
@@ -92,7 +93,8 @@ private fun SenalRoot() {
         )
         AppRoute.Home -> HomeScreen(
             container = container,
-            autoPlayLastChannel = !lastChannelAutoPlayed,
+            // Tablet SM-X200: sin autoplay a pantalla completa; el usuario elige EN VIVO.
+            autoPlayLastChannel = DeviceUi.autoPlayLastChannelDefault && !lastChannelAutoPlayed,
             onPlay = { item, start, neighbors ->
                 lastChannelAutoPlayed = true
                 route = AppRoute.Player(
