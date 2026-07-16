@@ -99,6 +99,56 @@ class PlaylistSync(
             ?: SyncResult("none", playlistStore.size(), false, "No se pudo descargar playlist")
     }
 
+    /**
+     * Descarga una M3U pública (p. ej. lista de prueba) y la aplica como catálogo EN VIVO local.
+     * Sustituye la caché en disco hasta que se vuelva a “Actualizar lista desde servidor”.
+     */
+    suspend fun loadFromRemoteM3u(url: String = TEST_PLAYLIST_URL): SyncResult = withContext(Dispatchers.IO) {
+        val req = Request.Builder()
+            .url(url)
+            .header("User-Agent", "SEÑAL-TV/${BuildConfig.VERSION_NAME} (Android; playlist-test)")
+            .header("Accept", "audio/x-mpegurl, application/vnd.apple.mpegurl, text/plain, */*")
+            .get()
+            .build()
+        runCatching {
+            client.newCall(req).execute().use { resp ->
+                if (resp.code !in 200..299) {
+                    return@withContext SyncResult("none", playlistStore.size(), false, "HTTP ${resp.code}")
+                }
+                var body = resp.body?.bytes() ?: return@withContext SyncResult(
+                    "none", playlistStore.size(), false, "Lista vacía"
+                )
+                // Algunas listas públicas omiten #EXTM3U
+                val text = body.toString(Charsets.UTF_8)
+                if (!text.contains("#EXTINF", ignoreCase = true)) {
+                    return@withContext SyncResult("none", playlistStore.size(), false, "No parece un M3U válido")
+                }
+                if (!text.trimStart().startsWith("#EXTM3U", ignoreCase = true)) {
+                    body = ("#EXTM3U\n$text").toByteArray(Charsets.UTF_8)
+                }
+                val tmp = File(cacheDir, "playlist.tmp.gz")
+                GZIPOutputStream(tmp.outputStream()).use { it.write(body) }
+                tmp.copyTo(cacheFile, overwrite = true)
+                tmp.delete()
+                playlistStore.loadFromGzipFile(cacheFile)
+                settingsStore.setPlaylistMeta(
+                    etag = "test:$url",
+                    syncedAt = System.currentTimeMillis(),
+                    channels = playlistStore.size()
+                )
+                SyncResult("test-m3u", playlistStore.size(), updated = true)
+            }
+        }.getOrElse {
+            SyncResult("none", playlistStore.size(), false, it.message ?: "No se pudo descargar la lista")
+        }
+    }
+
+    companion object {
+        /** Lista pública de prueba (Duartegame/listas). */
+        const val TEST_PLAYLIST_URL =
+            "https://raw.githubusercontent.com/Duartegame/listas/main/canalesgratistvpro"
+    }
+
     private suspend fun downloadAndApply(token: String): SyncResult? {
         val base = BuildConfig.API_BASE_URL.trimEnd('/')
         val url = "$base/playlist.m3u"
