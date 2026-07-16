@@ -1,5 +1,6 @@
 package com.senal.tv.ui.settings
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -58,6 +59,13 @@ fun SettingsScreen(
     var mode by remember { mutableStateOf(SettingsMode.Menu) }
     var status by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
+
+    // BACK en subpantallas de ajustes → menú de ajustes (luego el home maneja el siguiente).
+    BackHandler(enabled = mode != SettingsMode.Menu) {
+        error = null
+        status = null
+        mode = SettingsMode.Menu
+    }
 
     Column(
         modifier = Modifier

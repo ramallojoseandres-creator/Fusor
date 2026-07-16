@@ -2,6 +2,7 @@ package com.senal.tv.ui.live
 
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -107,6 +108,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun LiveTvScreen(
     container: AppContainer,
+    onBack: () -> Unit = {},
     onPlay: (CatalogItem, List<CatalogItem>) -> Unit
 ) {
     val context = LocalContext.current
@@ -166,6 +168,15 @@ fun LiveTvScreen(
         }
         delay(5_000)
         if (playError == null) hudVisible = false
+    }
+
+    // BACK: cierra la guía → vuelve al home (no sale de la app).
+    BackHandler {
+        if (guideVisible) {
+            guideVisible = false
+        } else {
+            onBack()
+        }
     }
 
     // Al abrir la guía: categoría del canal en aire + scroll + foco en ese canal (no en categorías).
@@ -396,7 +407,18 @@ fun LiveTvScreen(
                     code == android.view.KeyEvent.KEYCODE_MENU ||
                         code == android.view.KeyEvent.KEYCODE_TV_CONTENTS_MENU ||
                         event.key == Key.Menu
+                val isBack =
+                    event.key == Key.Back ||
+                        code == android.view.KeyEvent.KEYCODE_BACK
                 when {
+                    isBack && guiding -> {
+                        guideVisible = false
+                        true
+                    }
+                    isBack && !guiding -> {
+                        onBack()
+                        true
+                    }
                     (isSelect || isMenu) && !guiding -> {
                         showGuide()
                         true

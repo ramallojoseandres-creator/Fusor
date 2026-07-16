@@ -1,5 +1,8 @@
 package com.senal.tv.ui.home
 
+import android.app.Activity
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -35,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -52,6 +56,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -165,6 +170,28 @@ fun HomeScreen(
     var newsBanners by remember { mutableStateOf<List<BannerItem>>(emptyList()) }
     var clock by remember { mutableStateOf(nowParts()) }
     var didAutoPlay by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val activity = context as? Activity
+    var lastBackPressAt by remember { mutableLongStateOf(0L) }
+
+    // Dentro de una sección → volver al home. En live, LiveTvScreen intercepta primero (guía).
+    BackHandler(enabled = section != null) {
+        section = null
+    }
+    // En la página principal: doble atrás para salir de la app.
+    BackHandler(enabled = section == null) {
+        val now = System.currentTimeMillis()
+        if (now - lastBackPressAt < 2_000L) {
+            activity?.finish()
+        } else {
+            lastBackPressAt = now
+            Toast.makeText(
+                context,
+                "Pulsa atrás otra vez para salir",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -1325,8 +1352,11 @@ private fun SectionBody(
                 Box(Modifier.fillMaxSize()) {
                     when (current) {
                         HomeSection.LIVE -> {
-                            // Sin botón INICIO: BACK del mando vuelve al home.
-                            LiveTvScreen(container) { item, n -> onPlay(item, 0L, n) }
+                            // BACK: cierra guía → home (sin botón INICIO).
+                            LiveTvScreen(
+                                container = container,
+                                onBack = onBack
+                            ) { item, n -> onPlay(item, 0L, n) }
                         }
                         HomeSection.MOVIES -> MoviesScreen(container) { onPlay(it, 0L, listOf(it)) }
                         HomeSection.SERIES -> SeriesScreen(container) { onPlay(it, 0L, listOf(it)) }
