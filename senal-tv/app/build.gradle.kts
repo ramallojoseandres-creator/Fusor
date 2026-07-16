@@ -14,14 +14,25 @@ android {
         applicationId = "com.senal.tv"
         minSdk = 24
         targetSdk = 35
-        versionCode = 31
-        versionName = "1.10.4"
+        versionCode = 32
+        versionName = "1.10.5"
         buildConfigField("String", "API_BASE_URL", "\"http://185.192.20.245:3000/\"")
         vectorDrawables.useSupportLibrary = true
     }
 
+    signingConfigs {
+        create("release") {
+            val debugStore = file(System.getProperty("user.home") + "/.android/debug.keystore")
+            storeFile = debugStore
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
