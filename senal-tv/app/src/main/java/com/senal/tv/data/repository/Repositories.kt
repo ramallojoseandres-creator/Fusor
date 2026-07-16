@@ -119,11 +119,11 @@ class AuthRepository(
 }
 
 /**
- * Catálogo 100 % local desde la lista M3U embebida en la APK.
- * Búsqueda y playback resuelven URLs locales — sin round-trip al servidor.
+ * Catálogo local (EN VIVO desde M3U SEÑAL) + PELÍCULAS remotas (iptv-org).
  */
 class CatalogRepository(
-    private val playlist: LocalPlaylistStore
+    private val playlist: LocalPlaylistStore,
+    private val remoteMovies: com.senal.tv.data.local.RemoteMoviesStore? = null
 ) {
     suspend fun categories(type: String): List<Category> = withContext(Dispatchers.IO) {
         playlist.categories(type)
@@ -141,7 +141,7 @@ class CatalogRepository(
     }
 
     suspend fun get(id: String): CatalogItem? = withContext(Dispatchers.IO) {
-        playlist.get(id)
+        playlist.get(id) ?: remoteMovies?.get(id)
     }
 
     suspend fun page(
@@ -150,7 +150,12 @@ class CatalogRepository(
         page: Int = 1,
         limit: Int = 60
     ): CatalogResponse = withContext(Dispatchers.IO) {
-        playlist.page(type = type, category = category, page = page, limit = limit)
+        val kind = type.lowercase()
+        if ((kind == "movie" || kind == "movies" || kind == "vod") && remoteMovies != null) {
+            remoteMovies.page(page = page, limit = limit)
+        } else {
+            playlist.page(type = type, category = category, page = page, limit = limit)
+        }
     }
 
     suspend fun search(query: String): List<CatalogItem> = withContext(Dispatchers.IO) {
@@ -158,7 +163,9 @@ class CatalogRepository(
     }
 
     suspend fun playback(id: String): PlaybackResponse = withContext(Dispatchers.IO) {
-        playlist.playback(id)
+        runCatching { playlist.playback(id) }.getOrElse {
+            remoteMovies?.playback(id) ?: throw it
+        }
     }
 
     fun clearMemory() {

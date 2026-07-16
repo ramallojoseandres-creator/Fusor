@@ -258,6 +258,32 @@ fun PlayerScreen(
     LaunchedEffect(current, requestKey) {
         loading = true
         error = null
+        fun startPlayback(url: String, headersIn: Map<String, String>) {
+            val start = if (current.resolveId() == item.resolveId()) startPositionMs else C.TIME_UNSET
+            val headers = headersIn.toMutableMap()
+            current.userAgent?.takeIf { it.isNotBlank() }?.let {
+                headers.putIfAbsent("User-Agent", it)
+            }
+            val mediaItem = MediaItem.fromUri(url)
+            if (headers.isNotEmpty()) {
+                val httpFactory = DefaultHttpDataSource.Factory()
+                    .setAllowCrossProtocolRedirects(true)
+                    .setConnectTimeoutMs(12_000)
+                    .setReadTimeoutMs(20_000)
+                    .setDefaultRequestProperties(headers)
+                val source = if (url.contains(".m3u8", ignoreCase = true)) {
+                    HlsMediaSource.Factory(httpFactory).createMediaSource(mediaItem)
+                } else {
+                    DefaultMediaSourceFactory(httpFactory).createMediaSource(mediaItem)
+                }
+                player.setMediaSource(source, start)
+            } else {
+                player.setMediaItem(mediaItem, start)
+            }
+            player.prepare()
+            player.play()
+            scope.launch { container.libraryRepository.markHistory(current) }
+        }
         runCatching { container.catalogRepository.playback(current.resolveId()) }
             .onSuccess { playback ->
                 val url = playback.resolveUrl() ?: current.resolveStreamUrl()
@@ -266,34 +292,17 @@ fun PlayerScreen(
                     loading = false
                     return@onSuccess
                 }
-                val start = if (current.resolveId() == item.resolveId()) startPositionMs else C.TIME_UNSET
-                val headers = playback.headers.orEmpty().toMutableMap()
-                current.userAgent?.takeIf { it.isNotBlank() }?.let {
-                    headers.putIfAbsent("User-Agent", it)
-                }
-                val mediaItem = MediaItem.fromUri(url)
-                if (headers.isNotEmpty()) {
-                    val httpFactory = DefaultHttpDataSource.Factory()
-                        .setAllowCrossProtocolRedirects(true)
-                        .setConnectTimeoutMs(12_000)
-                        .setReadTimeoutMs(20_000)
-                        .setDefaultRequestProperties(headers)
-                    val source = if (url.contains(".m3u8", ignoreCase = true)) {
-                        HlsMediaSource.Factory(httpFactory).createMediaSource(mediaItem)
-                    } else {
-                        DefaultMediaSourceFactory(httpFactory).createMediaSource(mediaItem)
-                    }
-                    player.setMediaSource(source, start)
-                } else {
-                    player.setMediaItem(mediaItem, start)
-                }
-                player.prepare()
-                player.play()
-                container.libraryRepository.markHistory(current)
+                startPlayback(url, playback.headers.orEmpty())
             }
             .onFailure {
-                error = it.message ?: "Error al obtener reproducción"
-                loading = false
+                // Películas iptv-org / URLs directas en el CatalogItem
+                val direct = current.resolveStreamUrl()
+                if (!direct.isNullOrBlank()) {
+                    startPlayback(direct, emptyMap())
+                } else {
+                    error = it.message ?: "Error al obtener reproducción"
+                    loading = false
+                }
             }
     }
 

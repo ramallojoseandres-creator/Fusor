@@ -10,6 +10,7 @@ import coil.request.CachePolicy
 import com.senal.tv.data.api.NetworkModule
 import com.senal.tv.data.local.LocalPlaylistStore
 import com.senal.tv.data.local.PlaylistSync
+import com.senal.tv.data.local.RemoteMoviesStore
 import com.senal.tv.data.local.SenalDatabase
 import com.senal.tv.data.local.SettingsStore
 import com.senal.tv.data.local.TokenStore
@@ -73,9 +74,10 @@ class AppContainer(app: Application) {
         .build()
     val api = NetworkModule.createApi(tokenStore)
     val playlistStore = LocalPlaylistStore(app)
+    val remoteMoviesStore = RemoteMoviesStore(app)
     val playlistSync = PlaylistSync(app, tokenStore, settingsStore, playlistStore)
     val authRepository = AuthRepository(api, tokenStore, playlistSync)
-    val catalogRepository = CatalogRepository(playlistStore)
+    val catalogRepository = CatalogRepository(playlistStore, remoteMoviesStore)
     val libraryRepository = LibraryRepository(
         favoriteDao = db.favorites(),
         historyDao = db.history(),
