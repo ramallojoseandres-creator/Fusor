@@ -86,9 +86,7 @@ import com.senal.tv.ui.theme.BrandOrange
 import com.senal.tv.ui.theme.BrandOrangeHot
 import com.senal.tv.ui.theme.ChannelGold
 import com.senal.tv.ui.theme.Graphite
-import com.senal.tv.ui.theme.LiveGreen
 import com.senal.tv.ui.theme.LiveRed
-import com.senal.tv.ui.theme.LiveYellow
 import com.senal.tv.ui.theme.TextMuted
 import com.senal.tv.ui.theme.TextPrimary
 import com.senal.tv.util.CatalogRules
@@ -449,14 +447,15 @@ fun LiveTvScreen(
             exit = fadeOut(tween(140))
         ) {
             Box(Modifier.fillMaxSize()) {
+                // Soft veil — video stays visible on the right (not a full takeover).
                 Box(
                     Modifier
                         .fillMaxSize()
                         .background(
                             Brush.horizontalGradient(
-                                0f to Color.Black.copy(alpha = 0.78f),
-                                0.42f to Color.Black.copy(alpha = 0.45f),
-                                0.72f to Color.Black.copy(alpha = 0.15f),
+                                0f to Color.Black.copy(alpha = 0.55f),
+                                0.38f to Color.Black.copy(alpha = 0.28f),
+                                0.62f to Color.Black.copy(alpha = 0.08f),
                                 1f to Color.Transparent
                             )
                         )
@@ -476,30 +475,30 @@ fun LiveTvScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(start = 18.dp, top = 18.dp, bottom = 18.dp, end = 18.dp)
+                        .padding(start = 16.dp, top = 16.dp, bottom = 16.dp, end = 16.dp)
                 ) {
-                    val catW = if (DeviceUi.isTabletBuild) 240.dp else 210.dp
-                    val chW = if (DeviceUi.isTabletBuild) 400.dp else 360.dp
+                    val catW = if (DeviceUi.isTabletBuild) 220.dp else 190.dp
+                    val chW = if (DeviceUi.isTabletBuild) 360.dp else 320.dp
                     Column(
                         modifier = Modifier
                             .width(catW)
                             .fillMaxHeight()
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0xCC0A0E14))
-                            .border(1.dp, Color.White.copy(0.08f), RoundedCornerShape(16.dp))
-                            .padding(10.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color(0xB008101C))
+                            .border(1.dp, Color.White.copy(0.1f), RoundedCornerShape(14.dp))
+                            .padding(8.dp)
                     ) {
                         Text(
                             "CATEGORÍAS",
-                            color = LiveYellow,
+                            color = BrandOrangeHot,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
-                            letterSpacing = 1.5.sp,
+                            fontSize = 12.sp,
+                            letterSpacing = 1.2.sp,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
                         )
                         LazyColumn(
                             state = catListState,
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             if (loadingCats && categories.isEmpty()) {
                                 item {
@@ -514,53 +513,60 @@ fun LiveTvScreen(
                                 val active = category.label() == selected
                                 Surface(
                                     onClick = { selected = category.label() },
-                                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
+                                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
                                     colors = ClickableSurfaceDefaults.colors(
-                                        containerColor = if (active) LiveYellow else Color.Transparent,
-                                        focusedContainerColor = if (active) {
-                                            LiveYellow
+                                        containerColor = if (active) {
+                                            BrandOrange.copy(alpha = 0.28f)
                                         } else {
-                                            Color.White.copy(alpha = 0.14f)
-                                        }
-                                    ),
-                                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    val count = category.count
-                                    Text(
-                                        text = if (count != null && count > 0) {
-                                            "${category.label()} ($count)"
-                                        } else {
-                                            category.label()
+                                            Color.Transparent
                                         },
-                                        color = if (active) Color.Black else TextPrimary,
+                                        focusedContainerColor = BrandOrange.copy(alpha = 0.4f)
+                                    ),
+                                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .then(
+                                            if (active) {
+                                                Modifier.border(
+                                                    1.dp,
+                                                    BrandOrange.copy(0.55f),
+                                                    RoundedCornerShape(8.dp)
+                                                )
+                                            } else {
+                                                Modifier
+                                            }
+                                        )
+                                ) {
+                                    Text(
+                                        text = category.label(),
+                                        color = if (active) BrandOrangeHot else TextPrimary,
                                         fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
-                                        fontSize = 15.sp,
+                                        fontSize = 14.sp,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 11.dp)
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp)
                                     )
                                 }
                             }
                         }
                     }
 
-                    Spacer(Modifier.width(12.dp))
+                    Spacer(Modifier.width(10.dp))
 
                     Column(
                         modifier = Modifier
                             .width(chW)
                             .fillMaxHeight()
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0xCC0A0E14))
-                            .border(1.dp, Color.White.copy(0.08f), RoundedCornerShape(16.dp))
-                            .padding(10.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color(0xB008101C))
+                            .border(1.dp, Color.White.copy(0.1f), RoundedCornerShape(14.dp))
+                            .padding(8.dp)
                     ) {
                         Text(
                             selected?.uppercase() ?: "CANALES",
                             color = TextPrimary,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
+                            fontSize = 13.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
@@ -577,8 +583,8 @@ fun LiveTvScreen(
                                 Text("Sin canales", color = TextMuted, modifier = Modifier.padding(8.dp))
                             else -> LazyColumn(
                                 state = listState,
-                                verticalArrangement = Arrangement.spacedBy(6.dp),
-                                contentPadding = PaddingValues(bottom = 16.dp)
+                                verticalArrangement = Arrangement.spacedBy(2.dp),
+                                contentPadding = PaddingValues(bottom = 12.dp)
                             ) {
                                 items(channels, key = { it.resolveId() }) { channel ->
                                     val isOnAir = channel.resolveId() == playing?.resolveId()
@@ -608,132 +614,49 @@ fun LiveTvScreen(
                         }
                     }
 
-                    GuidePreviewPane(
-                        channel = playing,
-                        status = when {
-                            !guideReady -> "Preparando guía…"
-                            playError != null -> playError!!
-                            !allowPlayback -> "Guía lista…"
-                            buffering -> "Sintonizando…"
-                            else -> "OK = pantalla completa · ← → cambiar categoría"
-                        },
-                        statusError = playError != null,
+                    // Free video area — tap to dismiss; small status only.
+                    Box(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
-                            .padding(start = 16.dp)
+                            .padding(start = 12.dp)
                             .pointerInput(Unit) {
                                 detectTapGestures { guideVisible = false }
-                            }
-                    )
+                            },
+                        contentAlignment = Alignment.BottomStart
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth(0.85f)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color(0x99060A14))
+                                .padding(horizontal = 12.dp, vertical = 10.dp)
+                        ) {
+                            Text(
+                                text = playing?.resolveTitle() ?: "SEÑAL EN VIVO",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = when {
+                                    !guideReady -> "Preparando guía…"
+                                    playError != null -> playError!!
+                                    !allowPlayback -> "Guía lista…"
+                                    buffering -> "Sintonizando…"
+                                    else -> "SELECT = ver · Mantener = favorito"
+                                },
+                                color = if (playError != null) Color(0xFFFF8A80) else BrandOrangeHot,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(top = 2.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun GuidePreviewPane(
-    channel: CatalogItem?,
-    status: String,
-    statusError: Boolean,
-    modifier: Modifier = Modifier
-) {
-    val progress = remember(channel?.resolveId()) { fakeProgress(channel) }
-    val next = channel?.resolveNext().orEmpty()
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xB0060A14))
-            .border(1.dp, Color.White.copy(0.08f), RoundedCornerShape(16.dp))
-            .padding(14.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFF0A1820))
-        ) {
-            val art = channel?.resolvePoster() ?: channel?.resolveLogo()
-            if (!art.isNullOrBlank()) {
-                AsyncImage(
-                    model = art,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-                Box(Modifier.fillMaxSize().background(Color.Black.copy(0.35f)))
-            }
-            Row(
-                Modifier
-                    .align(Alignment.TopStart)
-                    .padding(10.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Box(
-                    Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(LiveRed)
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                ) {
-                    Text("● EN VIVO", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-            Box(
-                Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(10.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(Color.Black.copy(0.55f))
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
-            ) {
-                Text("HD", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-            }
-        }
-
-        Spacer(Modifier.height(12.dp))
-        val num = channel?.resolveNumber()
-        Text(
-            text = if (num != null) "$num ${channel.resolveTitle()}" else (channel?.resolveTitle() ?: "SEÑAL EN VIVO"),
-            color = Color.White,
-            fontWeight = FontWeight.Bold,
-            fontSize = 20.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Text(
-            text = channel?.resolveNow()?.ifBlank { "Programación en vivo" } ?: "Programación en vivo",
-            color = TextMuted,
-            fontSize = 13.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 2.dp)
-        )
-        Spacer(Modifier.height(8.dp))
-        ProgressBar(progress = progress, color = LiveYellow)
-        Spacer(Modifier.height(14.dp))
-        Text(
-            "A CONTINUACIÓN",
-            color = LiveYellow,
-            fontWeight = FontWeight.Bold,
-            fontSize = 12.sp,
-            letterSpacing = 1.sp
-        )
-        Spacer(Modifier.height(6.dp))
-        Text(
-            text = next.ifBlank { "Próximo programa próximamente" },
-            color = TextPrimary,
-            fontSize = 14.sp,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
-        Spacer(Modifier.height(10.dp))
-        Text(
-            text = status,
-            color = if (statusError) Color(0xFFFF8A80) else BrandOrangeHot,
-            fontSize = 12.sp
-        )
     }
 }
 
@@ -753,8 +676,8 @@ private fun LivePlayerHud(
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        ChannelMark(channel)
-        Spacer(Modifier.width(14.dp))
+        ChannelMark(channel, size = 44.dp)
+        Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val num = channel?.resolveNumber()
@@ -763,15 +686,15 @@ private fun LivePlayerHud(
                         text = "$num",
                         color = ChannelGold,
                         fontWeight = FontWeight.Black,
-                        fontSize = 26.sp
+                        fontSize = 22.sp
                     )
-                    Spacer(Modifier.width(10.dp))
+                    Spacer(Modifier.width(8.dp))
                 }
                 Text(
                     text = channel?.resolveTitle() ?: "SEÑAL EN VIVO",
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp,
+                    fontSize = 18.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false)
@@ -821,13 +744,13 @@ private fun LivePlayerHud(
 }
 
 @Composable
-private fun ChannelMark(channel: CatalogItem?) {
+private fun ChannelMark(channel: CatalogItem?, size: androidx.compose.ui.unit.Dp = 40.dp) {
     val initials = channelInitials(channel)
     val color = logoColor(channel)
     Box(
         modifier = Modifier
-            .size(52.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .size(size)
+            .clip(RoundedCornerShape(8.dp))
             .background(color),
         contentAlignment = Alignment.Center
     ) {
@@ -840,7 +763,7 @@ private fun ChannelMark(channel: CatalogItem?) {
                 modifier = Modifier.fillMaxSize()
             )
         } else {
-            Text(initials, color = Color.Black, fontWeight = FontWeight.Black, fontSize = 18.sp)
+            Text(initials, color = Color.Black, fontWeight = FontWeight.Black, fontSize = 14.sp)
         }
     }
 }
@@ -850,7 +773,7 @@ private fun ProgressBar(progress: Float, color: Color) {
     Box(
         Modifier
             .fillMaxWidth()
-            .height(4.dp)
+            .height(3.dp)
             .clip(RoundedCornerShape(2.dp))
             .background(Color.White.copy(0.15f))
     ) {
@@ -878,25 +801,19 @@ private fun GuideChannelRow(
         animationSpec = tween(140),
         label = "chScale"
     )
-    val progress = remember(item.resolveId()) { fakeProgress(item) }
     val epg = item.resolveNow().ifBlank { "En vivo" }
-    val borderColor = when {
-        focused -> LiveYellow
-        selected -> LiveGreen
-        else -> Color.Transparent
-    }
 
     Surface(
         onClick = onClick,
         onLongClick = onLongClick,
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = when {
-                focused -> Color(0xFF1A2438)
-                selected -> Color(0xFF121C28)
-                else -> Color.White.copy(alpha = 0.05f)
+                focused -> BrandOrange.copy(alpha = 0.85f)
+                selected -> BrandOrange.copy(alpha = 0.22f)
+                else -> Color.White.copy(alpha = 0.04f)
             },
-            focusedContainerColor = Color(0xFF1A2438)
+            focusedContainerColor = BrandOrange
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
         modifier = Modifier
@@ -910,54 +827,54 @@ private fun GuideChannelRow(
                 focused = it.isFocused
                 if (it.isFocused) onFocused()
             }
-            .border(
-                width = if (selected || focused) 1.5.dp else 0.dp,
-                color = borderColor,
-                shape = RoundedCornerShape(12.dp)
+            .then(
+                if (selected && !focused) {
+                    Modifier.border(1.dp, BrandOrange.copy(alpha = 0.45f), RoundedCornerShape(8.dp))
+                } else {
+                    Modifier
+                }
             )
     ) {
-        val rowPadV = if (DeviceUi.isTabletBuild) 12.dp else 9.dp
+        val rowPadV = if (DeviceUi.isTabletBuild) 11.dp else 7.dp
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = rowPadV),
+                .padding(horizontal = 8.dp, vertical = rowPadV),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ChannelMark(item)
-            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = (item.resolveNumber() ?: "·").toString(),
+                color = if (focused) Color.White else BrandOrangeHot,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp,
+                modifier = Modifier.width(34.dp)
+            )
+            AsyncImage(
+                model = item.resolveLogo(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(30.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Graphite)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (selected) {
-                        Box(
-                            Modifier
-                                .size(7.dp)
-                                .clip(RoundedCornerShape(50))
-                                .background(LiveRed)
-                        )
-                        Spacer(Modifier.width(6.dp))
-                    }
-                    Text(
-                        text = listOfNotNull(
-                            item.resolveNumber()?.toString(),
-                            item.resolveTitle()
-                        ).joinToString(" "),
-                        color = TextPrimary,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
                 Text(
-                    text = "$epg · ${(progress * 100).toInt()}%",
-                    color = TextMuted,
+                    text = item.resolveTitle(),
+                    color = if (focused) Color.White else TextPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = epg,
+                    color = if (focused) Color.White.copy(0.85f) else TextMuted,
                     fontSize = 11.sp,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 2.dp)
+                    overflow = TextOverflow.Ellipsis
                 )
-                Spacer(Modifier.height(5.dp))
-                ProgressBar(progress = progress, color = if (focused) LiveYellow else BrandOrange)
             }
         }
     }

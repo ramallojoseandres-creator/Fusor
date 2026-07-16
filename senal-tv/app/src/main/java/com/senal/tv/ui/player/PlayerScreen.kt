@@ -82,7 +82,6 @@ import com.senal.tv.ui.theme.BrandOrangeHot
 import com.senal.tv.ui.theme.ChannelGold
 import com.senal.tv.ui.theme.Graphite
 import com.senal.tv.ui.theme.LiveRed
-import com.senal.tv.ui.theme.LiveYellow
 import com.senal.tv.ui.theme.TextMuted
 import com.senal.tv.ui.theme.TextPrimary
 import com.senal.tv.util.CatalogRules
@@ -540,7 +539,7 @@ private fun PlayerGuideOverlay(
         ) {
             Text(
                 text = "SELECT = ver · Mantener = favorito · Menú = guía",
-                color = LiveYellow,
+                color = BrandOrangeHot,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -562,7 +561,7 @@ private fun PlayerGuideOverlay(
                     item {
                         Text(
                             "CATEGORÍAS",
-                            color = LiveYellow,
+                            color = BrandOrangeHot,
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp,
                             modifier = Modifier.padding(8.dp)
@@ -574,7 +573,6 @@ private fun PlayerGuideOverlay(
                             label = cat.label(),
                             selected = active,
                             requestFocus = false,
-                            categoryStyle = true,
                             onClick = {
                                 onInteract()
                                 onCategory(cat.label())
@@ -630,8 +628,7 @@ private fun GuideRow(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
     focusRequester: FocusRequester? = null,
-    requestFocus: Boolean = false,
-    categoryStyle: Boolean = false
+    requestFocus: Boolean = false
 ) {
     var focused by remember { mutableStateOf(false) }
     val localFr = remember { FocusRequester() }
@@ -649,25 +646,23 @@ private fun GuideRow(
             .fillMaxWidth()
             .focusRequester(fr)
             .onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = when {
-                focused && categoryStyle -> LiveYellow
                 focused -> BrandOrange
-                selected && categoryStyle -> LiveYellow
-                selected -> BrandOrange.copy(alpha = 0.3f)
-                else -> Color.White.copy(alpha = 0.06f)
+                selected -> BrandOrange.copy(alpha = 0.28f)
+                else -> Color.White.copy(alpha = 0.05f)
             },
-            focusedContainerColor = if (categoryStyle) LiveYellow else BrandOrangeHot
+            focusedContainerColor = BrandOrangeHot
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f)
     ) {
         Text(
             text = label,
-            color = if ((focused || selected) && categoryStyle) Color.Black else TextPrimary,
+            color = TextPrimary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
             fontSize = 14.sp,
             fontWeight = if (focused || selected) FontWeight.Bold else FontWeight.Medium
         )
