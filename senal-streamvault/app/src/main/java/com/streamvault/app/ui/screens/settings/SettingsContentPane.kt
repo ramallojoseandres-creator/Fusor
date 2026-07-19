@@ -42,7 +42,7 @@ internal fun SettingsContentPane(
             .imePadding(),
         contentPadding = PaddingValues(start = 20.dp, top = 76.dp, end = 20.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
-        userScrollEnabled = !uiState.isSyncing
+        userScrollEnabled = true
     ) {
         if (dialogState.selectedCategory == 0) {
             providerSection(

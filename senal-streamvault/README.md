@@ -27,6 +27,7 @@ cd senal-streamvault
 2. Tras el login, la app sincroniza **solo** `http://<servidor>/downloads/lista.m3u`
 3. El administrador puede subir varias listas al VPS con nombres distintos; la app **solo lee** el archivo llamado `lista.m3u`
 4. En la app **no** se pueden agregar playlists ni pegar URLs M3U arbitrarias
+5. Indexación M3U grande: publica TV en vivo de forma progresiva (~2k canales) y no bloquea Ajustes con un overlay a pantalla completa
 
 Servidor por defecto: `http://185.192.20.245:3000`  
 Lista fija: `http://185.192.20.245:3000/downloads/lista.m3u`

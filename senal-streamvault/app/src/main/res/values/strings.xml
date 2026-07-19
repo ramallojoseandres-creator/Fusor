@@ -576,8 +576,8 @@
     <string name="settings_update_available_message">SEÑAL %1$s is available.</string>
     <string name="settings_update_current_message">You already have the latest SEÑAL release.</string>
     <string name="settings_syncing">Syncing data, please wait...</string>
-    <string name="settings_syncing_title">Syncing data...</string>
-    <string name="settings_syncing_subtitle">Please wait while your playlist is imported.</string>
+    <string name="settings_syncing_title">Indexing playlist…</string>
+    <string name="settings_syncing_subtitle">You can open Live TV while indexing continues in the background.</string>
     <string name="settings_enter_new_pin">Enter New PIN</string>
     <string name="settings_enter_pin">Enter PIN</string>
     <string name="settings_select_level">Select Protection Level</string>

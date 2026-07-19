@@ -3740,7 +3740,22 @@ class SyncManager @Inject constructor(
         val now = System.currentTimeMillis()
 
         if (force || ContentCachePolicy.shouldRefresh(metadata.lastLiveSuccess, ContentCachePolicy.CATALOG_TTL_MILLIS, now)) {
-            val stats = withContext(Dispatchers.IO) { m3uImporter.importPlaylist(provider, onProgress) }
+            var earlyLiveActivated = false
+            val stats = withContext(Dispatchers.IO) {
+                m3uImporter.importPlaylist(
+                    provider = provider,
+                    onProgress = onProgress,
+                    onPartialLiveReady = { liveCount ->
+                        if (!earlyLiveActivated && liveCount > 0) {
+                            earlyLiveActivated = true
+                            // Unlock Live TV while the rest of the mega-lista keeps indexing.
+                            providerDao.setActive(provider.id)
+                            providerDao.updateSyncTime(provider.id, System.currentTimeMillis())
+                            Log.i(TAG, "M3U early live publish for provider ${provider.id}: $liveCount channels")
+                        }
+                    },
+                )
+            }
             if (stats.liveCount == 0 && stats.movieCount == 0) {
                 throw IllegalStateException("Playlist is empty or contains no supported entries")
             }

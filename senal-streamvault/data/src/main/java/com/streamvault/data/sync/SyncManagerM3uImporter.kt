@@ -23,7 +23,9 @@ import java.io.InputStream
 import java.net.URI
 import java.util.zip.GZIPInputStream
 
-private const val M3U_PROGRESS_INTERVAL = 5_000
+private const val M3U_PROGRESS_INTERVAL = 2_500
+private const val M3U_EARLY_LIVE_PUBLISH = 2_000
+private const val M3U_DEFAULT_BATCH_SIZE = 2_500
 private const val M3U_IMPORTER_TAG = "SyncManagerM3u"
 
 internal class SyncManagerM3uImporter(
@@ -39,12 +41,13 @@ internal class SyncManagerM3uImporter(
         onProgress: ((String) -> Unit)?,
         includeLive: Boolean = true,
         includeMovies: Boolean = true,
-        batchSize: Int = 1000
+        batchSize: Int = M3U_DEFAULT_BATCH_SIZE,
+        onPartialLiveReady: (suspend (liveCount: Int) -> Unit)? = null,
     ): M3uImportStats {
         UrlSecurityPolicy.validatePlaylistSourceUrl(provider.m3uUrl.ifBlank { provider.serverUrl })?.let { message ->
             throw IllegalStateException(message)
         }
-        progress(provider.id, onProgress, "Downloading Playlist...")
+        progress(provider.id, onProgress, "Descargando lista…")
         // D14 — emission M3U etape Downloading : Section.LIVE par convention (le M3U
         // peut contenir un melange Live/VOD, mais l'UI ne distingue pas). Mode
         // indetermine (total = 0) puisqu'on ne connait pas encore la taille du flux.
@@ -71,12 +74,14 @@ internal class SyncManagerM3uImporter(
         var movieCount = 0
         var parsedCount = 0
         var nextMilestone = M3U_PROGRESS_INTERVAL
+        var nextEarlyPublish = M3U_EARLY_LIVE_PUBLISH
+        var partialLivePublished = false
         val warnings = mutableListOf<String>()
         var insecureStreamCount = 0
 
         try {
             openPlaylistStream(provider) { streamed ->
-                progress(provider.id, onProgress, "Parsing Playlist...")
+                progress(provider.id, onProgress, "Leyendo lista…")
                 // D14 — emission M3U etape Parsing : meme section / mode indetermine.
                 syncProgressBus.emit(
                     SyncProgress(
@@ -100,7 +105,11 @@ internal class SyncManagerM3uImporter(
                     ) { entry ->
                         parsedCount++
                         if (parsedCount >= nextMilestone) {
-                            progress(provider.id, onProgress, "Imported $parsedCount playlist entries...")
+                            progress(
+                                provider.id,
+                                onProgress,
+                                "Indexando $parsedCount entradas… (TV en vivo usable en cuanto haya canales)",
+                            )
                             // D14 — emission M3U etape Imported : current = nombre d'entrees
                             // parsees jusqu'ici (palier de M3U_PROGRESS_INTERVAL), `itemsIndexed`
                             // refletera la meme valeur (compteur cumulatif local).
@@ -196,6 +205,31 @@ internal class SyncManagerM3uImporter(
                             if (channelBatch.size >= batchSize) {
                                 flushChannelBatch(provider.id, sessionId, channelBatch)
                             }
+                            if (liveCount >= nextEarlyPublish) {
+                                flushChannelBatch(provider.id, sessionId, channelBatch)
+                                syncCatalogStore.publishPartialLiveFromStage(
+                                    providerId = provider.id,
+                                    sessionId = sessionId,
+                                    categories = liveCategories.entities(),
+                                    rebuildFts = false,
+                                )
+                                if (!partialLivePublished) {
+                                    partialLivePublished = true
+                                    progress(
+                                        provider.id,
+                                        onProgress,
+                                        "TV en vivo listo ($liveCount canales). Siguiendo indexación…",
+                                    )
+                                    onPartialLiveReady?.invoke(liveCount)
+                                } else {
+                                    progress(
+                                        provider.id,
+                                        onProgress,
+                                        "Actualizando vivo: $liveCount canales…",
+                                    )
+                                }
+                                nextEarlyPublish += M3U_EARLY_LIVE_PUBLISH
+                            }
                         }
                     }
                 }
@@ -217,6 +251,9 @@ internal class SyncManagerM3uImporter(
                 includeLive = effectiveLive,
                 includeMovies = effectiveMovies
             )
+            if (effectiveLive && !partialLivePublished) {
+                onPartialLiveReady?.invoke(liveCount)
+            }
         } finally {
             syncCatalogStore.discardStagedImport(provider.id, sessionId)
         }

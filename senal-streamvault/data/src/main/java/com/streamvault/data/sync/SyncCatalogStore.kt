@@ -37,7 +37,7 @@ internal class SyncCatalogStore(
 ) {
     companion object {
         private const val TAG = "SyncCatalogStore"
-        private const val STAGE_BATCH_SIZE = 500
+        private const val STAGE_BATCH_SIZE = 2_000
     }
 
     data class StagedLiveImportState(
@@ -356,6 +356,28 @@ internal class SyncCatalogStore(
                 )
             }
         insertStageRows(rows, catalogSyncDao::insertCategoryStages)
+    }
+
+    /**
+     * Publishes whatever is already staged for live TV without pruning or clearing the
+     * import session. Used mid-M3U-parse so Live TV can open before the full playlist finishes.
+     */
+    suspend fun publishPartialLiveFromStage(
+        providerId: Long,
+        sessionId: Long,
+        categories: List<CategoryEntity>,
+        rebuildFts: Boolean = false,
+    ) {
+        transactionRunner.inTransaction {
+            if (categories.isNotEmpty()) {
+                stageCategories(providerId, sessionId, categories)
+                applyCategories(providerId, sessionId, "LIVE", pruneStale = false)
+            }
+            upsertChannels(providerId, sessionId)
+            if (rebuildFts) {
+                catalogSyncDao.rebuildChannelFts()
+            }
+        }
     }
 
     suspend fun finalizeStagedImport(

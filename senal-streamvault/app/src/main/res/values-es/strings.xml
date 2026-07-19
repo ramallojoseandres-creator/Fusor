@@ -442,8 +442,8 @@
     <string name="settings_update_available_message">StreamVault %1$s está disponible.</string>
     <string name="settings_update_current_message">Ya tienes la última versión de StreamVault.</string>
     <string name="settings_syncing">Sincronizando datos, por favor espera...</string>
-    <string name="settings_syncing_title">Sincronizando datos...</string>
-    <string name="settings_syncing_subtitle">Espera mientras se importa tu lista de reproducción.</string>
+    <string name="settings_syncing_title">Indexando lista…</string>
+    <string name="settings_syncing_subtitle">Puedes ir a TV en vivo; la indexación sigue en segundo plano.</string>
     <string name="settings_enter_new_pin">Ingrese un nuevo PIN</string>
     <string name="settings_enter_pin">Introducir PIN</string>
     <string name="settings_select_level">Seleccionar nivel de protección</string>
