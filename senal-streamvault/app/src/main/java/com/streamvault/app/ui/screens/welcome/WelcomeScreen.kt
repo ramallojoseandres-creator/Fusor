@@ -36,6 +36,7 @@ import androidx.tv.material3.SurfaceDefaults
 import androidx.tv.material3.Text
 import com.streamvault.app.BuildConfig
 import com.streamvault.app.R
+import com.streamvault.app.senal.SenalServerConfig
 import com.streamvault.app.ui.components.shell.StatusPill
 import com.streamvault.app.ui.design.AppColors
 import com.streamvault.app.ui.interaction.TvButton
@@ -110,13 +111,24 @@ class WelcomeViewModel @Inject constructor(
             return
         }
 
-        val m3uUrl = BuildConfig.M3U_DEV_URL
-        if (m3uUrl.isNotBlank()) {
+        // Always seed SEÑAL principal (+ optional extras) when the library is empty.
+        val principalUrl = BuildConfig.M3U_DEV_URL.ifBlank { SenalServerConfig.principalListaUrl }
+        if (principalUrl.isNotBlank()) {
             validateAndAddProvider.addM3u(
                 M3uProviderSetupCommand(
-                    url = m3uUrl,
-                    name = BuildConfig.M3U_DEV_NAME.ifBlank { "Dev M3U (seeded)" }
-                )
+                    url = principalUrl,
+                    name = BuildConfig.M3U_DEV_NAME.ifBlank { SenalServerConfig.principalListaName },
+                ),
+            )
+        }
+        val extras = listOf(
+            SenalServerConfig.extraLista1Url to SenalServerConfig.extraLista1Name,
+            SenalServerConfig.extraLista2Url to SenalServerConfig.extraLista2Name,
+        )
+        for ((url, name) in extras) {
+            if (url.isBlank()) continue
+            validateAndAddProvider.addM3u(
+                M3uProviderSetupCommand(url = url, name = name),
             )
         }
     }

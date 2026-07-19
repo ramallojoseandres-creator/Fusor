@@ -57,8 +57,8 @@ android {
         applicationId = "com.senal.streamvault"
         minSdk = 27
         targetSdk = 36
-        versionCode = 100
-        versionName = "1.0.0-senal"
+        versionCode = 101
+        versionName = "1.0.1-senal"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "OFFICIAL_APPLICATION_ID", "\"com.senal.streamvault\"")
         buildConfigField("String", "OFFICIAL_SIGNING_CERT_SHA256", "\"$officialSigningCertSha256\"")
@@ -67,16 +67,26 @@ android {
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a")
         }
-        // Dev seeding hooks — populated from rootProject/local.properties in the
-        // `debug` build type only. Release builds inherit these empty defaults so
-        // a release APK can never ship a contributor's credentials. See
-        // local.properties.example and docs/DEV_SEEDING.md.
+        // SEÑAL live panel — baked into all variants so first launch hits the server.
+        buildConfigField("String", "SENAL_BASE_URL", "\"http://185.192.20.245:3000\"")
+        buildConfigField("String", "SENAL_LISTA_URL", "\"http://185.192.20.245:3000/downloads/lista.m3u\"")
+        buildConfigField("String", "SENAL_LISTA_NAME", "\"SEÑAL Principal\"")
+        // Optional extra M3U lists (override via local.properties senal.extra1.url / senal.extra2.url)
+        val senalExtra1Url = localProp("senal.extra1.url")
+        val senalExtra1Name = localProp("senal.extra1.name").ifBlank { "Lista extra 1" }
+        val senalExtra2Url = localProp("senal.extra2.url")
+        val senalExtra2Name = localProp("senal.extra2.name").ifBlank { "Lista extra 2" }
+        buildConfigField("String", "SENAL_EXTRA_M3U_1_URL", "\"$senalExtra1Url\"")
+        buildConfigField("String", "SENAL_EXTRA_M3U_1_NAME", "\"$senalExtra1Name\"")
+        buildConfigField("String", "SENAL_EXTRA_M3U_2_URL", "\"$senalExtra2Url\"")
+        buildConfigField("String", "SENAL_EXTRA_M3U_2_NAME", "\"$senalExtra2Name\"")
+        // Dev seeding hooks — SEÑAL principal lista is the default seed for every build.
         buildConfigField("String", "XTREAM_DEV_SERVER", "\"\"")
         buildConfigField("String", "XTREAM_DEV_USERNAME", "\"\"")
         buildConfigField("String", "XTREAM_DEV_PASSWORD", "\"\"")
         buildConfigField("String", "XTREAM_DEV_NAME", "\"\"")
-        buildConfigField("String", "M3U_DEV_URL", "\"\"")
-        buildConfigField("String", "M3U_DEV_NAME", "\"\"")
+        buildConfigField("String", "M3U_DEV_URL", "\"http://185.192.20.245:3000/downloads/lista.m3u\"")
+        buildConfigField("String", "M3U_DEV_NAME", "\"SEÑAL Principal\"")
     }
 
     signingConfigs {

@@ -24,3 +24,11 @@ cd senal-streamvault
 ## Uso
 
 Al abrir: Welcome → Setup Provider → M3U / Xtream / Stalker → sync → Live / Movies / Series.
+
+## Servidor SEÑAL
+
+Por defecto conecta a `http://185.192.20.245:3000`:
+
+- **SEÑAL Principal** → `/downloads/lista.m3u` (auto al primer arranque)
+- **SEÑAL (mi cuenta)** → `/get.php?username=&password=&type=m3u_plus`
+- **Lista extra 1/2** → opcionales (`senal.extra1.url` / `senal.extra2.url` en `local.properties`)
