@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SEÑAL</string>
+    <string name="nav_home">Inicio</string>
+    <string name="nav_live">TV en vivo</string>
+    <string name="nav_settings">Ajustes</string>
+</resources>

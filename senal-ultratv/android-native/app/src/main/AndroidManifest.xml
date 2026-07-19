@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Leanback is the Android TV launcher category. Optional so phones still work. -->
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Auto-update: download + install newer APK from GitHub Releases. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Reminders: AlarmManager.setExactAndAllowWhileIdle + notification. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- IPTV cleartext tradeoff: many Xtream/Stalker portals are HTTP-only
+         (plain http:// portal + stream URLs), so cleartext traffic must stay
+         permitted. @xml/network_security_config is the single source of truth
+         for that policy. The android:usesCleartextTraffic flag was removed as
+         redundant — when android:networkSecurityConfig is present it governs
+         cleartext, and keeping both risks the two drifting out of sync. -->
+    <application
+        android:name=".UltraTvApp"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:banner="@drawable/banner"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.UltraTv"
+        android:networkSecurityConfig="@xml/network_security_config">
+
+        <!-- Google Cast SDK: points at our OptionsProvider for the receiver id. -->
+        <meta-data
+            android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
+            android:value="com.ultratv.tv.nativeapp.cast.UltraTvCastOptionsProvider" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:supportsPictureInPicture="true"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density|fontScale"
+            android:resizeableActivity="true"
+            android:theme="@style/Theme.UltraTv">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- FileProvider for the auto-update flow: exposes our internal
+             filesDir/updates/*.apk as a content:// URI so the system installer
+             can read it across the package boundary. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.updates"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/update_provider_paths" />
+        </provider>
+
+        <!-- Disable WorkManager's default startup so our HiltAndroidApp can
+             provide a Hilt-aware WorkerFactory via Configuration.Provider. -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="true"
+            android:permission="android.permission.RECEIVE_BOOT_COMPLETED">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name="com.ultratv.tv.nativeapp.data.reminders.ReminderReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.ultratv.tv.nativeapp.REMINDER_FIRE" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>
