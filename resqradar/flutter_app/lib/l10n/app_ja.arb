@@ -1,0 +1,48 @@
+{
+  "appTitle": "戦術的 ResQRadar",
+  "tabRadar": "レーダー",
+  "tabSwarm": "スウォーム",
+  "tabMap": "マップ",
+  "tabSettings": "設定",
+  "tabHistory": "履歴",
+  "btnStartScan": "スキャン開始",
+  "btnStopScan": "停止",
+  "statusSearching": "検索中...",
+  "statusDetected": "生存者検知",
+  "lblBPM": "心拍数",
+  "lblRPM": "呼吸数",
+  "lblDistance": "距離",
+  "lblDistanceUnit": "m",
+  "msgVictimPortalConnected": "生存者がポータルに接続しました！ IP: {ip}",
+  "msgMovementDetected": "生体反応を検知！",
+  "aboutTitle": "アプリについて",
+  "aboutVersion": "バージョン 1.0.0+1",
+  "aboutDeveloper": "開発者:",
+  "aboutWeb": "Web:",
+  "aboutContact": "WhatsApp / 連絡先:",
+  "aboutLicense": "ライセンス:",
+  "aboutLicenseDesc": "戦術および救助用 (Moovitya 所有)",
+  "aboutCredits": "クレジット:",
+  "aboutCreditsDesc": "Carlos Mundaray によるオリジナルコンセプト。",
+  "btnClose": "閉じる",
+  "swarmTitle": "P2P スウォームモード",
+  "swarmSubtitle": "救助隊戦術ネットワーク",
+  "swarmStatusConnected": "メッシュに接続済み",
+  "swarmStatusDisconnected": "切断",
+  "btnConnectSwarm": "メッシュに接続",
+  "btnDisconnectSwarm": "切断する",
+  "chatInputHint": "戦術メッセージ...",
+  "settingsTitle": "システム設定",
+  "settingsRadarSensitivity": "レーダー感度",
+  "settingsAlarmSound": "アラーム音",
+  "settingsVibration": "戦術的振動",
+  "mapTitle": "救出マップ",
+  "@@locale": "ja",
+  "@msgVictimPortalConnected": {
+    "placeholders": {
+      "ip": {
+        "type": "String"
+      }
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "appTitle": "战术救援雷达 (ResQRadar)",
+  "tabRadar": "雷达",
+  "tabSwarm": "蜂群",
+  "tabMap": "地图",
+  "tabSettings": "设置",
+  "tabHistory": "历史记录",
+  "btnStartScan": "开始扫描",
+  "btnStopScan": "停止",
+  "statusSearching": "搜索中...",
+  "statusDetected": "检测到受害者",
+  "lblBPM": "BPM",
+  "lblRPM": "RPM",
+  "lblDistance": "距离",
+  "lblDistanceUnit": "米",
+  "msgVictimPortalConnected": "受害者已连接到门户！IP: {ip}",
+  "msgMovementDetected": "检测到生命体征！",
+  "aboutTitle": "关于",
+  "aboutVersion": "版本 1.0.0+1",
+  "aboutDeveloper": "开发者:",
+  "aboutWeb": "网站:",
+  "aboutContact": "WhatsApp / 联系方式:",
+  "aboutLicense": "许可证:",
+  "aboutLicenseDesc": "战术和救援用途 (Moovitya财产)",
+  "aboutCredits": "鸣谢:",
+  "aboutCreditsDesc": "基于 Carlos Mundaray 的原创概念和系统。",
+  "btnClose": "关闭",
+  "swarmTitle": "P2P 蜂群模式",
+  "swarmSubtitle": "救援人员战术网络",
+  "swarmStatusConnected": "已连接到网状网络",
+  "swarmStatusDisconnected": "已断开连接",
+  "btnConnectSwarm": "连接到网状网络",
+  "btnDisconnectSwarm": "断开连接",
+  "chatInputHint": "战术消息...",
+  "settingsTitle": "系统设置",
+  "settingsRadarSensitivity": "雷达灵敏度",
+  "settingsAlarmSound": "警报声",
+  "settingsVibration": "战术震动",
+  "mapTitle": "撤离地图",
+  "@@locale": "zh",
+  "@msgVictimPortalConnected": {
+    "placeholders": {
+      "ip": {
+        "type": "String"
+      }
+    }
+  }
+}

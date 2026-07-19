@@ -1,0 +1,48 @@
+{
+  "appTitle": "ٹیکٹیکل ResQRadar",
+  "tabRadar": "ریڈار",
+  "tabSwarm": "سوارم",
+  "tabMap": "نقشہ",
+  "tabSettings": "ترتیبات",
+  "tabHistory": "تاریخ",
+  "btnStartScan": "سکین شروع کریں",
+  "btnStopScan": "رکیں",
+  "statusSearching": "تلاش کر رہا ہے...",
+  "statusDetected": "متاثرہ شخص کا پتہ چل گیا",
+  "lblBPM": "BPM",
+  "lblRPM": "RPM",
+  "lblDistance": "فاصلہ",
+  "lblDistanceUnit": "m",
+  "msgVictimPortalConnected": "متاثرہ پورٹل سے جڑ گیا! IP: {ip}",
+  "msgMovementDetected": "اہم حرکت کا پتہ چلا!",
+  "aboutTitle": "کے بارے میں",
+  "aboutVersion": "ورژن 1.0.0+1",
+  "aboutDeveloper": "ڈویلپر:",
+  "aboutWeb": "ویب:",
+  "aboutContact": "WhatsApp / رابطہ:",
+  "aboutLicense": "لائسنس:",
+  "aboutLicenseDesc": "Moovitya کی ملکیت",
+  "aboutCredits": "کریڈٹ:",
+  "aboutCreditsDesc": "کارلوس منڈارے کے اصل تصور پر مبنی۔",
+  "btnClose": "بند کریں",
+  "swarmTitle": "P2P سوارم موڈ",
+  "swarmSubtitle": "ریسکیو ٹیکٹیکل نیٹ ورک",
+  "swarmStatusConnected": "میش سے جڑا ہوا",
+  "swarmStatusDisconnected": "منقطع",
+  "btnConnectSwarm": "میش سے جڑیں",
+  "btnDisconnectSwarm": "منقطع کریں",
+  "chatInputHint": "ٹیکٹیکل پیغام...",
+  "settingsTitle": "سسٹم کی ترتیبات",
+  "settingsRadarSensitivity": "ریڈار کی حساسیت",
+  "settingsAlarmSound": "الارم کی آواز",
+  "settingsVibration": "ٹیکٹیکل وائبریشن",
+  "mapTitle": "انخلاء کا نقشہ",
+  "@@locale": "ur",
+  "@msgVictimPortalConnected": {
+    "placeholders": {
+      "ip": {
+        "type": "String"
+      }
+    }
+  }
+}

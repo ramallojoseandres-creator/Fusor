@@ -1,0 +1,190 @@
+{
+  "appTitle": "ResQRadar",
+  "tabRadar": "Radar",
+  "tabSwarm": "Enjambre",
+  "tabMap": "Mapa",
+  "tabSettings": "Ajustes",
+  "tabHistory": "Historial",
+  "btnStartScan": "INICIAR ESCANEO",
+  "btnStopScan": "DETENER",
+  "statusSearching": "Buscando...",
+  "statusDetected": "Víctima Detectada",
+  "lblBPM": "BPM",
+  "lblRPM": "RPM",
+  "lblDistance": "Distancia",
+  "lblDistanceUnit": "m",
+  "msgVictimPortalConnected": "¡VÍCTIMA CONECTADA AL PORTAL! IP: {ip}",
+  "@msgVictimPortalConnected": {
+    "placeholders": {
+      "ip": {
+        "type": "String"
+      }
+    }
+  },
+  "msgMovementDetected": "¡MOVIMIENTO VITAL DETECTADO!",
+  "aboutTitle": "Acerca de",
+  "aboutVersion": "Versión 1.0.0+1",
+  "aboutDeveloper": "Desarrollador:",
+  "aboutWeb": "Web:",
+  "aboutContact": "WhatsApp / Contacto:",
+  "aboutLicense": "Licencia:",
+  "aboutLicenseDesc": "Uso Profesional y Rescate (Propiedad de Moovitya)",
+  "aboutCredits": "Créditos:",
+  "aboutCreditsDesc": "Basado en el concepto y sistema original creado por Carlos Mundaray.",
+  "btnClose": "Cerrar",
+  "swarmTitle": "Modo Enjambre P2P",
+  "swarmSubtitle": "Red de Rescatistas",
+  "swarmStatusConnected": "CONECTADO AL MESH",
+  "swarmStatusDisconnected": "DESCONECTADO",
+  "btnConnectSwarm": "Conectar a Mesh",
+  "btnDisconnectSwarm": "Desconectar",
+  "chatInputHint": "Mensaje de rescate...",
+  "settingsTitle": "Ajustes del Sistema",
+  "settingsRadarSensitivity": "Sensibilidad del Radar",
+  "settingsAlarmSound": "Sonido de Alarma",
+  "settingsVibration": "Vibración Háptica",
+  "mapTitle": "Mapa de Extracción",
+  "victimModalTitle": "{id} - Viva - respira y pulso detectado",
+  "@victimModalTitle": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "victimModalLocalData": "Datos locales Wi-Fi",
+  "victimModalCoordX": "Coordenadas X",
+  "victimModalCoordY": "Coordenadas Y",
+  "victimModalDepth": "Profundidad",
+  "victimModalDepthValue": "0,30 m bajo escombros",
+  "victimModalHeading": "Rumbo",
+  "victimModalProximity": "Proximidad",
+  "victimModalProxClose": "MUY CERCA",
+  "victimModalProxFar": "LEJOS",
+  "victimModalBreathing": "Respirando",
+  "victimModalBreathingYes": "Sí - {rpm} rpm",
+  "@victimModalBreathingYes": {
+    "placeholders": {
+      "rpm": {
+        "type": "String"
+      }
+    }
+  },
+  "victimModalHeart": "Corazón latiendo",
+  "victimModalHeartYes": "Sí - {bpm} lpm",
+  "@victimModalHeartYes": {
+    "placeholders": {
+      "bpm": {
+        "type": "String"
+      }
+    }
+  },
+  "victimModalActivity": "Actividad",
+  "victimModalActivityYes": "Sí",
+  "victimModalConfVital": "Confianza vital",
+  "victimModalConfDebris": "Confianza escombros",
+  "msgStopScanCalibrate": "Detén el escaneo para calibrar.",
+  "msgNoiseFloor": "Noise Floor: {noise} dBm",
+  "@msgNoiseFloor": {
+    "placeholders": {
+      "noise": {
+        "type": "String"
+      }
+    }
+  },
+  "titleConnectedDevices": "Dispositivos Conectados",
+  "historyTitle": "Historial de Búsquedas",
+  "historyEmpty": "No hay rescates registrados.",
+  "historyRescue": "Rescate #{id}",
+  "@historyRescue": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "historyDate": "Fecha: {date}",
+  "@historyDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "historyDuration": "Duración: {sec}s",
+  "@historyDuration": {
+    "placeholders": {
+      "sec": {
+        "type": "String"
+      }
+    }
+  },
+  "historyDetections": "Detecciones: {count}",
+  "@historyDetections": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "historyDetailTitle": "Detalle de Rescate #{id}",
+  "@historyDetailTitle": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "historyDetailVictims": "Detalle de Víctimas:",
+  "historyVictim": "Víctima: {id}",
+  "@historyVictim": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "historyHeart": "Ritmo Cardíaco: {bpm} BPM",
+  "@historyHeart": {
+    "placeholders": {
+      "bpm": {
+        "type": "String"
+      }
+    }
+  },
+  "historyBreath": "Respiración: {rpm} RPM",
+  "@historyBreath": {
+    "placeholders": {
+      "rpm": {
+        "type": "String"
+      }
+    }
+  },
+  "historyError": "Error al leer datos: {err}",
+  "@historyError": {
+    "placeholders": {
+      "err": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsCancel": "Cancelar",
+  "settingsSave": "Guardar",
+  "settingsMinFreq": "Frecuencia Mínima de Respiración",
+  "settingsMaxFreq": "Frecuencia Máxima de Respiración",
+  "settingsMotionCancel": "Cancelación de Movimiento",
+  "settingsMotionCancelDesc": "Usa el acelerómetro para reducir ruido",
+  "settingsNightVision": "Modo Visión Nocturna",
+  "settingsNightVisionDesc": "Alto contraste para operaciones con poca luz",
+  "settingsBgScan": "Escaneo en Segundo Plano",
+  "settingsBgScanDesc": "Continúa escaneando al apagar la pantalla",
+  "swarmRestart": "Reiniciar Búsqueda P2P",
+  "swarmStatus": "Estado: {status}",
+  "@swarmStatus": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  }
+}

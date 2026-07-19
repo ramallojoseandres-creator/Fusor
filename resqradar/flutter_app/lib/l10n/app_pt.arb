@@ -1,0 +1,48 @@
+{
+  "appTitle": "ResQRadar Tático",
+  "tabRadar": "Radar",
+  "tabSwarm": "Enxame",
+  "tabMap": "Mapa",
+  "tabSettings": "Configurações",
+  "tabHistory": "Histórico",
+  "btnStartScan": "INICIAR ESCANEAMENTO",
+  "btnStopScan": "PARAR",
+  "statusSearching": "Buscando...",
+  "statusDetected": "Vítima Detectada",
+  "lblBPM": "BPM",
+  "lblRPM": "RPM",
+  "lblDistance": "Distância",
+  "lblDistanceUnit": "m",
+  "msgVictimPortalConnected": "VÍTIMA CONECTADA AO PORTAL! IP: {ip}",
+  "msgMovementDetected": "MOVIMENTO VITAL DETECTADO!",
+  "aboutTitle": "Sobre",
+  "aboutVersion": "Versão 1.0.0+1",
+  "aboutDeveloper": "Desenvolvedor:",
+  "aboutWeb": "Site:",
+  "aboutContact": "WhatsApp / Contato:",
+  "aboutLicense": "Licença:",
+  "aboutLicenseDesc": "Uso Tático e Resgate (Propriedade da Moovitya)",
+  "aboutCredits": "Créditos:",
+  "aboutCreditsDesc": "Baseado no conceito e sistema original criado por Carlos Mundaray.",
+  "btnClose": "Fechar",
+  "swarmTitle": "Modo Enxame P2P",
+  "swarmSubtitle": "Rede Tática de Resgatistas",
+  "swarmStatusConnected": "CONECTADO À MALHA",
+  "swarmStatusDisconnected": "DESCONECTADO",
+  "btnConnectSwarm": "Conectar à Malha",
+  "btnDisconnectSwarm": "Desconectar",
+  "chatInputHint": "Mensagem tática...",
+  "settingsTitle": "Configurações do Sistema",
+  "settingsRadarSensitivity": "Sensibilidade do Radar",
+  "settingsAlarmSound": "Som do Alarme",
+  "settingsVibration": "Vibração Tática",
+  "mapTitle": "Mapa de Extração",
+  "@@locale": "pt",
+  "@msgVictimPortalConnected": {
+    "placeholders": {
+      "ip": {
+        "type": "String"
+      }
+    }
+  }
+}
