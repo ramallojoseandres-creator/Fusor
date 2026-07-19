@@ -1,0 +1,110 @@
+package com.streamvault.player.playback
+
+import androidx.media3.common.ParserException
+import androidx.media3.exoplayer.source.BehindLiveWindowException
+import com.google.common.truth.Truth.assertThat
+import java.io.IOException
+import javax.net.ssl.SSLHandshakeException
+import org.junit.Test
+
+class PlayerRetryPolicyTest {
+
+    private val liveContext = PlaybackRetryContext(
+        resolvedStreamType = ResolvedStreamType.HLS,
+        timeoutProfile = PlayerTimeoutProfile.LIVE
+    )
+    private val progressiveContext = PlaybackRetryContext(
+        resolvedStreamType = ResolvedStreamType.PROGRESSIVE,
+        timeoutProfile = PlayerTimeoutProfile.PROGRESSIVE
+    )
+
+    private val policy = PlayerRetryPolicy(liveContext) { false }
+    private val progressivePolicy = PlayerRetryPolicy(progressiveContext) { true }
+
+    @Test
+    fun `500 before first frame retries 3 times with expected backoff`() {
+        val error = IOException("HTTP 500")
+        assertThat(policy.shouldRetry(error, liveContext, playbackStarted = false, attempt = 1)).isTrue()
+        assertThat(policy.shouldRetry(error, liveContext, playbackStarted = false, attempt = 2)).isTrue()
+        assertThat(policy.shouldRetry(error, liveContext, playbackStarted = false, attempt = 3)).isTrue()
+        assertThat(policy.shouldRetry(error, liveContext, playbackStarted = false, attempt = 4)).isFalse()
+        assertThat(policy.retryDelayMs(error, 1)).isEqualTo(1000L)
+        assertThat(policy.retryDelayMs(error, 2)).isEqualTo(2500L)
+        assertThat(policy.retryDelayMs(error, 3)).isEqualTo(5000L)
+    }
+
+    @Test
+    fun `403 never retries`() {
+        assertThat(policy.shouldRetry(IOException("HTTP 403"), liveContext, playbackStarted = false, attempt = 1))
+            .isFalse()
+    }
+
+    @Test
+    fun `509 never retries`() {
+        val error = IOException("HTTP 509")
+        assertThat(policy.shouldRetry(error, liveContext, playbackStarted = false, attempt = 1)).isFalse()
+        assertThat(policy.shouldRetry(error, liveContext, playbackStarted = true, attempt = 1)).isFalse()
+        assertThat(policy.maxAttempts(error, playbackStarted = false)).isEqualTo(0)
+        assertThat(policy.maxAttempts(error, playbackStarted = true)).isEqualTo(0)
+    }
+
+    @Test
+    fun `ssl error never retries`() {
+        assertThat(policy.shouldRetry(SSLHandshakeException("bad cert"), liveContext, playbackStarted = false, attempt = 1))
+            .isFalse()
+    }
+
+    @Test
+    fun `behind live window retries once`() {
+        val error = BehindLiveWindowException()
+        assertThat(policy.shouldRetry(error, liveContext, playbackStarted = false, attempt = 1)).isTrue()
+        assertThat(policy.shouldRetry(error, liveContext, playbackStarted = false, attempt = 2)).isFalse()
+        assertThat(policy.retryDelayMs(error, 1)).isEqualTo(500L)
+    }
+
+    @Test
+    fun `decoder init failure does not go through network retry policy`() {
+        val error = IllegalStateException("decoder init failed")
+        assertThat(policy.shouldRetry(error, liveContext, playbackStarted = false, attempt = 1)).isFalse()
+    }
+
+    @Test
+    fun `format unsupported after playback start retries once`() {
+        val error = IllegalStateException("video format unsupported")
+        assertThat(policy.shouldRetry(error, liveContext, playbackStarted = true, attempt = 1)).isTrue()
+        assertThat(policy.shouldRetry(error, liveContext, playbackStarted = true, attempt = 2)).isFalse()
+        assertThat(policy.maxAttempts(error, playbackStarted = true)).isEqualTo(1)
+    }
+
+    @Test
+    fun `decoder init failure after playback start still does not retry`() {
+        val error = IllegalStateException("decoder init failed")
+        assertThat(policy.shouldRetry(error, liveContext, playbackStarted = true, attempt = 1)).isFalse()
+    }
+
+    @Test
+    fun `progressive movie server errors get tolerant recovery after playback start`() {
+        val error = IOException("HTTP 502")
+        assertThat(progressivePolicy.shouldRetry(error, progressiveContext, playbackStarted = true, attempt = 1)).isTrue()
+        assertThat(progressivePolicy.shouldRetry(error, progressiveContext, playbackStarted = true, attempt = 2)).isTrue()
+        assertThat(progressivePolicy.shouldRetry(error, progressiveContext, playbackStarted = true, attempt = 3)).isTrue()
+        assertThat(progressivePolicy.shouldRetry(error, progressiveContext, playbackStarted = true, attempt = 4)).isFalse()
+        assertThat(progressivePolicy.maxAttempts(error, playbackStarted = true)).isEqualTo(3)
+    }
+
+    @Test
+    fun `malformed live segment after playback start retries as transient source failure`() {
+        val error = ParserException.createForMalformedContainer("bad live segment", null)
+        assertThat(policy.shouldRetry(error, liveContext, playbackStarted = true, attempt = 1)).isTrue()
+        assertThat(policy.shouldRetry(error, liveContext, playbackStarted = true, attempt = 2)).isTrue()
+        assertThat(policy.shouldRetry(error, liveContext, playbackStarted = true, attempt = 3)).isTrue()
+        assertThat(policy.shouldRetry(error, liveContext, playbackStarted = true, attempt = 4)).isFalse()
+        assertThat(policy.maxAttempts(error, playbackStarted = true)).isEqualTo(3)
+    }
+
+    @Test
+    fun `malformed progressive movie after playback start stays fatal`() {
+        val error = ParserException.createForMalformedContainer("bad movie segment", null)
+        assertThat(progressivePolicy.shouldRetry(error, progressiveContext, playbackStarted = true, attempt = 1)).isFalse()
+    }
+}
