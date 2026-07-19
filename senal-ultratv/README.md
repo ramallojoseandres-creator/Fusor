@@ -9,7 +9,8 @@ Based on **Ultra TV** by [khalilbenaz](https://github.com/khalilbenaz/ultra-tv) 
 ## Política SEÑAL
 
 1. Login: `POST http://185.192.20.245:3000/api/auth/login`
-2. Contenido: solo `http://185.192.20.245:3000/downloads/lista.m3u`
+2. Contenido: `http://185.192.20.245:3000/downloads/lista_importada.m3u`
+   (archivo en el VPS: `senal-server/data/lista_importada.m3u`)
 3. No se pueden agregar playlists ni fuentes en la app
 4. Telemetría / auto-update de Ultra TV desactivados
 
@@ -26,5 +27,5 @@ cd senal-ultratv/android-native
 
 ```bash
 adb connect 192.168.x.x:PORT
-adb install -r senal-ultratv-1.0.0.apk
+adb install -r senal-ultratv-1.0.1.apk
 ```

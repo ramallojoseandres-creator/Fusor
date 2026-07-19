@@ -601,7 +601,14 @@ app.post("/api/admin/import", auth, requireMaster, upload.single("playlist"), (r
   rebuildCatalogIndex(db);
   db.settings.importedAt = new Date().toISOString();
   db.settings.importedFile = req.file.originalname || "playlist.m3u";
-  fs.writeFileSync(path.join(DATA, "lista_importada.m3u"), buildM3U(db.content));
+  const importedPath = path.join(DATA, "lista_importada.m3u");
+  const m3uBody = buildM3U(db.content);
+  fs.writeFileSync(importedPath, m3uBody);
+  // Keep the public URL used by SEÑAL APKs in sync with the imported file.
+  const downloadsDir = path.join(PUBLIC, "downloads");
+  fs.mkdirSync(downloadsDir, { recursive: true });
+  fs.writeFileSync(path.join(downloadsDir, "lista.m3u"), m3uBody);
+  fs.writeFileSync(path.join(downloadsDir, "lista_importada.m3u"), m3uBody);
   scheduleSave();
   const s = contentStats();
   logEvent("m3u_import", `Import: ${db.content.length} canales`, { by: req.user.username, file: db.settings.importedFile });
@@ -662,6 +669,21 @@ app.delete("/api/admin/banners/:id", auth, requireMaster, (req, res) => {
   scheduleSave();
   res.json({ ok: true });
 });
+
+// Prefer data/lista_importada.m3u (panel import) for the SEÑAL APK playlist URLs.
+// Falls back to public/downloads copies if the import file is missing.
+function sendCanonicalLista(req, res) {
+  const imported = path.join(DATA, "lista_importada.m3u");
+  const publicLista = path.join(PUBLIC, "downloads", "lista.m3u");
+  const publicImported = path.join(PUBLIC, "downloads", "lista_importada.m3u");
+  const file = [imported, publicImported, publicLista].find((p) => fs.existsSync(p) && fs.statSync(p).size > 32);
+  if (!file) return res.status(404).type("text/plain").send("Playlist not found");
+  res.setHeader("Content-Type", "audio/x-mpegurl; charset=utf-8");
+  res.setHeader("Cache-Control", "no-cache");
+  return res.sendFile(path.resolve(file));
+}
+app.get("/downloads/lista.m3u", sendCanonicalLista);
+app.get("/downloads/lista_importada.m3u", sendCanonicalLista);
 
 app.use(express.static(PUBLIC));
 app.get("*", (_req, res) => res.sendFile(path.join(PUBLIC, "index.html")));

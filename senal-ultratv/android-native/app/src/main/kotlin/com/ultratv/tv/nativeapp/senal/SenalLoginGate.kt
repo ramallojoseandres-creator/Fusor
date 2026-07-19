@@ -81,7 +81,7 @@ class SenalLoginViewModel @Inject constructor(
             val result = auth.login(username, password)
             result.fold(
                 onSuccess = {
-                    _status.value = "Conectando lista.m3u…"
+                    _status.value = "Conectando lista_importada.m3u…"
                     runCatching {
                         val id = providers.addM3u(SenalServerConfig.listaName, SenalServerConfig.listaUrl)
                         providers.setDefault(id)
@@ -158,7 +158,7 @@ fun SenalLoginGate(
                 fontSize = 14.sp,
             )
             Text(
-                "Inicia sesión. Se carga solo downloads/lista.m3u del VPS.",
+                "Tras el login se carga solo downloads/lista_importada.m3u del VPS.",
                 color = UltraTokens.Fg2,
                 fontSize = 16.sp,
                 textAlign = TextAlign.Center,

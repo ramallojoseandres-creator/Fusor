@@ -58,7 +58,8 @@ android {
         buildConfigField("String", "LOG_TOKEN", "\"$ultraLogToken\"")
         buildConfigField("boolean", "SENAL_LOCK_VPS", "true")
         buildConfigField("String", "SENAL_BASE_URL", "\"http://185.192.20.245:3000\"")
-        buildConfigField("String", "SENAL_LISTA_URL", "\"http://185.192.20.245:3000/downloads/lista.m3u\"")
+        // Canonical playlist = VPS data/lista_importada.m3u (served by senal-server).
+        buildConfigField("String", "SENAL_LISTA_URL", "\"http://185.192.20.245:3000/downloads/lista_importada.m3u\"")
         buildConfigField("String", "SENAL_LISTA_NAME", "\"SEÑAL\"")
     }
 
