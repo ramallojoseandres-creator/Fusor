@@ -115,10 +115,10 @@ fun SettingsScreen(
                     onClick = {
                         scope.launch {
                             error = null
-                            status = "Descargando catálogo (manual)…"
+                            status = "Descargando catálogo…"
                             runCatching { container.playlistSync.refreshFromServer() }
                                 .onSuccess { r ->
-                                    status = if (r.error != null) {
+                                    status = if (r.error != null && r.channels <= 0) {
                                         r.error
                                     } else {
                                         "Lista actualizada · ${r.channels} canales"
@@ -133,41 +133,11 @@ fun SettingsScreen(
                     primary = false
                 )
 
-                FocusableButton(
-                    label = "Probar lista Duartegame (pública)",
-                    onClick = {
-                        scope.launch {
-                            error = null
-                            status = "Descargando lista de prueba…"
-                            runCatching {
-                                container.playlistSync.loadFromRemoteM3u()
-                            }.onSuccess { r ->
-                                if (r.error != null) {
-                                    error = r.error
-                                    status = null
-                                } else {
-                                    container.catalogRepository.clearMemory()
-                                    status = "Lista de prueba lista · ${r.channels} canales · abre EN VIVO"
-                                }
-                            }.onFailure {
-                                error = it.message ?: "No se pudo cargar la lista de prueba"
-                                status = null
-                            }
-                        }
-                    },
-                    primary = false
-                )
-
                 if (isAdmin) {
                     Spacer(Modifier.height(8.dp))
                     Text("Admin", style = LocalSenalTypography.current.caption, color = BrandOrange)
                     Text(
-                        "Auth: ${BuildConfig.API_BASE_URL}",
-                        style = LocalSenalTypography.current.caption,
-                        color = TextMuted
-                    )
-                    Text(
-                        "Catálogo: 1ª descarga desde servidor → guardada en disco",
+                        "Catálogo: sync multi-fuente (playlist + lista VPS)",
                         style = LocalSenalTypography.current.caption,
                         color = Teal
                     )

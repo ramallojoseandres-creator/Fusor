@@ -3,19 +3,22 @@ package com.senal.tv.data.local
 import android.content.Context
 import com.senal.tv.BuildConfig
 import java.io.File
+import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPOutputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.util.concurrent.TimeUnit
 
 /**
- * Catálogo del servidor **una vez**, luego disco.
+ * Catálogo SEÑAL — multi-fuente para que SIEMPRE haya canales.
  *
- * - Primera vez (sin caché): descarga /playlist.m3u y guarda gzip en disco.
- * - Arranques siguientes: SOLO lee disco — no toca la red.
- * - Actualización manual: Ajustes → "Actualizar lista".
+ * Orden de descarga:
+ * 1) `/playlist.m3u` con JWT (lista filtrada del panel)
+ * 2) `/downloads/lista.m3u` (público en el VPS — funciona hoy)
+ * 3) `/downloads/lista_importada.m3u` (cuando el admin despliega el server nuevo)
+ *
+ * Rechaza respuestas HTML (SPA) que no son M3U.
  */
 class PlaylistSync(
     private val context: Context,
@@ -25,7 +28,7 @@ class PlaylistSync(
 ) {
     private val client = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
-        .readTimeout(120, TimeUnit.SECONDS)
+        .readTimeout(180, TimeUnit.SECONDS)
         .retryOnConnectionFailure(true)
         .build()
 
@@ -37,146 +40,151 @@ class PlaylistSync(
 
     fun hasLocalCache(): Boolean = cacheFile.exists() && cacheFile.length() > 64L
 
-    /**
-     * Carga rápida desde disco (o asset de respaldo). **Nunca** descarga de red.
-     */
     suspend fun loadLocalOnly(): SyncResult = withContext(Dispatchers.IO) {
         if (hasLocalCache()) {
             runCatching { playlistStore.loadFromGzipFile(cacheFile) }
                 .onSuccess {
-                    return@withContext SyncResult("cache", playlistStore.size(), updated = false)
+                    if (playlistStore.size() > 0) {
+                        return@withContext SyncResult("cache", playlistStore.size(), updated = false)
+                    }
                 }
         }
         if (playlistStore.size() == 0) {
             runCatching { playlistStore.loadFromAssetFallback() }
                 .onSuccess {
-                    return@withContext SyncResult("asset", playlistStore.size(), updated = false)
+                    if (playlistStore.size() > 0) {
+                        return@withContext SyncResult("asset", playlistStore.size(), updated = false)
+                    }
                 }
                 .onFailure {
                     return@withContext SyncResult("none", 0, false, it.message)
                 }
         }
-        SyncResult("memory", playlistStore.size(), updated = false)
+        SyncResult(
+            source = "memory",
+            channels = playlistStore.size(),
+            updated = false,
+            error = if (playlistStore.size() <= 0) "Sin canales en caché" else null,
+        )
     }
 
-    /**
-     * Si ya hay caché → disco. Si no → descarga del servidor (primera vez).
-     * [forceNetwork] solo para el botón manual de Ajustes.
-     */
     suspend fun ensureCatalogReady(forceNetwork: Boolean = false): SyncResult = withContext(Dispatchers.IO) {
         if (!forceNetwork && hasLocalCache()) {
-            return@withContext loadLocalOnly()
+            val local = loadLocalOnly()
+            if (local.channels > 0) return@withContext local
         }
-
-        val token = tokenStore.cachedToken
-        if (!token.isNullOrBlank() && (forceNetwork || !hasLocalCache())) {
-            val net = downloadAndApply(token)
-            if (net != null) return@withContext net
-            // Fallo de red: intentar lo local que haya
-            if (hasLocalCache() || playlistStore.size() > 0) {
-                return@withContext loadLocalOnly()
+        downloadBestAvailable()
+            ?: loadLocalOnly().let { local ->
+                if (local.channels > 0) local
+                else SyncResult("none", 0, false, "No se pudo descargar la lista de canales")
             }
-            return@withContext SyncResult("none", 0, false, "No se pudo descargar la lista de canales")
-        }
-
-        loadLocalOnly()
     }
 
-    /** Primera vez: descarga obligatoria si no hay caché. */
+    /** Tras login: descarga fresca (con fallback a caché). */
     suspend fun downloadFirstTimeIfNeeded(): SyncResult = withContext(Dispatchers.IO) {
-        if (hasLocalCache()) return@withContext loadLocalOnly()
-        val token = tokenStore.cachedToken
-            ?: return@withContext SyncResult("none", 0, false, "Sin sesión")
-        downloadAndApply(token)
-            ?: SyncResult("none", 0, false, "No se pudo descargar la lista de canales")
+        downloadBestAvailable()
+            ?: if (hasLocalCache()) loadLocalOnly()
+            else SyncResult("none", 0, false, "No se pudo descargar la lista de canales")
     }
 
-    /** Solo Ajustes → Actualizar lista (sí usa red). */
+    /** Forzar sync (Ajustes → Actualizar lista). */
     suspend fun refreshFromServer(): SyncResult = withContext(Dispatchers.IO) {
-        val token = tokenStore.cachedToken
-            ?: return@withContext SyncResult("none", 0, false, "Sin sesión")
-        downloadAndApply(token)
+        downloadBestAvailable()
             ?: SyncResult("none", playlistStore.size(), false, "No se pudo descargar playlist")
     }
 
+    companion object {
+        private val PLAYLIST_PATHS = listOf(
+            "/playlist.m3u",
+            "/downloads/lista.m3u",
+            "/downloads/lista_importada.m3u",
+        )
+    }
+
     /**
-     * Descarga una M3U pública (p. ej. lista de prueba) y la aplica como catálogo EN VIVO local.
-     * Sustituye la caché en disco hasta que se vuelva a “Actualizar lista desde servidor”.
+     * Prueba varias URLs hasta obtener un M3U con #EXTINF.
+     * `/playlist.m3u` usa Bearer; las de /downloads/ también lo envían si hay token.
      */
-    suspend fun loadFromRemoteM3u(url: String = TEST_PLAYLIST_URL): SyncResult = withContext(Dispatchers.IO) {
-        val req = Request.Builder()
-            .url(url)
-            .header("User-Agent", "SEÑAL-TV/${BuildConfig.VERSION_NAME} (Android; playlist-test)")
-            .header("Accept", "audio/x-mpegurl, application/vnd.apple.mpegurl, text/plain, */*")
-            .get()
-            .build()
-        runCatching {
-            client.newCall(req).execute().use { resp ->
-                if (resp.code !in 200..299) {
-                    return@withContext SyncResult("none", playlistStore.size(), false, "HTTP ${resp.code}")
-                }
-                var body = resp.body?.bytes() ?: return@withContext SyncResult(
-                    "none", playlistStore.size(), false, "Lista vacía"
-                )
-                // Algunas listas públicas omiten #EXTM3U
-                val text = body.toString(Charsets.UTF_8)
-                if (!text.contains("#EXTINF", ignoreCase = true)) {
-                    return@withContext SyncResult("none", playlistStore.size(), false, "No parece un M3U válido")
-                }
-                if (!text.trimStart().startsWith("#EXTM3U", ignoreCase = true)) {
-                    body = ("#EXTM3U\n$text").toByteArray(Charsets.UTF_8)
-                }
-                val tmp = File(cacheDir, "playlist.tmp.gz")
-                GZIPOutputStream(tmp.outputStream()).use { it.write(body) }
-                tmp.copyTo(cacheFile, overwrite = true)
-                tmp.delete()
-                playlistStore.loadFromGzipFile(cacheFile)
-                settingsStore.setPlaylistMeta(
-                    etag = "test:$url",
-                    syncedAt = System.currentTimeMillis(),
-                    channels = playlistStore.size()
-                )
-                SyncResult("test-m3u", playlistStore.size(), updated = true)
+    private suspend fun downloadBestAvailable(): SyncResult? {
+        val base = BuildConfig.API_BASE_URL.trimEnd('/')
+        val token = tokenStore.cachedToken
+        var lastError: String? = null
+
+        for (path in PLAYLIST_PATHS) {
+            val url = "$base$path"
+            val result = fetchM3u(url, token)
+            when {
+                result != null && result.channels > 0 -> return result
+                result?.error != null -> lastError = result.error
             }
-        }.getOrElse {
-            SyncResult("none", playlistStore.size(), false, it.message ?: "No se pudo descargar la lista")
+        }
+        return if (lastError != null) {
+            SyncResult("none", playlistStore.size(), false, lastError)
+        } else {
+            null
         }
     }
 
-    companion object {
-        /** Lista pública de prueba (Duartegame/listas). */
-        const val TEST_PLAYLIST_URL =
-            "https://raw.githubusercontent.com/Duartegame/listas/main/canalesgratistvpro"
-    }
-
-    private suspend fun downloadAndApply(token: String): SyncResult? {
-        val base = BuildConfig.API_BASE_URL.trimEnd('/')
-        val url = "$base/playlist.m3u"
-        val req = Request.Builder()
+    private suspend fun fetchM3u(url: String, token: String?): SyncResult? {
+        val builder = Request.Builder()
             .url(url)
-            .header("Authorization", "Bearer $token")
+            .header("User-Agent", "SEÑAL-TV/${BuildConfig.VERSION_NAME} (Android; mundial)")
             .header("Accept", "audio/x-mpegurl, application/vnd.apple.mpegurl, text/plain, */*")
             .get()
-            .build()
+        if (!token.isNullOrBlank()) {
+            builder.header("Authorization", "Bearer $token")
+        }
+        val req = builder.build()
 
         return runCatching {
             client.newCall(req).execute().use { resp ->
-                if (resp.code !in 200..299) return@use null
-                val body = resp.body?.bytes() ?: return@use null
-                val newEtag = resp.header("ETag")
+                if (resp.code !in 200..299) {
+                    return@use SyncResult("none", playlistStore.size(), false, "HTTP ${resp.code} · $url")
+                }
+                val body = resp.body?.bytes() ?: return@use SyncResult(
+                    "none", playlistStore.size(), false, "Lista vacía"
+                )
+                val text = body.toString(Charsets.UTF_8)
+                // VPS a veces sirve el SPA HTML en rutas no desplegadas — rechazar.
+                if (looksLikeHtml(text) || !text.contains("#EXTINF", ignoreCase = true)) {
+                    return@use SyncResult(
+                        "none",
+                        playlistStore.size(),
+                        false,
+                        "Respuesta no es M3U · $url",
+                    )
+                }
+                val payload = if (text.trimStart().startsWith("#EXTM3U", ignoreCase = true)) {
+                    body
+                } else {
+                    ("#EXTM3U\n$text").toByteArray(Charsets.UTF_8)
+                }
                 val tmp = File(cacheDir, "playlist.tmp.gz")
-                GZIPOutputStream(tmp.outputStream()).use { it.write(body) }
+                GZIPOutputStream(tmp.outputStream()).use { it.write(payload) }
                 tmp.copyTo(cacheFile, overwrite = true)
                 tmp.delete()
                 playlistStore.loadFromGzipFile(cacheFile)
+                val count = playlistStore.size()
+                if (count <= 0) {
+                    return@use SyncResult("none", 0, false, "M3U sin canales · $url")
+                }
                 settingsStore.setPlaylistMeta(
-                    etag = newEtag.orEmpty(),
+                    etag = resp.header("ETag").orEmpty().ifBlank { "url:$url" },
                     syncedAt = System.currentTimeMillis(),
-                    channels = playlistStore.size()
+                    channels = count,
                 )
-                SyncResult("network", playlistStore.size(), updated = true)
+                SyncResult("network", count, updated = true)
             }
-        }.getOrNull()
+        }.getOrElse {
+            SyncResult("none", playlistStore.size(), false, it.message ?: "Error de red")
+        }
+    }
+
+    private fun looksLikeHtml(text: String): Boolean {
+        val head = text.take(200).lowercase()
+        return head.contains("<!doctype html") ||
+            head.contains("<html") ||
+            head.contains("<head>")
     }
 
     data class SyncResult(
