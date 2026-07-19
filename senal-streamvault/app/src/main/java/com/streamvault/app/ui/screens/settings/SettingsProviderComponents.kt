@@ -73,7 +73,8 @@ internal fun ProviderSettingsCard(
     onEdit: () -> Unit,
     onParentalControl: () -> Unit,
     onToggleM3uVodClassification: (Boolean) -> Unit,
-    onRefreshM3uClassification: () -> Unit
+    onRefreshM3uClassification: () -> Unit,
+    lockClientSourceControls: Boolean = false,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val liveOnboardingIncomplete = provider.type == ProviderType.XTREAM_CODES &&
@@ -205,7 +206,7 @@ internal fun ProviderSettingsCard(
             )
         }
 
-        if (provider.type == ProviderType.M3U) {
+        if (provider.type == ProviderType.M3U && !lockClientSourceControls) {
             ProviderM3uOptionsPanel(
                 m3uVodClassificationEnabled = provider.m3uVodClassificationEnabled,
                 isSyncing = isSyncing,
@@ -231,7 +232,8 @@ internal fun ProviderSettingsCard(
             onRefresh = onRefresh,
             onEdit = onEdit,
             onDelete = onDelete,
-            onParentalControl = onParentalControl
+            onParentalControl = onParentalControl,
+            lockClientSourceControls = lockClientSourceControls,
         )
 
     }

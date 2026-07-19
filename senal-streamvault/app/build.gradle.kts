@@ -57,8 +57,8 @@ android {
         applicationId = "com.senal.streamvault"
         minSdk = 27
         targetSdk = 36
-        versionCode = 104
-        versionName = "1.0.4-senal"
+        versionCode = 105
+        versionName = "1.0.5-senal"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "OFFICIAL_APPLICATION_ID", "\"com.senal.streamvault\"")
         buildConfigField("String", "OFFICIAL_SIGNING_CERT_SHA256", "\"$officialSigningCertSha256\"")

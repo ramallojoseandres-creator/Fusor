@@ -50,7 +50,10 @@ import com.streamvault.app.ui.components.shell.StatusPill
 import com.streamvault.app.ui.design.AppColors
 import com.streamvault.app.ui.interaction.TvButton
 import com.streamvault.app.ui.theme.SurfaceHighlight
+import com.streamvault.data.preferences.PreferencesRepository
 import com.streamvault.data.sync.SyncProgressBus
+import com.streamvault.domain.model.ActiveLiveSource
+import com.streamvault.domain.repository.CombinedM3uRepository
 import com.streamvault.domain.repository.ProviderRepository
 import com.streamvault.domain.sync.Section
 import com.streamvault.domain.sync.SyncProgress
@@ -76,6 +79,8 @@ class WelcomeViewModel @Inject constructor(
     private val providerRepository: ProviderRepository,
     private val validateAndAddProvider: ValidateAndAddProvider,
     private val senalAuthClient: SenalAuthClient,
+    private val preferencesRepository: PreferencesRepository,
+    private val combinedM3uRepository: CombinedM3uRepository,
     syncProgressBus: SyncProgressBus,
 ) : ViewModel() {
 
@@ -148,7 +153,21 @@ class WelcomeViewModel @Inject constructor(
                     when (add) {
                         is ValidateAndAddProviderResult.Success,
                         is ValidateAndAddProviderResult.SavedWithWarning -> {
-                            // Connected — SyncManager will index lista.m3u
+                            // Force single server source — no picker after login.
+                            if (!SenalServerConfig.allowClientPlaylistAdd) {
+                                preferencesRepository.setShowLiveSourceSwitcher(false)
+                                val providerId = when (add) {
+                                    is ValidateAndAddProviderResult.Success -> add.provider.id
+                                    is ValidateAndAddProviderResult.SavedWithWarning -> add.provider.id
+                                    else -> null
+                                }
+                                if (providerId != null) {
+                                    providerRepository.setActiveProvider(providerId)
+                                    combinedM3uRepository.setActiveLiveSource(
+                                        ActiveLiveSource.ProviderSource(providerId),
+                                    )
+                                }
+                            }
                         }
                         is ValidateAndAddProviderResult.ValidationError -> {
                             _loginError.value = add.message

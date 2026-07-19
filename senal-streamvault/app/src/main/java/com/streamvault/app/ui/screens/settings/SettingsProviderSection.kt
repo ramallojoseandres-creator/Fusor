@@ -52,6 +52,7 @@ internal fun LazyListScope.providerSection(
         }
     } else {
         item {
+            val lockToServerLista = !com.streamvault.app.senal.SenalServerConfig.allowClientPlaylistAdd
             var selectedProviderId by rememberSaveable(uiState.providers, uiState.activeProviderId) {
                 mutableStateOf(uiState.activeProviderId ?: uiState.providers.first().id)
             }
@@ -60,28 +61,42 @@ internal fun LazyListScope.providerSection(
                 if (selectedProviderId !in availableIds) {
                     selectedProviderId = uiState.activeProviderId ?: uiState.providers.first().id
                 }
+                // SEÑAL: always keep the server lista as the active source — no manual Connect.
+                val preferred = uiState.activeProviderId ?: uiState.providers.first().id
+                if (lockToServerLista && preferred != uiState.activeProviderId) {
+                    viewModel.setActiveProvider(preferred)
+                }
             }
             val selectedProvider = uiState.providers.firstOrNull { it.id == selectedProviderId }
                 ?: uiState.providers.first()
 
-            Text(
-                text = stringResource(R.string.settings_provider_selector_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = OnSurfaceDim,
-                modifier = Modifier.padding(bottom = 10.dp)
-            )
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                contentPadding = PaddingValues(bottom = 14.dp)
-            ) {
-                items(uiState.providers, key = { it.id }) { provider ->
-                    ProviderSelectorTab(
-                        provider = provider,
-                        isSelected = provider.id == selectedProvider.id,
-                        isActive = provider.id == uiState.activeProviderId,
-                        onClick = { selectedProviderId = provider.id }
-                    )
+            if (!lockToServerLista) {
+                Text(
+                    text = stringResource(R.string.settings_provider_selector_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = OnSurfaceDim,
+                    modifier = Modifier.padding(bottom = 10.dp)
+                )
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(bottom = 14.dp)
+                ) {
+                    items(uiState.providers, key = { it.id }) { provider ->
+                        ProviderSelectorTab(
+                            provider = provider,
+                            isSelected = provider.id == selectedProvider.id,
+                            isActive = provider.id == uiState.activeProviderId,
+                            onClick = { selectedProviderId = provider.id }
+                        )
+                    }
                 }
+            } else {
+                Text(
+                    text = "Fuente fija del servidor: ${selectedProvider.name}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = OnSurfaceDim,
+                    modifier = Modifier.padding(bottom = 10.dp)
+                )
             }
             ProviderSettingsCard(
                 provider = selectedProvider,
@@ -115,42 +130,45 @@ internal fun LazyListScope.providerSection(
                 },
                 onRefreshM3uClassification = {
                     viewModel.refreshProviderClassification(selectedProvider.id)
-                }
+                },
+                lockClientSourceControls = lockToServerLista,
             )
 
-            Spacer(modifier = Modifier.height(18.dp))
-            CombinedM3uProfilesCard(
-                profiles = uiState.combinedProfiles,
-                availableProviders = uiState.availableM3uProviders,
-                selectedProfileId = providerState.selectedCombinedProfileId,
-                activeLiveSource = uiState.activeLiveSource,
-                onSelectProfile = { providerState.selectedCombinedProfileId = it },
-                onCreateProfile = { providerState.showCreateCombinedDialog = true },
-                onActivateProfile = { profileId -> viewModel.setActiveCombinedProfile(profileId) },
-                onDeleteProfile = { profileId ->
-                    if (providerState.selectedCombinedProfileId == profileId) {
-                        providerState.selectedCombinedProfileId = null
+            if (!lockToServerLista) {
+                Spacer(modifier = Modifier.height(18.dp))
+                CombinedM3uProfilesCard(
+                    profiles = uiState.combinedProfiles,
+                    availableProviders = uiState.availableM3uProviders,
+                    selectedProfileId = providerState.selectedCombinedProfileId,
+                    activeLiveSource = uiState.activeLiveSource,
+                    onSelectProfile = { providerState.selectedCombinedProfileId = it },
+                    onCreateProfile = { providerState.showCreateCombinedDialog = true },
+                    onActivateProfile = { profileId -> viewModel.setActiveCombinedProfile(profileId) },
+                    onDeleteProfile = { profileId ->
+                        if (providerState.selectedCombinedProfileId == profileId) {
+                            providerState.selectedCombinedProfileId = null
+                        }
+                        viewModel.deleteCombinedProfile(profileId)
+                    },
+                    onRenameProfile = { profileId ->
+                        providerState.selectedCombinedProfileId = profileId
+                        providerState.showRenameCombinedDialog = true
+                    },
+                    onAddProvider = { profileId ->
+                        providerState.selectedCombinedProfileId = profileId
+                        providerState.showAddCombinedMemberDialog = true
+                    },
+                    onRemoveProvider = { profileId, providerId ->
+                        viewModel.removeProviderFromCombinedProfile(profileId, providerId)
+                    },
+                    onToggleProviderEnabled = { profileId, providerId, enabled ->
+                        viewModel.setCombinedProviderEnabled(profileId, providerId, enabled)
+                    },
+                    onMoveProvider = { profileId, providerId, moveUp ->
+                        viewModel.moveCombinedProvider(profileId, providerId, moveUp)
                     }
-                    viewModel.deleteCombinedProfile(profileId)
-                },
-                onRenameProfile = { profileId ->
-                    providerState.selectedCombinedProfileId = profileId
-                    providerState.showRenameCombinedDialog = true
-                },
-                onAddProvider = { profileId ->
-                    providerState.selectedCombinedProfileId = profileId
-                    providerState.showAddCombinedMemberDialog = true
-                },
-                onRemoveProvider = { profileId, providerId ->
-                    viewModel.removeProviderFromCombinedProfile(profileId, providerId)
-                },
-                onToggleProviderEnabled = { profileId, providerId, enabled ->
-                    viewModel.setCombinedProviderEnabled(profileId, providerId, enabled)
-                },
-                onMoveProvider = { profileId, providerId, moveUp ->
-                    viewModel.moveCombinedProvider(profileId, providerId, moveUp)
-                }
-            )
+                )
+            }
         }
     }
 

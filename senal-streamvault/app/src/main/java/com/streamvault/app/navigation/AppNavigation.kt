@@ -325,13 +325,21 @@ fun AppNavigation(mainActivity: MainActivity) {
         composable(Routes.WELCOME) {
             WelcomeScreen(
                 onNavigateToHome = dropUnlessResumed {
-                    navController.navigate(Routes.HOME) {
+                    // SEÑAL: go straight into Live TV — no source picker / setup step.
+                    val destination = if (com.streamvault.app.senal.SenalServerConfig.allowClientPlaylistAdd) {
+                        Routes.HOME
+                    } else {
+                        Routes.LIVE_TV
+                    }
+                    navController.navigate(destination) {
                         popUpTo(Routes.WELCOME) { inclusive = true }
                     }
                 },
                 onNavigateToSetup = dropUnlessResumed {
-                    navController.navigate(Routes.providerSetup()) {
-                        popUpTo(Routes.WELCOME) { inclusive = true }
+                    if (com.streamvault.app.senal.SenalServerConfig.allowClientPlaylistAdd) {
+                        navController.navigate(Routes.providerSetup()) {
+                            popUpTo(Routes.WELCOME) { inclusive = true }
+                        }
                     }
                 }
             )

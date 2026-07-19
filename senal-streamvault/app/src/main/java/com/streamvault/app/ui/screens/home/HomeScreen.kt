@@ -147,7 +147,10 @@ fun HomeScreen(
     val resolveProviderForChannel: (Channel) -> Provider? = remember(uiState.allProviders, uiState.provider) {
         { channel -> uiState.allProviders.firstOrNull { it.id == channel.providerId } ?: uiState.provider }
     }
-    val shouldShowLiveSourceSwitcher = uiState.showLiveSourceSwitcher && uiState.liveSourceOptions.isNotEmpty()
+    val shouldShowLiveSourceSwitcher =
+        com.streamvault.app.senal.SenalServerConfig.allowClientPlaylistAdd &&
+            uiState.showLiveSourceSwitcher &&
+            uiState.liveSourceOptions.isNotEmpty()
     val isReorderMode = uiState.isChannelReorderMode
     val isProMode = uiState.liveTvChannelMode == LiveTvChannelMode.PRO
     val isDenseMode = uiState.liveTvChannelMode != LiveTvChannelMode.COMFORTABLE

@@ -170,10 +170,11 @@ internal fun ProviderActionButtons(
     onRefresh: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    onParentalControl: () -> Unit
+    onParentalControl: () -> Unit,
+    lockClientSourceControls: Boolean = false,
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        if (!isActive) {
+        if (!lockClientSourceControls && !isActive) {
             ProviderActionButton(
                 label = when {
                     liveOnboardingIncomplete && isSyncing -> stringResource(R.string.settings_syncing_btn)
@@ -193,17 +194,19 @@ internal fun ProviderActionButtons(
             )
         }
 
-        ProviderActionButton(
-            label = stringResource(R.string.settings_edit),
-            accent = Secondary,
-            onClick = onEdit
-        )
+        if (!lockClientSourceControls) {
+            ProviderActionButton(
+                label = stringResource(R.string.settings_edit),
+                accent = Secondary,
+                onClick = onEdit
+            )
 
-        ProviderActionButton(
-            label = stringResource(R.string.settings_delete),
-            accent = ErrorColor,
-            onClick = onDelete
-        )
+            ProviderActionButton(
+                label = stringResource(R.string.settings_delete),
+                accent = ErrorColor,
+                onClick = onDelete
+            )
+        }
 
         if (isActive) {
             ProviderActionButton(
