@@ -86,13 +86,19 @@ fun LoginScreen(
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(
                 modifier = Modifier
-                    .width(520.dp)
-                    .background(GraphiteCard.copy(alpha = 0.92f), RoundedCornerShape(28.dp))
-                    .padding(36.dp),
+                    .width(440.dp)
+                    .background(GraphiteCard.copy(alpha = 0.94f), RoundedCornerShape(16.dp))
+                    .padding(horizontal = 28.dp, vertical = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                BrandMark()
-                Spacer(Modifier.height(28.dp))
+                BrandMark(compact = true)
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = "TV en vivo",
+                    style = LocalSenalTypography.current.caption,
+                    color = TextMuted
+                )
+                Spacer(Modifier.height(20.dp))
 
                 TvTextField(
                     value = username,
@@ -101,7 +107,7 @@ fun LoginScreen(
                     modifier = Modifier.focusRequester(userFocus),
                     imeAction = ImeAction.Next
                 )
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(10.dp))
                 TvTextField(
                     value = password,
                     onValueChange = { password = it; error = null },
@@ -110,13 +116,13 @@ fun LoginScreen(
                     imeAction = ImeAction.Done,
                     onDone = { submit() }
                 )
-                Spacer(Modifier.height(18.dp))
+                Spacer(Modifier.height(14.dp))
 
                 AnimatedVisibility(visible = error != null, enter = fadeIn(), exit = fadeOut()) {
                     error?.let {
                         Column {
                             ErrorMessage(it)
-                            Spacer(Modifier.height(14.dp))
+                            Spacer(Modifier.height(10.dp))
                         }
                     }
                 }
@@ -124,7 +130,7 @@ fun LoginScreen(
                 AnimatedVisibility(visible = loading, enter = fadeIn(), exit = fadeOut()) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         LoadingPulse("Iniciando sesión…")
-                        Spacer(Modifier.height(18.dp))
+                        Spacer(Modifier.height(12.dp))
                     }
                 }
 
@@ -166,8 +172,8 @@ private fun TvTextField(
             keyboardActions = KeyboardActions(onDone = { onDone?.invoke() }),
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ColorField, RoundedCornerShape(16.dp))
-                .padding(horizontal = 18.dp, vertical = 16.dp),
+                .background(ColorField, RoundedCornerShape(10.dp))
+                .padding(horizontal = 14.dp, vertical = 12.dp),
             decorationBox = { inner ->
                 Box {
                     if (value.isEmpty()) {

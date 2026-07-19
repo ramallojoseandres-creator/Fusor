@@ -361,28 +361,30 @@ private fun AdultLockedActions(
 
 @Composable
 private fun DigitPad(onDigit: (String) -> Unit, onDelete: () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         listOf(
             listOf("1", "2", "3"),
             listOf("4", "5", "6"),
             listOf("7", "8", "9"),
             listOf("←", "0", " ")
         ).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 row.forEach { key ->
                     when (key) {
-                        " " -> Spacer(Modifier.width(72.dp))
+                        " " -> Spacer(Modifier.width(48.dp))
                         "←" -> FocusableButton(
                             label = "Borrar",
                             onClick = onDelete,
                             primary = false,
-                            modifier = Modifier.width(110.dp)
+                            compact = true,
+                            modifier = Modifier.width(88.dp)
                         )
                         else -> FocusableButton(
                             label = key,
                             onClick = { onDigit(key) },
                             primary = false,
-                            modifier = Modifier.width(72.dp)
+                            compact = true,
+                            modifier = Modifier.width(48.dp)
                         )
                     }
                 }
@@ -419,8 +421,8 @@ private fun SettingsField(
             ),
             modifier = Modifier
                 .fillMaxWidth()
-                .background(GraphiteCard, RoundedCornerShape(14.dp))
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .background(GraphiteCard, RoundedCornerShape(10.dp))
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             decorationBox = { inner ->
                 if (value.isEmpty()) {
                     Text("····", color = TextMuted, style = LocalSenalTypography.current.body)

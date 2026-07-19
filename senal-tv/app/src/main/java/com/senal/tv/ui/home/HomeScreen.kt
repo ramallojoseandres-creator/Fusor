@@ -594,23 +594,23 @@ private fun HeaderBar(
             contentDescription = "SEÑAL",
             contentScale = ContentScale.Fit,
             modifier = Modifier
-                .height(38.dp)
-                .widthIn(max = 160.dp)
+                .height(32.dp)
+                .widthIn(max = 140.dp)
         )
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(8.dp))
         Text(
             text = "SEÑAL",
             color = BrandOrangeHot,
-            fontSize = 22.sp,
+            fontSize = 18.sp,
             fontWeight = FontWeight.Black,
             fontFamily = FontFamily.SansSerif,
-            letterSpacing = 3.sp,
+            letterSpacing = 2.sp,
             modifier = Modifier.drawBehind {
                 drawRoundRect(
-                    color = BrandOrange.copy(alpha = 0.22f),
-                    cornerRadius = CornerRadius(8.dp.toPx()),
-                    size = Size(size.width + 12.dp.toPx(), size.height + 6.dp.toPx()),
-                    topLeft = Offset(-6.dp.toPx(), -3.dp.toPx())
+                    color = BrandOrange.copy(alpha = 0.18f),
+                    cornerRadius = CornerRadius(6.dp.toPx()),
+                    size = Size(size.width + 10.dp.toPx(), size.height + 4.dp.toPx()),
+                    topLeft = Offset(-5.dp.toPx(), -2.dp.toPx())
                 )
             }
         )
@@ -618,7 +618,7 @@ private fun HeaderBar(
         Text(
             text = clock.time,
             color = Color.White,
-            fontSize = 26.sp,
+            fontSize = 20.sp,
             fontWeight = FontWeight.SemiBold,
             fontFamily = FontFamily.SansSerif,
             letterSpacing = 0.5.sp

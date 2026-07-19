@@ -95,9 +95,9 @@ fun CatalogLoadingScreen(
         ) {
             Column(
                 modifier = Modifier
-                    .width(520.dp)
-                    .background(GraphiteCard.copy(alpha = 0.94f), RoundedCornerShape(28.dp))
-                    .padding(36.dp),
+                    .width(420.dp)
+                    .background(GraphiteCard.copy(alpha = 0.94f), RoundedCornerShape(16.dp))
+                    .padding(horizontal = 28.dp, vertical = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
@@ -105,13 +105,13 @@ fun CatalogLoadingScreen(
                     text = "SEÑAL",
                     color = BrandOrange,
                     fontWeight = FontWeight.Black,
-                    fontSize = 28.sp,
-                    letterSpacing = 4.sp
+                    fontSize = 22.sp,
+                    letterSpacing = 3.sp
                 )
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(18.dp))
                 if (busy) {
                     LoadingPulse(message)
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     Text(
                         text = if (hadCache || container.playlistSync.hasLocalCache()) {
                             "Usa la copia guardada en este dispositivo"
@@ -119,15 +119,15 @@ fun CatalogLoadingScreen(
                             "Solo la primera vez. Luego queda guardada."
                         },
                         color = TextMuted,
-                        fontSize = 14.sp
+                        fontSize = 13.sp
                     )
                 } else {
                     val err = error
                     if (err != null) {
                         Text(text = message, color = TextPrimary, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(text = err, color = Color(0xFFFF8A80))
-                        Spacer(modifier = Modifier.height(20.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
                         FocusableButton(
                             label = "Reintentar",
                             onClick = { attempt += 1 },

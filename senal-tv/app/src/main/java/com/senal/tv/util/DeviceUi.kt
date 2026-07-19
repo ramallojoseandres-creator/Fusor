@@ -37,19 +37,19 @@ fun rememberTabletLayout(): TabletLayout {
             isTablet = true,
             padH = 36.dp,
             padV = 20.dp,
-            tileHeight = 128.dp,
+            tileHeight = 100.dp,
             sideWeight = 0.36f,
-            channelRowHeight = 64.dp,
-            touchMin = 52.dp
+            channelRowHeight = 56.dp,
+            touchMin = 48.dp
         )
     } else {
         TabletLayout(
             isTablet = false,
-            padH = 48.dp,
-            padV = 24.dp,
-            tileHeight = 112.dp,
+            padH = 40.dp,
+            padV = 18.dp,
+            tileHeight = 88.dp,
             sideWeight = 0.34f,
-            channelRowHeight = 52.dp,
+            channelRowHeight = 46.dp,
             touchMin = 40.dp
         )
     }

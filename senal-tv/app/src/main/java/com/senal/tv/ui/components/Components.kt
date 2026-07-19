@@ -52,6 +52,7 @@ import coil.compose.AsyncImage
 import com.senal.tv.R
 import com.senal.tv.data.model.CatalogItem
 import com.senal.tv.ui.theme.BrandOrange
+import com.senal.tv.ui.theme.BrandOrangeHot
 import com.senal.tv.ui.theme.FocusWhite
 import com.senal.tv.ui.theme.Graphite
 import com.senal.tv.ui.theme.GraphiteCard
@@ -62,9 +63,9 @@ import com.senal.tv.ui.theme.TextPrimary
 import com.senal.tv.util.formatDurationMinutes
 import com.senal.tv.util.formatRating
 
-/** FLUJO focus scale — matches focus_scale_anim.xml (1.13). */
-const val FOCUS_SCALE = 1.13f
-const val FOCUS_SCALE_SOFT = 1.05f
+/** Focus scale — subtle, modern TV (not cartoon zoom). */
+const val FOCUS_SCALE = 1.08f
+const val FOCUS_SCALE_SOFT = 1.03f
 
 @Composable
 fun rememberFlujoFocusModifier(focused: Boolean, big: Boolean = true): Modifier {
@@ -75,26 +76,26 @@ fun rememberFlujoFocusModifier(focused: Boolean, big: Boolean = true): Modifier 
     }
     val scale by animateFloatAsState(
         targetValue = target,
-        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
         label = "flujoFocus"
     )
     val glow by animateFloatAsState(
         targetValue = if (focused) 1f else 0f,
-        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
         label = "flujoGlow"
     )
     return Modifier
         .graphicsLayer {
             scaleX = scale
             scaleY = scale
-            shadowElevation = if (focused) 24f else 0f
+            shadowElevation = if (focused) 12f else 0f
         }
         .drawBehind {
             if (glow > 0f) {
-                val pad = size.width * 0.02f
+                val pad = size.width * 0.015f
                 drawRoundRect(
-                    color = BrandOrange.copy(alpha = 0.35f * glow),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(18.dp.toPx()),
+                    color = BrandOrange.copy(alpha = 0.22f * glow),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(10.dp.toPx()),
                     size = androidx.compose.ui.geometry.Size(size.width + pad * 2, size.height + pad * 2),
                     topLeft = Offset(-pad, -pad)
                 )
@@ -162,34 +163,38 @@ fun FocusableButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     primary: Boolean = true,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    compact: Boolean = false,
 ) {
     var focused by remember { mutableStateOf(false) }
+    val radius = if (compact) 8.dp else 10.dp
+    val hPad = if (compact) 12.dp else 16.dp
+    val vPad = if (compact) 8.dp else 10.dp
     Surface(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier
             .then(rememberFlujoFocusModifier(focused, big = false))
             .onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(14.dp)),
+        shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(radius)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = if (primary) BrandOrange else GraphiteCard,
-            focusedContainerColor = if (primary) Color(0xFFFF6A00) else Color(0xFF23232E),
+            focusedContainerColor = if (primary) BrandOrangeHot else Color(0xFF1A2740),
             pressedContainerColor = BrandOrange
         ),
         border = ClickableSurfaceDefaults.border(
             focusedBorder = Border(
-                border = BorderStroke(3.dp, FocusWhite),
-                shape = RoundedCornerShape(14.dp)
+                border = BorderStroke(2.dp, FocusWhite),
+                shape = RoundedCornerShape(radius)
             )
         ),
         glow = ClickableSurfaceDefaults.glow(
-            focusedGlow = Glow(elevationColor = BrandOrange, elevation = 14.dp)
+            focusedGlow = Glow(elevationColor = BrandOrange, elevation = 6.dp)
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
         content = {
             Box(
-                modifier = Modifier.padding(horizontal = 22.dp, vertical = 14.dp),
+                modifier = Modifier.padding(horizontal = hPad, vertical = vPad),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -251,7 +256,7 @@ fun ColorTile(
     color: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    height: Dp = 78.dp
+    height: Dp = 64.dp
 ) {
     var focused by remember { mutableStateOf(false) }
     Surface(
@@ -261,21 +266,21 @@ fun ColorTile(
             .height(height)
             .then(rememberFlujoFocusModifier(focused, big = true))
             .onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = color,
             focusedContainerColor = color
         ),
         border = ClickableSurfaceDefaults.border(
             focusedBorder = Border(
-                border = BorderStroke(3.dp, FocusWhite),
-                shape = RoundedCornerShape(16.dp)
+                border = BorderStroke(2.dp, FocusWhite),
+                shape = RoundedCornerShape(10.dp)
             )
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
         content = {
             Box(
-                Modifier.fillMaxSize().padding(horizontal = 18.dp),
+                Modifier.fillMaxSize().padding(horizontal = 14.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
                 Text(text = label, style = LocalSenalTypography.current.button, color = FocusWhite)
@@ -392,7 +397,7 @@ fun ChannelCard(
             .fillMaxWidth()
             .then(rememberFlujoFocusModifier(focused, big = false))
             .onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = if (focused) FocusWhite else GraphiteCard,
             focusedContainerColor = FocusWhite
@@ -400,7 +405,7 @@ fun ChannelCard(
         border = ClickableSurfaceDefaults.border(
             focusedBorder = Border(
                 border = BorderStroke(2.dp, BrandOrange),
-                shape = RoundedCornerShape(14.dp)
+                shape = RoundedCornerShape(10.dp)
             )
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
@@ -408,7 +413,7 @@ fun ChannelCard(
             val titleColor = if (focused) Color.Black else TextPrimary
             val muted = if (focused) Color.Black.copy(alpha = 0.65f) else TextMuted
             Row(
-                modifier = Modifier.padding(14.dp),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -421,12 +426,12 @@ fun ChannelCard(
                     model = item.resolveLogo(),
                     contentDescription = null,
                     modifier = Modifier
-                        .size(52.dp)
-                        .clip(RoundedCornerShape(10.dp))
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(8.dp))
                         .background(Color(0xFF101016)),
                     contentScale = ContentScale.Fit
                 )
-                Spacer(modifier = Modifier.width(14.dp))
+                Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = item.resolveTitle(),
@@ -455,7 +460,7 @@ fun ChannelCard(
 
 @Composable
 fun SectionHeader(title: String, subtitle: String? = null) {
-    Column(modifier = Modifier.padding(bottom = 12.dp)) {
+    Column(modifier = Modifier.padding(bottom = 8.dp)) {
         Text(text = title, style = LocalSenalTypography.current.title, color = TextPrimary)
         if (!subtitle.isNullOrBlank()) {
             Text(text = subtitle, style = LocalSenalTypography.current.subtitle, color = TextMuted)

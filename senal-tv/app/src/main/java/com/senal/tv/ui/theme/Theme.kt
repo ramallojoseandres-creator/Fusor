@@ -60,45 +60,47 @@ data class SenalTypography(
     val brand: TextStyle = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Black,
-        fontSize = 64.sp,
-        letterSpacing = 8.sp,
+        fontSize = 40.sp,
+        letterSpacing = 4.sp,
         color = TextPrimary
     ),
     val title: TextStyle = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Bold,
-        fontSize = 28.sp,
+        fontSize = 22.sp,
+        letterSpacing = 0.5.sp,
         color = TextPrimary
     ),
     val subtitle: TextStyle = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Medium,
-        fontSize = 16.sp,
+        fontSize = 14.sp,
         color = TextMuted
     ),
     val body: TextStyle = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Normal,
-        fontSize = 15.sp,
+        fontSize = 14.sp,
         color = TextPrimary
     ),
     val caption: TextStyle = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Medium,
-        fontSize = 13.sp,
+        fontSize = 12.sp,
         color = TextMuted
     ),
     val button: TextStyle = TextStyle(
         fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.Bold,
-        fontSize = 16.sp,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 14.sp,
+        letterSpacing = 0.3.sp,
         color = TextPrimary
     ),
     val tagline: TextStyle = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 18.sp,
-        letterSpacing = 2.sp,
+        fontSize = 15.sp,
+        letterSpacing = 1.5.sp,
         color = TextPrimary
     )
 )
