@@ -1,0 +1,48 @@
+{
+  "appTitle": "কৌশলগত ResQRadar",
+  "tabRadar": "রাডার",
+  "tabSwarm": "ঝাঁক",
+  "tabMap": "মানচিত্র",
+  "tabSettings": "সেটিংস",
+  "tabHistory": "ইতিহাস",
+  "btnStartScan": "স্ক্যান শুরু করুন",
+  "btnStopScan": "থামুন",
+  "statusSearching": "অনুসন্ধান করা হচ্ছে...",
+  "statusDetected": "ভুক্তভোগী সনাক্ত করা হয়েছে",
+  "lblBPM": "BPM",
+  "lblRPM": "RPM",
+  "lblDistance": "দূরত্ব",
+  "lblDistanceUnit": "m",
+  "msgVictimPortalConnected": "ভুক্তভোগী পোর্টালে সংযুক্ত! IP: {ip}",
+  "msgMovementDetected": "অত্যাবশ্যক আন্দোলন সনাক্ত করা হয়েছে!",
+  "aboutTitle": "সম্পর্কিত",
+  "aboutVersion": "সংস্করণ 1.0.0+1",
+  "aboutDeveloper": "ডেভেলপার:",
+  "aboutWeb": "ওয়েব:",
+  "aboutContact": "WhatsApp / যোগাযোগ:",
+  "aboutLicense": "লাইসেন্স:",
+  "aboutLicenseDesc": "Moovitya মালিকানাধীন",
+  "aboutCredits": "ক্রেডিট:",
+  "aboutCreditsDesc": "কার্লোস মুন্ডারের মূল ধারণার উপর ভিত্তি করে।",
+  "btnClose": "বন্ধ করুন",
+  "swarmTitle": "P2P সোয়ার্ম মোড",
+  "swarmSubtitle": "রেসকিউয়ার টেকটিক্যাল নেটওয়ার্ক",
+  "swarmStatusConnected": "মেশের সাথে সংযুক্ত",
+  "swarmStatusDisconnected": "বিচ্ছিন্ন",
+  "btnConnectSwarm": "মেশ সংযোগ করুন",
+  "btnDisconnectSwarm": "সংযোগ বিচ্ছিন্ন করুন",
+  "chatInputHint": "কৌশলগত বার্তা...",
+  "settingsTitle": "সিস্টেম সেটিংস",
+  "settingsRadarSensitivity": "রাডারের সংবেদনশীলতা",
+  "settingsAlarmSound": "অ্যালার্ম সাউন্ড",
+  "settingsVibration": "কৌশলগত কম্পন",
+  "mapTitle": "নিষ্কাশন মানচিত্র",
+  "@@locale": "bn",
+  "@msgVictimPortalConnected": {
+    "placeholders": {
+      "ip": {
+        "type": "String"
+      }
+    }
+  }
+}

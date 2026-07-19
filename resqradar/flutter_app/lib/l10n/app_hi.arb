@@ -1,0 +1,48 @@
+{
+  "appTitle": "सामरिक ResQRadar",
+  "tabRadar": "रडार",
+  "tabSwarm": "स्वार्म",
+  "tabMap": "नक्शा",
+  "tabSettings": "सेटिंग्स",
+  "tabHistory": "इतिहास",
+  "btnStartScan": "स्कैन शुरू करें",
+  "btnStopScan": "रोकें",
+  "statusSearching": "खोज रहा है...",
+  "statusDetected": "पीड़ित का पता चला",
+  "lblBPM": "BPM",
+  "lblRPM": "RPM",
+  "lblDistance": "दूरी",
+  "lblDistanceUnit": "m",
+  "msgVictimPortalConnected": "पीड़ित पोर्टल से जुड़ा! IP: {ip}",
+  "msgMovementDetected": "महत्वपूर्ण गति का पता चला!",
+  "aboutTitle": "के बारे में",
+  "aboutVersion": "संस्करण 1.0.0+1",
+  "aboutDeveloper": "डेवलपर:",
+  "aboutWeb": "वेबसाइट:",
+  "aboutContact": "WhatsApp / संपर्क:",
+  "aboutLicense": "लाइसेंस:",
+  "aboutLicenseDesc": "सामरिक और बचाव उपयोग (Moovitya)",
+  "aboutCredits": "क्रेडिट:",
+  "aboutCreditsDesc": "Carlos Mundaray की मूल अवधारणा पर आधारित।",
+  "btnClose": "बंद करें",
+  "swarmTitle": "P2P स्वार्म मोड",
+  "swarmSubtitle": "बचावकर्ता सामरिक नेटवर्क",
+  "swarmStatusConnected": "मेश से जुड़ा हुआ",
+  "swarmStatusDisconnected": "डिस्कनेक्ट हो गया",
+  "btnConnectSwarm": "मेश से जुड़ें",
+  "btnDisconnectSwarm": "डिस्कनेक्ट करें",
+  "chatInputHint": "सामरिक संदेश...",
+  "settingsTitle": "सिस्टम सेटिंग्स",
+  "settingsRadarSensitivity": "रडार संवेदनशीलता",
+  "settingsAlarmSound": "अलार्म ध्वनि",
+  "settingsVibration": "सामरिक कंपन",
+  "mapTitle": "निकासी का नक्शा",
+  "@@locale": "hi",
+  "@msgVictimPortalConnected": {
+    "placeholders": {
+      "ip": {
+        "type": "String"
+      }
+    }
+  }
+}

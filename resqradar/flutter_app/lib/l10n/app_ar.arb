@@ -1,0 +1,48 @@
+{
+  "appTitle": "رادار الإنقاذ التكتيكي",
+  "tabRadar": "الرادار",
+  "tabSwarm": "السرب",
+  "tabMap": "الخريطة",
+  "tabSettings": "الإعدادات",
+  "tabHistory": "السجل",
+  "btnStartScan": "بدء المسح",
+  "btnStopScan": "إيقاف",
+  "statusSearching": "جاري البحث...",
+  "statusDetected": "تم اكتشاف ضحية",
+  "lblBPM": "نبضة/د",
+  "lblRPM": "تنفس/د",
+  "lblDistance": "المسافة",
+  "lblDistanceUnit": "م",
+  "msgVictimPortalConnected": "تم اتصال الضحية بالبوابة! IP: {ip}",
+  "msgMovementDetected": "تم اكتشاف حركة حيوية!",
+  "aboutTitle": "حول",
+  "aboutVersion": "الإصدار 1.0.0+1",
+  "aboutDeveloper": "المطور:",
+  "aboutWeb": "الويب:",
+  "aboutContact": "واتساب / اتصال:",
+  "aboutLicense": "الترخيص:",
+  "aboutLicenseDesc": "استخدام تكتيكي وإنقاذ (ملكية Moovitya)",
+  "aboutCredits": "الاعتمادات:",
+  "aboutCreditsDesc": "استنادًا إلى المفهوم الأصلي لـ Carlos Mundaray.",
+  "btnClose": "إغلاق",
+  "swarmTitle": "وضع السرب P2P",
+  "swarmSubtitle": "الشبكة التكتيكية للمنقذين",
+  "swarmStatusConnected": "متصل بالشبكة المعشقة",
+  "swarmStatusDisconnected": "غير متصل",
+  "btnConnectSwarm": "اتصال بالشبكة",
+  "btnDisconnectSwarm": "قطع الاتصال",
+  "chatInputHint": "رسالة تكتيكية...",
+  "settingsTitle": "إعدادات النظام",
+  "settingsRadarSensitivity": "حساسية الرادار",
+  "settingsAlarmSound": "صوت التنبيه",
+  "settingsVibration": "اهتزاز تكتيكي",
+  "mapTitle": "خريطة الإخلاء",
+  "@@locale": "ar",
+  "@msgVictimPortalConnected": {
+    "placeholders": {
+      "ip": {
+        "type": "String"
+      }
+    }
+  }
+}

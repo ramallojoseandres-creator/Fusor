@@ -1,0 +1,48 @@
+{
+  "appTitle": "ResQRadar Tactique",
+  "tabRadar": "Radar",
+  "tabSwarm": "Essaim",
+  "tabMap": "Carte",
+  "tabSettings": "Paramètres",
+  "tabHistory": "Historique",
+  "btnStartScan": "DÉMARRER",
+  "btnStopScan": "ARRÊTER",
+  "statusSearching": "Recherche...",
+  "statusDetected": "Victime Détectée",
+  "lblBPM": "BPM",
+  "lblRPM": "RPM",
+  "lblDistance": "Distance",
+  "lblDistanceUnit": "m",
+  "msgVictimPortalConnected": "VICTIME CONNECTÉE AU PORTAIL! IP: {ip}",
+  "msgMovementDetected": "MOUVEMENT VITAL DÉTECTÉ!",
+  "aboutTitle": "À propos",
+  "aboutVersion": "Version 1.0.0+1",
+  "aboutDeveloper": "Développeur:",
+  "aboutWeb": "Web:",
+  "aboutContact": "WhatsApp / Contact:",
+  "aboutLicense": "Licence:",
+  "aboutLicenseDesc": "Usage Tactique et Sauvetage (Propriété de Moovitya)",
+  "aboutCredits": "Crédits:",
+  "aboutCreditsDesc": "Basé sur le concept et le système original de Carlos Mundaray.",
+  "btnClose": "Fermer",
+  "swarmTitle": "Mode Essaim P2P",
+  "swarmSubtitle": "Réseau Tactique de Sauvetage",
+  "swarmStatusConnected": "CONNECTÉ AU MESH",
+  "swarmStatusDisconnected": "DÉCONNECTÉ",
+  "btnConnectSwarm": "Connecter au Mesh",
+  "btnDisconnectSwarm": "Déconnecter",
+  "chatInputHint": "Message tactique...",
+  "settingsTitle": "Paramètres du Système",
+  "settingsRadarSensitivity": "Sensibilité du Radar",
+  "settingsAlarmSound": "Son de l'Alarme",
+  "settingsVibration": "Vibration Tactique",
+  "mapTitle": "Carte d'Extraction",
+  "@@locale": "fr",
+  "@msgVictimPortalConnected": {
+    "placeholders": {
+      "ip": {
+        "type": "String"
+      }
+    }
+  }
+}

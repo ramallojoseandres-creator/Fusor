@@ -1,0 +1,48 @@
+{
+  "appTitle": "Taktisches ResQRadar",
+  "tabRadar": "Radar",
+  "tabSwarm": "Schwarm",
+  "tabMap": "Karte",
+  "tabSettings": "Einstellungen",
+  "tabHistory": "Verlauf",
+  "btnStartScan": "SCAN STARTEN",
+  "btnStopScan": "STOPP",
+  "statusSearching": "Suchen...",
+  "statusDetected": "Opfer Erkannt",
+  "lblBPM": "BPM",
+  "lblRPM": "RPM",
+  "lblDistance": "Entfernung",
+  "lblDistanceUnit": "m",
+  "msgVictimPortalConnected": "OPFER VERBUNDEN! IP: {ip}",
+  "msgMovementDetected": "LEBENSZEICHEN ERKANNT!",
+  "aboutTitle": "Über",
+  "aboutVersion": "Version 1.0.0+1",
+  "aboutDeveloper": "Entwickler:",
+  "aboutWeb": "Web:",
+  "aboutContact": "WhatsApp / Kontakt:",
+  "aboutLicense": "Lizenz:",
+  "aboutLicenseDesc": "Taktische und Rettungsnutzung (Moovitya)",
+  "aboutCredits": "Credits:",
+  "aboutCreditsDesc": "Basierend auf dem System von Carlos Mundaray.",
+  "btnClose": "Schließen",
+  "swarmTitle": "P2P Schwarm-Modus",
+  "swarmSubtitle": "Taktisches Rettungsnetzwerk",
+  "swarmStatusConnected": "MIT MESH VERBUNDEN",
+  "swarmStatusDisconnected": "GETRENNT",
+  "btnConnectSwarm": "Mit Mesh verbinden",
+  "btnDisconnectSwarm": "Trennen",
+  "chatInputHint": "Taktische Nachricht...",
+  "settingsTitle": "Systemeinstellungen",
+  "settingsRadarSensitivity": "Radarempfindlichkeit",
+  "settingsAlarmSound": "Alarmton",
+  "settingsVibration": "Taktische Vibration",
+  "mapTitle": "Evakuierungskarte",
+  "@@locale": "de",
+  "@msgVictimPortalConnected": {
+    "placeholders": {
+      "ip": {
+        "type": "String"
+      }
+    }
+  }
+}

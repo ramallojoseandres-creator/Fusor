@@ -1,0 +1,48 @@
+{
+  "appTitle": "Тактический ResQRadar",
+  "tabRadar": "Радар",
+  "tabSwarm": "Рой",
+  "tabMap": "Карта",
+  "tabSettings": "Настройки",
+  "tabHistory": "История",
+  "btnStartScan": "НАЧАТЬ СКАН.",
+  "btnStopScan": "СТОП",
+  "statusSearching": "Поиск...",
+  "statusDetected": "Обнаружен пострадавший",
+  "lblBPM": "УД/МИН",
+  "lblRPM": "ДЫХ/МИН",
+  "lblDistance": "Дистанция",
+  "lblDistanceUnit": "м",
+  "msgVictimPortalConnected": "ПОСТРАДАВШИЙ ПОДКЛЮЧЕН! IP: {ip}",
+  "msgMovementDetected": "ОБНАРУЖЕНО ДВИЖЕНИЕ!",
+  "aboutTitle": "О приложении",
+  "aboutVersion": "Версия 1.0.0+1",
+  "aboutDeveloper": "Разработчик:",
+  "aboutWeb": "Веб-сайт:",
+  "aboutContact": "WhatsApp / Контакт:",
+  "aboutLicense": "Лицензия:",
+  "aboutLicenseDesc": "Тактическое использование (Moovitya)",
+  "aboutCredits": "Кредиты:",
+  "aboutCreditsDesc": "На основе концепции Carlos Mundaray.",
+  "btnClose": "Закрыть",
+  "swarmTitle": "P2P Режим Роя",
+  "swarmSubtitle": "Тактическая сеть спасателей",
+  "swarmStatusConnected": "ПОДКЛЮЧЕНО К СЕТИ",
+  "swarmStatusDisconnected": "ОТКЛЮЧЕНО",
+  "btnConnectSwarm": "Подключиться",
+  "btnDisconnectSwarm": "Отключиться",
+  "chatInputHint": "Тактическое сообщение...",
+  "settingsTitle": "Настройки системы",
+  "settingsRadarSensitivity": "Чувствительность радара",
+  "settingsAlarmSound": "Звук тревоги",
+  "settingsVibration": "Тактическая вибрация",
+  "mapTitle": "Карта эвакуации",
+  "@@locale": "ru",
+  "@msgVictimPortalConnected": {
+    "placeholders": {
+      "ip": {
+        "type": "String"
+      }
+    }
+  }
+}

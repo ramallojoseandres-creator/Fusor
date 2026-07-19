@@ -1,0 +1,48 @@
+{
+  "appTitle": "ResQRadar Tattico",
+  "tabRadar": "Radar",
+  "tabSwarm": "Sciame",
+  "tabMap": "Mappa",
+  "tabSettings": "Impostazioni",
+  "tabHistory": "Cronologia",
+  "btnStartScan": "INIZIA SCANSIONE",
+  "btnStopScan": "FERMA",
+  "statusSearching": "Ricerca in corso...",
+  "statusDetected": "Vittima Rilevata",
+  "lblBPM": "BPM",
+  "lblRPM": "RPM",
+  "lblDistance": "Distanza",
+  "lblDistanceUnit": "m",
+  "msgVictimPortalConnected": "VITTIMA CONNESSA AL PORTALE! IP: {ip}",
+  "msgMovementDetected": "MOVIMENTO VITALE RILEVATO!",
+  "aboutTitle": "Informazioni",
+  "aboutVersion": "Versione 1.0.0+1",
+  "aboutDeveloper": "Sviluppatore:",
+  "aboutWeb": "Web:",
+  "aboutContact": "WhatsApp / Contatto:",
+  "aboutLicense": "Licenza:",
+  "aboutLicenseDesc": "Uso Tattico e Salvataggio (Moovitya)",
+  "aboutCredits": "Crediti:",
+  "aboutCreditsDesc": "Basato sul sistema originale di Carlos Mundaray.",
+  "btnClose": "Chiudi",
+  "swarmTitle": "Modalità Sciame P2P",
+  "swarmSubtitle": "Rete Tattica Soccorritori",
+  "swarmStatusConnected": "CONNESSO AL MESH",
+  "swarmStatusDisconnected": "DISCONNESSO",
+  "btnConnectSwarm": "Connetti al Mesh",
+  "btnDisconnectSwarm": "Disconnetti",
+  "chatInputHint": "Messaggio tattico...",
+  "settingsTitle": "Impostazioni di Sistema",
+  "settingsRadarSensitivity": "Sensibilità Radar",
+  "settingsAlarmSound": "Suono Allarme",
+  "settingsVibration": "Vibrazione Tattica",
+  "mapTitle": "Mappa di Estrazione",
+  "@@locale": "it",
+  "@msgVictimPortalConnected": {
+    "placeholders": {
+      "ip": {
+        "type": "String"
+      }
+    }
+  }
+}

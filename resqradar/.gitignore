@@ -1,0 +1,38 @@
+# Build
+**/build/
+**/.gradle/
+**/local.properties
+**/*.apk
+**/*.aab
+**/*.ipa
+**/.dart_tool/
+**/Flutter/ephemeral/
+**/Pods/
+**/.flutter-plugins*
+**/Generated.xcconfig
+**/xcuserdata/
+**/.idea/
+**/*.iml
+**/keystore.properties
+**/*.jks
+**/*.keystore
+python/.venv/
+python/data/
+python/__pycache__/
+.DS_Store
+
+# Builds
+**/build/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/local.properties
+**/.gradle/
+**/captures/
+*.iml
+.idea/
+releases/ResQRadar-VE-*.apk
+
+# Ship native brigade APK
+!releases/
+!releases/VitalFi-VE-*.apk

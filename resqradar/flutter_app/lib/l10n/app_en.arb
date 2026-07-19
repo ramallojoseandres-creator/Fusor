@@ -1,0 +1,48 @@
+{
+  "appTitle": "Tactical ResQRadar",
+  "tabRadar": "Radar",
+  "tabSwarm": "Swarm",
+  "tabMap": "Map",
+  "tabSettings": "Settings",
+  "tabHistory": "History",
+  "btnStartScan": "START SCAN",
+  "btnStopScan": "STOP",
+  "statusSearching": "Searching...",
+  "statusDetected": "Victim Detected",
+  "lblBPM": "BPM",
+  "lblRPM": "RPM",
+  "lblDistance": "Distance",
+  "lblDistanceUnit": "m",
+  "msgVictimPortalConnected": "VICTIM CONNECTED TO PORTAL! IP: {ip}",
+  "msgMovementDetected": "VITAL MOVEMENT DETECTED!",
+  "aboutTitle": "About",
+  "aboutVersion": "Version 1.0.0+1",
+  "aboutDeveloper": "Developer:",
+  "aboutWeb": "Web:",
+  "aboutContact": "WhatsApp / Contact:",
+  "aboutLicense": "License:",
+  "aboutLicenseDesc": "Tactical and Rescue Use (Property of Moovitya)",
+  "aboutCredits": "Credits:",
+  "aboutCreditsDesc": "Based on the original concept and system by Carlos Mundaray.",
+  "btnClose": "Close",
+  "swarmTitle": "P2P Swarm Mode",
+  "swarmSubtitle": "Rescuer Tactical Network",
+  "swarmStatusConnected": "CONNECTED TO MESH",
+  "swarmStatusDisconnected": "DISCONNECTED",
+  "btnConnectSwarm": "Connect to Mesh",
+  "btnDisconnectSwarm": "Disconnect",
+  "chatInputHint": "Tactical message...",
+  "settingsTitle": "System Settings",
+  "settingsRadarSensitivity": "Radar Sensitivity",
+  "settingsAlarmSound": "Alarm Sound",
+  "settingsVibration": "Tactical Vibration",
+  "mapTitle": "Extraction Map",
+  "@@locale": "en",
+  "@msgVictimPortalConnected": {
+    "placeholders": {
+      "ip": {
+        "type": "String"
+      }
+    }
+  }
+}

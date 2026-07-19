@@ -1,0 +1,30 @@
+<resources>
+    <string name="app_name">VitalFi VE</string>
+    <string name="offline_badge">Funciona sin internet — 100% offline</string>
+    <string name="offline_hint">Solo necesitas señal Wi-Fi local del router (sin datos móviles ni internet).</string>
+    <string name="field_guide_title">Guía rápida de campo (brigada)</string>
+    <string name="field_guide_body">1) Usa router Wi‑Fi 2.4 GHz cerca del escombro (~0.5 m).\n2) Activa Wi‑Fi en el teléfono (sin internet).\n3) Elige «Escaneo pasivo» y la red del router.\n4) Gira 360° lentamente alrededor del montículo.\n5) Confirma siempre con métodos profesionales de rescate.\n\nEsta app es apoyo experimental: puede haber falsos positivos/negativos.</string>
+    <string name="field_guide_accept">Entendido — empezar</string>
+    <string name="field_guide_show">Ver guía de campo</string>
+    <string name="about_fork_note">Mejoras VE 1.4.0 — fork colaborativo sobre base MIT de Carlos Mundaray / Solvitco.</string>
+    <string name="mode_connected_hint">Modo conectado: mejor muestreo. El router no necesita internet.</string>
+    <string name="mode_passive_hint">Modo escaneo: no conectes al router. Funciona sin datos ni internet.</string>
+    <string name="wifi_required">Activa Wi-Fi en el teléfono (no hace falta internet).</string>
+    <string name="about_title">Acerca de VitalFi</string>
+    <string name="about_button">Acerca de</string>
+    <string name="about_developer">Desarrollador</string>
+    <string name="about_name">Carlos Mundaray</string>
+    <string name="about_company">Solvitco — solvitco.com</string>
+    <string name="about_license">Licencia MIT (software libre). © 2026 Carlos Mundaray — Solvitco</string>
+    <string name="about_whatsapp">WhatsApp: +58 424 3513857</string>
+    <string name="about_facebook">Facebook: mundaraycarlos</string>
+    <string name="about_website">Web: solvitco.com</string>
+    <string name="about_whatsapp_url">https://wa.me/584243513857</string>
+    <string name="about_facebook_url">https://www.facebook.com/mundaraycarlos/</string>
+    <string name="about_website_url">https://solvitco.com/</string>
+    <string name="about_close">Cerrar</string>
+    <string name="about_version">Versión %1$s</string>
+    <string name="settings_title">Configuración</string>
+    <string name="settings_alert_sound">Sonido al detectar persona</string>
+    <string name="settings_alert_sound_hint">Reproduce 3 alertas cuando se detecta una posible víctima atrapada.</string>
+</resources>

@@ -1,0 +1,116 @@
+name: Build ResQRadar iOS IPA (LiveContainer)
+
+on:
+  push:
+    paths:
+      - "resqradar/flutter_app/**"
+      - ".github/workflows/resqradar-ios.yml"
+  pull_request:
+    paths:
+      - "resqradar/flutter_app/**"
+      - ".github/workflows/resqradar-ios.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: resqradar-ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build IPA for LiveContainer
+    runs-on: macos-15
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          if [ -d /Applications/Xcode_16.4.app ]; then
+            sudo xcode-select -s /Applications/Xcode_16.4.app
+          elif [ -d /Applications/Xcode_16.3.app ]; then
+            sudo xcode-select -s /Applications/Xcode_16.3.app
+          else
+            sudo xcode-select -s /Applications/Xcode.app
+          fi
+          xcodebuild -version
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Flutter pub get
+        working-directory: resqradar/flutter_app
+        run: flutter pub get
+
+      - name: Build iOS (no codesign — LiveContainer re-signs)
+        working-directory: resqradar/flutter_app
+        run: |
+          set -euo pipefail
+          flutter build ios --release --no-codesign
+          APP="build/ios/iphoneos/Runner.app"
+          test -d "$APP"
+          echo "=== App ==="
+          ls -lah "$APP"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$APP/Info.plist" || true
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Info.plist" || true
+
+      - name: Package LiveContainer IPA
+        working-directory: resqradar/flutter_app
+        run: |
+          set -euo pipefail
+          APP="build/ios/iphoneos/Runner.app"
+          rm -rf dist/Payload
+          mkdir -p dist/Payload
+          cp -R "$APP" dist/Payload/Runner.app
+          (
+            cd dist
+            rm -f ResQRadar-VE-LiveContainer.ipa
+            zip -qry ResQRadar-VE-LiveContainer.ipa Payload
+          )
+          ls -lh dist/ResQRadar-VE-LiveContainer.ipa
+          SIZE=$(stat -f%z dist/ResQRadar-VE-LiveContainer.ipa)
+          echo "IPA bytes: $SIZE"
+          if [ "$SIZE" -lt 1000000 ]; then
+            echo "ERROR: IPA too small"
+            unzip -l dist/ResQRadar-VE-LiveContainer.ipa | head -40
+            exit 1
+          fi
+          unzip -l dist/ResQRadar-VE-LiveContainer.ipa | head -40
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ResQRadar-VE-LiveContainer-ipa
+          path: resqradar/flutter_app/dist/ResQRadar-VE-LiveContainer.ipa
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Publish Release IPA
+        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: resqradar-ios-${{ github.run_number }}
+          name: ResQRadar VE iOS ${{ github.run_number }} (LiveContainer)
+          body: |
+            IPA para **LiveContainer** (sin firma App Store).
+
+            1. LiveContainer → Settings → Import Certificate (AltStore/SideStore, JIT-Less)
+            2. My Apps → **+** → `ResQRadar-VE-LiveContainer.ipa`
+            3. Ábrela desde LiveContainer
+
+            Nota: en iOS no hay radar Wi‑Fi/RSSI (límite de Apple). Esta app es coordinación de brigada.
+            Crédito MIT: Carlos Mundaray / Solvitco.
+          files: resqradar/flutter_app/dist/ResQRadar-VE-LiveContainer.ipa
+          draft: false
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
