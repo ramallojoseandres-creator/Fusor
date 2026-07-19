@@ -13,39 +13,50 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
-import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.SurfaceDefaults
 import androidx.tv.material3.Text
 import com.streamvault.app.BuildConfig
 import com.streamvault.app.R
+import com.streamvault.app.senal.SenalAuthClient
 import com.streamvault.app.senal.SenalServerConfig
 import com.streamvault.app.ui.components.shell.StatusPill
 import com.streamvault.app.ui.design.AppColors
 import com.streamvault.app.ui.interaction.TvButton
+import com.streamvault.app.ui.theme.SurfaceHighlight
 import com.streamvault.data.sync.SyncProgressBus
 import com.streamvault.domain.repository.ProviderRepository
 import com.streamvault.domain.sync.Section
 import com.streamvault.domain.sync.SyncProgress
 import com.streamvault.domain.usecase.M3uProviderSetupCommand
 import com.streamvault.domain.usecase.ValidateAndAddProvider
+import com.streamvault.domain.usecase.ValidateAndAddProviderResult
 import com.streamvault.domain.usecase.XtreamProviderSetupCommand
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -64,11 +75,18 @@ import kotlinx.coroutines.launch
 class WelcomeViewModel @Inject constructor(
     private val providerRepository: ProviderRepository,
     private val validateAndAddProvider: ValidateAndAddProvider,
-    syncProgressBus: SyncProgressBus
+    private val senalAuthClient: SenalAuthClient,
+    syncProgressBus: SyncProgressBus,
 ) : ViewModel() {
 
     private val _hasProviders = MutableStateFlow<Boolean?>(null)
     val hasProviders: StateFlow<Boolean?> = _hasProviders.asStateFlow()
+
+    private val _loginBusy = MutableStateFlow(false)
+    val loginBusy: StateFlow<Boolean> = _loginBusy.asStateFlow()
+
+    private val _loginError = MutableStateFlow<String?>(null)
+    val loginError: StateFlow<String?> = _loginError.asStateFlow()
 
     private val acceptingProgress = MutableStateFlow(true)
 
@@ -79,57 +97,83 @@ class WelcomeViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            maybeSeedDevProvider()
+            // Optional Xtream-only seed from local.properties — never auto-seed the public mega-lista.
+            maybeSeedXtreamOnly()
             providerRepository.getProviders()
                 .map { it.isNotEmpty() }
                 .collect { _hasProviders.value = it }
         }
         viewModelScope.launch {
-            _hasProviders
-                .filterNotNull()
-                .first()
+            _hasProviders.filterNotNull().first()
             acceptingProgress.value = false
         }
     }
 
-    private suspend fun maybeSeedDevProvider() {
+    private suspend fun maybeSeedXtreamOnly() {
         if (providerRepository.getProviders().first().isNotEmpty()) return
-
         val xtreamServer = BuildConfig.XTREAM_DEV_SERVER
         val xtreamUser = BuildConfig.XTREAM_DEV_USERNAME
         val xtreamPass = BuildConfig.XTREAM_DEV_PASSWORD
-        if (xtreamServer.isNotBlank() && xtreamUser.isNotBlank() && xtreamPass.isNotBlank()) {
-            validateAndAddProvider.loginXtream(
-                XtreamProviderSetupCommand(
-                    serverUrl = xtreamServer,
-                    username = xtreamUser,
-                    password = xtreamPass,
-                    name = BuildConfig.XTREAM_DEV_NAME.ifBlank { "Dev (seeded)" },
-                    xtreamFastSyncEnabled = true
-                )
-            )
-            return
-        }
-
-        // Always seed SEÑAL principal (+ optional extras) when the library is empty.
-        val principalUrl = BuildConfig.M3U_DEV_URL.ifBlank { SenalServerConfig.principalListaUrl }
-        if (principalUrl.isNotBlank()) {
-            validateAndAddProvider.addM3u(
-                M3uProviderSetupCommand(
-                    url = principalUrl,
-                    name = BuildConfig.M3U_DEV_NAME.ifBlank { SenalServerConfig.principalListaName },
-                ),
-            )
-        }
-        val extras = listOf(
-            SenalServerConfig.extraLista1Url to SenalServerConfig.extraLista1Name,
-            SenalServerConfig.extraLista2Url to SenalServerConfig.extraLista2Name,
+        if (xtreamServer.isBlank() || xtreamUser.isBlank() || xtreamPass.isBlank()) return
+        validateAndAddProvider.loginXtream(
+            XtreamProviderSetupCommand(
+                serverUrl = xtreamServer,
+                username = xtreamUser,
+                password = xtreamPass,
+                name = BuildConfig.XTREAM_DEV_NAME.ifBlank { "Dev (seeded)" },
+                xtreamFastSyncEnabled = true,
+            ),
         )
-        for ((url, name) in extras) {
-            if (url.isBlank()) continue
-            validateAndAddProvider.addM3u(
-                M3uProviderSetupCommand(url = url, name = name),
+    }
+
+    /**
+     * Same flow as the previous SEÑAL app: panel login → bouquet M3U (/get.php).
+     */
+    fun loginWithSenal(username: String, password: String) {
+        if (_loginBusy.value) return
+        viewModelScope.launch {
+            _loginBusy.value = true
+            _loginError.value = null
+            acceptingProgress.value = true
+            val result = senalAuthClient.login(username, password)
+            result.fold(
+                onSuccess = { session ->
+                    val extras = listOf(
+                        SenalServerConfig.extraLista1Url to SenalServerConfig.extraLista1Name,
+                        SenalServerConfig.extraLista2Url to SenalServerConfig.extraLista2Name,
+                    )
+                    val add = validateAndAddProvider.addM3u(
+                        M3uProviderSetupCommand(
+                            url = session.playlistUrl,
+                            name = "SEÑAL (${session.username})",
+                        ),
+                    )
+                    when (add) {
+                        is ValidateAndAddProviderResult.Success,
+                        is ValidateAndAddProviderResult.SavedWithWarning -> {
+                            for ((url, name) in extras) {
+                                if (url.isBlank()) continue
+                                validateAndAddProvider.addM3u(
+                                    M3uProviderSetupCommand(url = url, name = name),
+                                )
+                            }
+                        }
+                        is ValidateAndAddProviderResult.ValidationError -> {
+                            _loginError.value = add.message
+                            acceptingProgress.value = false
+                        }
+                        is ValidateAndAddProviderResult.Error -> {
+                            _loginError.value = add.message
+                            acceptingProgress.value = false
+                        }
+                    }
+                },
+                onFailure = {
+                    _loginError.value = it.message ?: "No se pudo iniciar sesión"
+                    acceptingProgress.value = false
+                },
             )
+            _loginBusy.value = false
         }
     }
 }
@@ -138,10 +182,12 @@ class WelcomeViewModel @Inject constructor(
 fun WelcomeScreen(
     onNavigateToHome: () -> Unit,
     onNavigateToSetup: () -> Unit,
-    viewModel: WelcomeViewModel = hiltViewModel()
+    viewModel: WelcomeViewModel = hiltViewModel(),
 ) {
     val hasProviders by viewModel.hasProviders.collectAsStateWithLifecycle()
     val syncProgress by viewModel.syncProgress.collectAsStateWithLifecycle()
+    val loginBusy by viewModel.loginBusy.collectAsStateWithLifecycle()
+    val loginError by viewModel.loginError.collectAsStateWithLifecycle()
 
     LaunchedEffect(hasProviders) {
         when (hasProviders) {
@@ -160,26 +206,28 @@ fun WelcomeScreen(
                         colors = listOf(
                             Color.Black.copy(alpha = 0.22f),
                             AppColors.HeroTop,
-                            AppColors.HeroBottom
-                        )
-                    )
-                )
+                            AppColors.HeroBottom,
+                        ),
+                    ),
+                ),
         )
 
         when (hasProviders) {
             false -> WelcomeStartCard(
-                onNavigateToHome = onNavigateToHome,
+                loginBusy = loginBusy,
+                loginError = loginError,
+                onLogin = viewModel::loginWithSenal,
                 onNavigateToSetup = onNavigateToSetup,
                 modifier = Modifier
                     .align(Alignment.Center)
-                    .padding(32.dp)
+                    .padding(32.dp),
             )
 
             else -> WelcomeLoadingCard(
                 syncProgress = syncProgress,
                 modifier = Modifier
                     .align(Alignment.Center)
-                    .padding(32.dp)
+                    .padding(32.dp),
             )
         }
     }
@@ -188,16 +236,16 @@ fun WelcomeScreen(
 @Composable
 private fun WelcomeLoadingCard(
     syncProgress: SyncProgress?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(28.dp),
-        colors = SurfaceDefaults.colors(containerColor = AppColors.Surface.copy(alpha = 0.9f))
+        colors = SurfaceDefaults.colors(containerColor = AppColors.Surface.copy(alpha = 0.9f)),
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 36.dp, vertical = 28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             val pillLabel = if (syncProgress != null) {
                 stringResource(sectionLabelRes(syncProgress.section))
@@ -209,10 +257,7 @@ private fun WelcomeLoadingCard(
             } else {
                 AppColors.BrandMuted
             }
-            StatusPill(
-                label = pillLabel,
-                containerColor = pillColor
-            )
+            StatusPill(label = pillLabel, containerColor = pillColor)
             Spacer(modifier = Modifier.height(18.dp))
             if (syncProgress == null) {
                 CircularProgressIndicator(color = AppColors.Brand)
@@ -221,18 +266,19 @@ private fun WelcomeLoadingCard(
             Text(
                 text = stringResource(R.string.welcome_loading_title),
                 style = MaterialTheme.typography.titleLarge,
-                color = AppColors.TextPrimary
+                color = AppColors.TextPrimary,
             )
             Spacer(modifier = Modifier.height(6.dp))
             val subtitle = if (syncProgress != null && syncProgress.currentLabel.isNotBlank()) {
                 syncProgress.currentLabel
             } else {
-                stringResource(R.string.welcome_loading_subtitle)
+                "Descargando tu bouquet SEÑAL (como la app anterior)…"
             }
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyLarge,
-                color = AppColors.TextSecondary
+                color = AppColors.TextSecondary,
+                textAlign = TextAlign.Center,
             )
             if (syncProgress != null) {
                 Spacer(modifier = Modifier.height(14.dp))
@@ -241,23 +287,23 @@ private fun WelcomeLoadingCard(
                         progress = { syncProgress.current.toFloat() / syncProgress.total.toFloat() },
                         modifier = Modifier.width(260.dp),
                         color = AppColors.Brand,
-                        trackColor = AppColors.BrandMuted
+                        trackColor = AppColors.BrandMuted,
                     )
                 } else {
                     LinearProgressIndicator(
                         modifier = Modifier.width(260.dp),
                         color = AppColors.Brand,
-                        trackColor = AppColors.BrandMuted
+                        trackColor = AppColors.BrandMuted,
                     )
                 }
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(
                     text = stringResource(
                         R.string.sync_items_indexed_format,
-                        syncProgress.itemsIndexed
+                        syncProgress.itemsIndexed,
                     ),
                     style = MaterialTheme.typography.labelLarge,
-                    color = AppColors.TextSecondary
+                    color = AppColors.TextSecondary,
                 )
             }
         }
@@ -266,73 +312,119 @@ private fun WelcomeLoadingCard(
 
 @Composable
 private fun WelcomeStartCard(
-    onNavigateToHome: () -> Unit,
+    loginBusy: Boolean,
+    loginError: String?,
+    onLogin: (String, String) -> Unit,
     onNavigateToSetup: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
+    var username by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    val fieldColors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = AppColors.TextPrimary,
+        unfocusedTextColor = AppColors.TextPrimary,
+        focusedBorderColor = AppColors.Brand,
+        unfocusedBorderColor = SurfaceHighlight,
+        focusedLabelColor = AppColors.Brand,
+        unfocusedLabelColor = AppColors.TextTertiary,
+        cursorColor = AppColors.Brand,
+    )
+
     Surface(
         modifier = modifier
             .widthIn(max = 720.dp)
             .fillMaxWidth(),
         shape = RoundedCornerShape(28.dp),
-        colors = SurfaceDefaults.colors(containerColor = AppColors.Surface.copy(alpha = 0.9f))
+        colors = SurfaceDefaults.colors(containerColor = AppColors.Surface.copy(alpha = 0.9f)),
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 40.dp, vertical = 34.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             StatusPill(
                 label = stringResource(R.string.app_name),
-                containerColor = AppColors.BrandMuted
+                containerColor = AppColors.BrandMuted,
             )
             Text(
-                text = stringResource(R.string.welcome_tagline),
-                style = MaterialTheme.typography.headlineMedium,
+                text = "Inicia sesión en tu servidor SEÑAL",
+                style = MaterialTheme.typography.headlineSmall,
                 color = AppColors.TextPrimary,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
             )
             Text(
-                text = stringResource(R.string.welcome_subtitle),
-                style = MaterialTheme.typography.bodyLarge,
-                color = AppColors.TextSecondary,
-                textAlign = TextAlign.Center
+                text = SenalServerConfig.baseUrl,
+                style = MaterialTheme.typography.bodyMedium,
+                color = AppColors.TextTertiary,
             )
-            Row(
+            Text(
+                text = "Igual que la app anterior: login → bouquet (no la lista pública completa).",
+                style = MaterialTheme.typography.bodyMedium,
+                color = AppColors.TextSecondary,
+                textAlign = TextAlign.Center,
+            )
+            OutlinedTextField(
+                value = username,
+                onValueChange = { username = it },
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalAlignment = Alignment.CenterVertically
+                enabled = !loginBusy,
+                singleLine = true,
+                label = { androidx.compose.material3.Text("Usuario") },
+                colors = fieldColors,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Ascii,
+                    imeAction = ImeAction.Next,
+                ),
+            )
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !loginBusy,
+                singleLine = true,
+                label = { androidx.compose.material3.Text("Contraseña") },
+                visualTransformation = PasswordVisualTransformation(),
+                colors = fieldColors,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Password,
+                    imeAction = ImeAction.Done,
+                ),
+            )
+            loginError?.let {
+                Text(text = it, color = AppColors.Live, style = MaterialTheme.typography.bodyMedium)
+            }
+            if (loginBusy) {
+                CircularProgressIndicator(color = AppColors.Brand)
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 TvButton(
-                    onClick = onNavigateToSetup,
-                    modifier = Modifier.weight(1f)
+                    onClick = { onLogin(username, password) },
+                    enabled = !loginBusy && username.isNotBlank() && password.isNotBlank(),
                 ) {
-                    Text(text = stringResource(R.string.welcome_setup_provider))
+                    Text("Entrar a SEÑAL")
                 }
                 TvButton(
-                    onClick = onNavigateToHome,
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.colors(
-                        containerColor = AppColors.SurfaceElevated,
-                        focusedContainerColor = Color.White,
-                        contentColor = AppColors.TextPrimary
-                    )
+                    onClick = onNavigateToSetup,
+                    enabled = !loginBusy,
                 ) {
-                    Text(text = stringResource(R.string.welcome_setup_later))
+                    Text("Otras listas / M3U")
                 }
             }
         }
     }
 }
 
-private fun sectionColor(section: Section): Color = when (section) {
-    Section.LIVE -> AppColors.Brand
-    Section.VOD -> AppColors.Success
-    Section.SERIES -> AppColors.Warning
-}
-
 private fun sectionLabelRes(section: Section): Int = when (section) {
     Section.LIVE -> R.string.sync_section_live
     Section.VOD -> R.string.sync_section_vod
     Section.SERIES -> R.string.sync_section_series
+}
+
+private fun sectionColor(section: Section): Color = when (section) {
+    Section.LIVE -> AppColors.Brand
+    Section.VOD -> AppColors.Success
+    Section.SERIES -> AppColors.Warning
 }

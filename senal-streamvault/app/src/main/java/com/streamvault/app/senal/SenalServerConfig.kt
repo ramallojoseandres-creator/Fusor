@@ -1,22 +1,22 @@
 package com.streamvault.app.senal
 
-import android.net.Uri
 import com.streamvault.app.BuildConfig
+import android.net.Uri
 
 /**
- * Defaults for the SEÑAL panel at [BuildConfig.SENAL_BASE_URL].
- * Playlist options shown in provider setup / first-run seed.
+ * Defaults for the SEÑAL panel — same model as the previous SEÑAL TV app:
+ * login → user bouquet M3U (/get.php or /playlist.m3u), not the public mega-lista.
  */
 object SenalServerConfig {
     val baseUrl: String
         get() = BuildConfig.SENAL_BASE_URL.trimEnd('/')
 
-    /** Public catalog M3U served by the panel (no login). */
+    /** Public full catalog — slow; only as optional manual preset. */
     val principalListaUrl: String
         get() = BuildConfig.SENAL_LISTA_URL.ifBlank { "$baseUrl/downloads/lista.m3u" }
 
     val principalListaName: String
-        get() = BuildConfig.SENAL_LISTA_NAME.ifBlank { "SEÑAL Principal" }
+        get() = BuildConfig.SENAL_LISTA_NAME.ifBlank { "Lista pública completa (lenta)" }
 
     val extraLista1Url: String get() = BuildConfig.SENAL_EXTRA_M3U_1_URL.trim()
     val extraLista1Name: String get() = BuildConfig.SENAL_EXTRA_M3U_1_NAME.ifBlank { "Lista extra 1" }
@@ -24,7 +24,6 @@ object SenalServerConfig {
     val extraLista2Url: String get() = BuildConfig.SENAL_EXTRA_M3U_2_URL.trim()
     val extraLista2Name: String get() = BuildConfig.SENAL_EXTRA_M3U_2_NAME.ifBlank { "Lista extra 2" }
 
-    /** Classic IPTV URL: /get.php?username=&password=&type=m3u_plus */
     fun accountPlaylistUrl(username: String, password: String): String {
         val u = username.trim()
         val p = password.trim()
@@ -46,60 +45,33 @@ object SenalServerConfig {
     )
 
     fun presets(): List<Preset> = buildList {
-        add(
-            Preset(
-                id = "principal",
-                title = principalListaName,
-                subtitle = "Catálogo del servidor SEÑAL",
-                url = principalListaUrl,
-            ),
-        )
+        // Same path as old SEÑAL app — account bouquet first
         add(
             Preset(
                 id = "cuenta",
                 title = "SEÑAL (mi cuenta)",
-                subtitle = "get.php con usuario y clave del panel",
+                subtitle = "Login panel → bouquet (como la app anterior)",
                 url = null,
                 needsCredentials = true,
             ),
         )
         if (extraLista1Url.isNotBlank()) {
-            add(
-                Preset(
-                    id = "extra1",
-                    title = extraLista1Name,
-                    subtitle = "Lista adicional 1",
-                    url = extraLista1Url,
-                ),
-            )
+            add(Preset("extra1", extraLista1Name, "Lista adicional 1", extraLista1Url))
         } else {
-            add(
-                Preset(
-                    id = "extra1_custom",
-                    title = "Lista extra 1",
-                    subtitle = "Pega otra URL M3U",
-                    url = "",
-                ),
-            )
+            add(Preset("extra1_custom", "Lista extra 1", "Pega otra URL M3U", ""))
         }
         if (extraLista2Url.isNotBlank()) {
-            add(
-                Preset(
-                    id = "extra2",
-                    title = extraLista2Name,
-                    subtitle = "Lista adicional 2",
-                    url = extraLista2Url,
-                ),
-            )
+            add(Preset("extra2", extraLista2Name, "Lista adicional 2", extraLista2Url))
         } else {
-            add(
-                Preset(
-                    id = "extra2_custom",
-                    title = "Lista extra 2",
-                    subtitle = "Pega otra URL M3U",
-                    url = "",
-                ),
-            )
+            add(Preset("extra2_custom", "Lista extra 2", "Pega otra URL M3U", ""))
         }
+        add(
+            Preset(
+                id = "principal",
+                title = principalListaName,
+                subtitle = "Todo el catálogo público — puede tardar mucho",
+                url = principalListaUrl,
+            ),
+        )
     }
 }

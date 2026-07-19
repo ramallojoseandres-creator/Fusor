@@ -57,8 +57,8 @@ android {
         applicationId = "com.senal.streamvault"
         minSdk = 27
         targetSdk = 36
-        versionCode = 101
-        versionName = "1.0.1-senal"
+        versionCode = 102
+        versionName = "1.0.2-senal"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "OFFICIAL_APPLICATION_ID", "\"com.senal.streamvault\"")
         buildConfigField("String", "OFFICIAL_SIGNING_CERT_SHA256", "\"$officialSigningCertSha256\"")
@@ -85,8 +85,8 @@ android {
         buildConfigField("String", "XTREAM_DEV_USERNAME", "\"\"")
         buildConfigField("String", "XTREAM_DEV_PASSWORD", "\"\"")
         buildConfigField("String", "XTREAM_DEV_NAME", "\"\"")
-        buildConfigField("String", "M3U_DEV_URL", "\"http://185.192.20.245:3000/downloads/lista.m3u\"")
-        buildConfigField("String", "M3U_DEV_NAME", "\"SEÑAL Principal\"")
+        buildConfigField("String", "M3U_DEV_URL", "\"\"")
+        buildConfigField("String", "M3U_DEV_NAME", "\"\"")
     }
 
     signingConfigs {
