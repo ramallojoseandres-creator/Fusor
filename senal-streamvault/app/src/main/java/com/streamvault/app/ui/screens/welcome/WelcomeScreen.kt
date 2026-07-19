@@ -1,17 +1,26 @@
 package com.streamvault.app.ui.screens.welcome
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
@@ -21,33 +30,36 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.Surface
-import androidx.tv.material3.SurfaceDefaults
 import androidx.tv.material3.Text
 import com.streamvault.app.BuildConfig
 import com.streamvault.app.R
 import com.streamvault.app.senal.SenalAuthClient
 import com.streamvault.app.senal.SenalServerConfig
-import com.streamvault.app.ui.components.shell.StatusPill
 import com.streamvault.app.ui.design.AppColors
+import com.streamvault.app.ui.design.SenalDisplayFamily
 import com.streamvault.app.ui.interaction.TvButton
 import com.streamvault.app.ui.theme.SurfaceHighlight
 import com.streamvault.data.preferences.PreferencesRepository
@@ -102,7 +114,6 @@ class WelcomeViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            // Optional Xtream-only seed from local.properties — never auto-seed the public mega-lista.
             maybeSeedXtreamOnly()
             providerRepository.getProviders()
                 .map { it.isNotEmpty() }
@@ -132,8 +143,7 @@ class WelcomeViewModel @Inject constructor(
     }
 
     /**
-     * Login against the panel (access control), then sync only VPS `downloads/lista.m3u`.
-     * Clients cannot attach arbitrary playlist URLs.
+     * Panel login = access control. Content always from VPS lista_importada.m3u.
      */
     fun loginWithSenal(username: String, password: String) {
         if (_loginBusy.value) return
@@ -143,7 +153,7 @@ class WelcomeViewModel @Inject constructor(
             acceptingProgress.value = true
             val result = senalAuthClient.login(username, password)
             result.fold(
-                onSuccess = { session ->
+                onSuccess = { _ ->
                     val add = validateAndAddProvider.addM3u(
                         M3uProviderSetupCommand(
                             url = SenalServerConfig.listaUrl,
@@ -153,7 +163,6 @@ class WelcomeViewModel @Inject constructor(
                     when (add) {
                         is ValidateAndAddProviderResult.Success,
                         is ValidateAndAddProviderResult.SavedWithWarning -> {
-                            // Force single server source — no picker after login.
                             if (!SenalServerConfig.allowClientPlaylistAdd) {
                                 preferencesRepository.setShowLiveSourceSwitcher(false)
                                 val providerId = when (add) {
@@ -195,7 +204,6 @@ fun WelcomeScreen(
     onNavigateToSetup: () -> Unit,
     viewModel: WelcomeViewModel = hiltViewModel(),
 ) {
-    // onNavigateToSetup kept for nav graph compatibility; clients cannot add playlists.
     @Suppress("UNUSED_PARAMETER")
     val unusedSetup = onNavigateToSetup
     val hasProviders by viewModel.hasProviders.collectAsStateWithLifecycle()
@@ -212,119 +220,111 @@ fun WelcomeScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
+        WelcomeAtmosphere()
+
+        when (hasProviders) {
+            false -> WelcomeLoginHero(
+                loginBusy = loginBusy,
+                loginError = loginError,
+                onLogin = viewModel::loginWithSenal,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(horizontal = 48.dp, vertical = 32.dp),
+            )
+
+            else -> WelcomeLoadingHero(
+                syncProgress = syncProgress,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(horizontal = 48.dp, vertical = 32.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun WelcomeAtmosphere() {
+    val pulse = rememberInfiniteTransition(label = "senal_pulse")
+    val glow by pulse.animateFloat(
+        initialValue = 0.28f,
+        targetValue = 0.52f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(4200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "glow",
+    )
+    val drift by pulse.animateFloat(
+        initialValue = -18f,
+        targetValue = 18f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(9000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "drift",
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0xFF041018),
+                        AppColors.Canvas,
+                        Color(0xFF061520),
+                        AppColors.HeroBottom,
+                    ),
+                ),
+            ),
+    ) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = (40 + drift).dp, y = (-80).dp)
+                .size(420.dp)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            AppColors.Brand.copy(alpha = glow * 0.55f),
+                            Color.Transparent,
+                        ),
+                    ),
+                    shape = CircleShape,
+                ),
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .offset(x = (-60 - drift).dp, y = 40.dp)
+                .size(360.dp)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            Color(0xFF1A6B7A).copy(alpha = glow * 0.35f),
+                            Color.Transparent,
+                        ),
+                    ),
+                    shape = CircleShape,
+                ),
+        )
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color.Black.copy(alpha = 0.22f),
-                            AppColors.HeroTop,
-                            AppColors.HeroBottom,
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.35f),
                         ),
                     ),
                 ),
         )
-
-        when (hasProviders) {
-            false -> WelcomeStartCard(
-                loginBusy = loginBusy,
-                loginError = loginError,
-                onLogin = viewModel::loginWithSenal,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(32.dp),
-            )
-
-            else -> WelcomeLoadingCard(
-                syncProgress = syncProgress,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(32.dp),
-            )
-        }
     }
 }
 
 @Composable
-private fun WelcomeLoadingCard(
-    syncProgress: SyncProgress?,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(28.dp),
-        colors = SurfaceDefaults.colors(containerColor = AppColors.Surface.copy(alpha = 0.9f)),
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 36.dp, vertical = 28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            val pillLabel = if (syncProgress != null) {
-                stringResource(sectionLabelRes(syncProgress.section))
-            } else {
-                stringResource(R.string.app_name)
-            }
-            val pillColor = if (syncProgress != null) {
-                sectionColor(syncProgress.section)
-            } else {
-                AppColors.BrandMuted
-            }
-            StatusPill(label = pillLabel, containerColor = pillColor)
-            Spacer(modifier = Modifier.height(18.dp))
-            if (syncProgress == null) {
-                CircularProgressIndicator(color = AppColors.Brand)
-                Spacer(modifier = Modifier.height(18.dp))
-            }
-            Text(
-                text = stringResource(R.string.welcome_loading_title),
-                style = MaterialTheme.typography.titleLarge,
-                color = AppColors.TextPrimary,
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            val subtitle = if (syncProgress != null && syncProgress.currentLabel.isNotBlank()) {
-                syncProgress.currentLabel
-            } else {
-                "Sincronizando lista.m3u del servidor…"
-            }
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyLarge,
-                color = AppColors.TextSecondary,
-                textAlign = TextAlign.Center,
-            )
-            if (syncProgress != null) {
-                Spacer(modifier = Modifier.height(14.dp))
-                if (syncProgress.total > 0) {
-                    LinearProgressIndicator(
-                        progress = { syncProgress.current.toFloat() / syncProgress.total.toFloat() },
-                        modifier = Modifier.width(260.dp),
-                        color = AppColors.Brand,
-                        trackColor = AppColors.BrandMuted,
-                    )
-                } else {
-                    LinearProgressIndicator(
-                        modifier = Modifier.width(260.dp),
-                        color = AppColors.Brand,
-                        trackColor = AppColors.BrandMuted,
-                    )
-                }
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = stringResource(
-                        R.string.sync_items_indexed_format,
-                        syncProgress.itemsIndexed,
-                    ),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = AppColors.TextSecondary,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun WelcomeStartCard(
+private fun WelcomeLoginHero(
     loginBusy: Boolean,
     loginError: String?,
     onLogin: (String, String) -> Unit,
@@ -332,6 +332,18 @@ private fun WelcomeStartCard(
 ) {
     var username by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
+    val brandAlpha = remember { Animatable(0f) }
+    val brandScale = remember { Animatable(0.92f) }
+    val formAlpha = remember { Animatable(0f) }
+    val formOffset = remember { Animatable(28f) }
+
+    LaunchedEffect(Unit) {
+        brandAlpha.animateTo(1f, tween(700, easing = FastOutSlowInEasing))
+        brandScale.animateTo(1f, tween(750, easing = FastOutSlowInEasing))
+        formAlpha.animateTo(1f, tween(650, delayMillis = 180, easing = FastOutSlowInEasing))
+        formOffset.animateTo(0f, tween(700, delayMillis = 180, easing = FastOutSlowInEasing))
+    }
+
     val fieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = AppColors.TextPrimary,
         unfocusedTextColor = AppColors.TextPrimary,
@@ -340,48 +352,84 @@ private fun WelcomeStartCard(
         focusedLabelColor = AppColors.Brand,
         unfocusedLabelColor = AppColors.TextTertiary,
         cursorColor = AppColors.Brand,
+        focusedContainerColor = Color.Black.copy(alpha = 0.28f),
+        unfocusedContainerColor = Color.Black.copy(alpha = 0.18f),
     )
 
-    Surface(
+    Column(
         modifier = modifier
-            .widthIn(max = 720.dp)
+            .widthIn(max = 560.dp)
             .fillMaxWidth(),
-        shape = RoundedCornerShape(28.dp),
-        colors = SurfaceDefaults.colors(containerColor = AppColors.Surface.copy(alpha = 0.9f)),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 40.dp, vertical = 34.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier
+                .alpha(brandAlpha.value)
+                .scale(brandScale.value),
         ) {
-            StatusPill(
-                label = stringResource(R.string.app_name),
-                containerColor = AppColors.BrandMuted,
-            )
             Text(
-                text = "Inicia sesión en SEÑAL",
-                style = MaterialTheme.typography.headlineSmall,
+                text = stringResource(R.string.app_name),
+                style = MaterialTheme.typography.displayLarge.copy(
+                    fontFamily = SenalDisplayFamily,
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 64.sp,
+                    letterSpacing = (-1.2).sp,
+                ),
                 color = AppColors.TextPrimary,
                 textAlign = TextAlign.Center,
             )
-            Text(
-                text = SenalServerConfig.baseUrl,
-                style = MaterialTheme.typography.bodyMedium,
-                color = AppColors.TextTertiary,
+            Spacer(modifier = Modifier.height(10.dp))
+            Box(
+                modifier = Modifier
+                    .width(72.dp)
+                    .height(3.dp)
+                    .background(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                AppColors.Brand,
+                                Color.Transparent,
+                            ),
+                        ),
+                        shape = RoundedCornerShape(2.dp),
+                    ),
             )
+            Spacer(modifier = Modifier.height(14.dp))
             Text(
-                text = "Tras el login se carga solo downloads/lista.m3u del VPS (la pone el administrador).",
-                style = MaterialTheme.typography.bodyMedium,
+                text = stringResource(R.string.welcome_tagline),
+                style = MaterialTheme.typography.titleMedium,
                 color = AppColors.TextSecondary,
                 textAlign = TextAlign.Center,
             )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = stringResource(R.string.welcome_subtitle),
+                style = MaterialTheme.typography.bodyMedium,
+                color = AppColors.TextTertiary,
+                textAlign = TextAlign.Center,
+            )
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .alpha(formAlpha.value)
+                .offset(y = formOffset.value.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = it },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !loginBusy,
                 singleLine = true,
-                label = { androidx.compose.material3.Text("Usuario") },
+                shape = RoundedCornerShape(14.dp),
+                label = { androidx.compose.material3.Text(stringResource(R.string.welcome_username_label)) },
                 colors = fieldColors,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Ascii,
@@ -394,7 +442,8 @@ private fun WelcomeStartCard(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !loginBusy,
                 singleLine = true,
-                label = { androidx.compose.material3.Text("Contraseña") },
+                shape = RoundedCornerShape(14.dp),
+                label = { androidx.compose.material3.Text(stringResource(R.string.welcome_password_label)) },
                 visualTransformation = PasswordVisualTransformation(),
                 colors = fieldColors,
                 keyboardOptions = KeyboardOptions(
@@ -403,17 +452,102 @@ private fun WelcomeStartCard(
                 ),
             )
             loginError?.let {
-                Text(text = it, color = AppColors.Live, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = it,
+                    color = AppColors.Live,
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                )
             }
             if (loginBusy) {
-                CircularProgressIndicator(color = AppColors.Brand)
+                CircularProgressIndicator(
+                    color = AppColors.Brand,
+                    modifier = Modifier.size(36.dp),
+                    strokeWidth = 3.dp,
+                )
             }
             TvButton(
                 onClick = { onLogin(username, password) },
                 enabled = !loginBusy && username.isNotBlank() && password.isNotBlank(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
             ) {
-                Text("Entrar a SEÑAL")
+                Text(stringResource(R.string.welcome_enter_app))
             }
+        }
+    }
+}
+
+@Composable
+private fun WelcomeLoadingHero(
+    syncProgress: SyncProgress?,
+    modifier: Modifier = Modifier,
+) {
+    val appear = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        appear.animateTo(1f, tween(600, easing = FastOutSlowInEasing))
+    }
+
+    Column(
+        modifier = modifier
+            .widthIn(max = 520.dp)
+            .fillMaxWidth()
+            .alpha(appear.value),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = stringResource(R.string.app_name),
+            style = MaterialTheme.typography.displayMedium.copy(
+                fontFamily = SenalDisplayFamily,
+                fontSize = 48.sp,
+            ),
+            color = AppColors.TextPrimary,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(modifier = Modifier.height(18.dp))
+        Text(
+            text = stringResource(R.string.welcome_loading_title),
+            style = MaterialTheme.typography.titleLarge,
+            color = AppColors.TextPrimary,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        val subtitle = when {
+            syncProgress != null && syncProgress.currentLabel.isNotBlank() -> syncProgress.currentLabel
+            syncProgress != null -> stringResource(sectionLabelRes(syncProgress.section))
+            else -> stringResource(R.string.welcome_loading_subtitle)
+        }
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodyLarge,
+            color = AppColors.TextSecondary,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(modifier = Modifier.height(22.dp))
+        if (syncProgress != null && syncProgress.total > 0) {
+            LinearProgressIndicator(
+                progress = { syncProgress.current.toFloat() / syncProgress.total.toFloat() },
+                modifier = Modifier
+                    .fillMaxWidth(0.72f)
+                    .height(4.dp),
+                color = AppColors.Brand,
+                trackColor = AppColors.BrandMuted,
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = stringResource(
+                    R.string.sync_items_indexed_format,
+                    syncProgress.itemsIndexed,
+                ),
+                style = MaterialTheme.typography.labelLarge,
+                color = AppColors.TextTertiary,
+            )
+        } else {
+            CircularProgressIndicator(
+                color = AppColors.Brand,
+                modifier = Modifier.size(40.dp),
+                strokeWidth = 3.dp,
+            )
         }
     }
 }
@@ -422,10 +556,4 @@ private fun sectionLabelRes(section: Section): Int = when (section) {
     Section.LIVE -> R.string.sync_section_live
     Section.VOD -> R.string.sync_section_vod
     Section.SERIES -> R.string.sync_section_series
-}
-
-private fun sectionColor(section: Section): Color = when (section) {
-    Section.LIVE -> AppColors.Brand
-    Section.VOD -> AppColors.Success
-    Section.SERIES -> AppColors.Warning
 }

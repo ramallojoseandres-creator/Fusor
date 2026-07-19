@@ -57,8 +57,8 @@ android {
         applicationId = "com.senal.streamvault"
         minSdk = 27
         targetSdk = 36
-        versionCode = 105
-        versionName = "1.0.5-senal"
+        versionCode = 110
+        versionName = "1.1.0-senal"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "OFFICIAL_APPLICATION_ID", "\"com.senal.streamvault\"")
         buildConfigField("String", "OFFICIAL_SIGNING_CERT_SHA256", "\"$officialSigningCertSha256\"")
@@ -69,10 +69,13 @@ android {
         }
         // SEÑAL live panel — baked into all variants so first launch hits the server.
         buildConfigField("String", "SENAL_BASE_URL", "\"http://185.192.20.245:3000\"")
-        buildConfigField("String", "SENAL_LISTA_URL", "\"http://185.192.20.245:3000/downloads/lista.m3u\"")
+        buildConfigField("String", "SENAL_LISTA_URL", "\"http://185.192.20.245:3000/downloads/lista_importada.m3u\"")
         buildConfigField("String", "SENAL_LISTA_NAME", "\"SEÑAL\"")
         // Clients cannot paste arbitrary M3U URLs in the app.
         buildConfigField("boolean", "SENAL_ALLOW_CLIENT_PLAYLISTS", "false")
+        // Hide Settings / Plugins from the TV chrome (locked SEÑAL experience).
+        buildConfigField("boolean", "SENAL_HIDE_SETTINGS", "true")
+        buildConfigField("boolean", "SENAL_HIDE_PLUGINS", "true")
         buildConfigField("String", "XTREAM_DEV_SERVER", "\"\"")
         buildConfigField("String", "XTREAM_DEV_USERNAME", "\"\"")
         buildConfigField("String", "XTREAM_DEV_PASSWORD", "\"\"")

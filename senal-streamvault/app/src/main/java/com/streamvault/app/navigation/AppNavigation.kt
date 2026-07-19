@@ -573,6 +573,15 @@ fun AppNavigation(mainActivity: MainActivity) {
                 navArgument("backupUri") { type = NavType.StringType; defaultValue = "" }
             )
         ) { backStackEntry ->
+            if (com.streamvault.app.senal.SenalServerConfig.hideSettings) {
+                LaunchedEffect(Unit) {
+                    navController.navigate(Routes.LIVE_TV) {
+                        popUpTo(Routes.SETTINGS) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+                return@composable
+            }
             val backupUri = backStackEntry.arguments?.getString("backupUri")?.takeIf { it.isNotBlank() }
             SettingsScreen(
                 onNavigate = { route -> tabNavigate(route) },
@@ -593,6 +602,15 @@ fun AppNavigation(mainActivity: MainActivity) {
         }
 
         composable(Routes.PLUGINS) {
+            if (com.streamvault.app.senal.SenalServerConfig.hidePlugins) {
+                LaunchedEffect(Unit) {
+                    navController.navigate(Routes.LIVE_TV) {
+                        popUpTo(Routes.PLUGINS) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+                return@composable
+            }
             PluginsScreen(
                 currentRoute = Routes.PLUGINS,
                 onNavigate = { route -> tabNavigate(route) }

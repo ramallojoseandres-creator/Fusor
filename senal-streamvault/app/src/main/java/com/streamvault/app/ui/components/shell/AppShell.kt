@@ -61,6 +61,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Icon
@@ -275,8 +276,12 @@ private fun TopNavigationBar(
         ) {
             Text(
                 text = stringResource(R.string.app_name),
-                style = MaterialTheme.typography.titleSmall,
-                color = AppColors.TextPrimary,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = com.streamvault.app.ui.design.SenalDisplayFamily,
+                    fontSize = 22.sp,
+                    letterSpacing = (-0.3).sp,
+                ),
+                color = AppColors.BrandStrong,
                 modifier = Modifier.wrapContentWidth(Alignment.Start)
             )
             Spacer(modifier = Modifier.width(32.dp)) // Increased spacing to prevent overlap
@@ -724,8 +729,12 @@ private fun DestinationRail(
         ) {
             Text(
                 text = stringResource(R.string.app_name),
-                style = MaterialTheme.typography.titleMedium,
-                color = AppColors.TextPrimary
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = com.streamvault.app.ui.design.SenalDisplayFamily,
+                    fontSize = 22.sp,
+                    letterSpacing = (-0.3).sp,
+                ),
+                color = AppColors.BrandStrong
             )
             Text(
                 text = stringResource(R.string.label_tv),
@@ -832,16 +841,20 @@ private fun findActiveDestinationItem(
         .maxByOrNull { it.route.length }
         ?: items.firstOrNull { it.route == currentRoute }
 
-private fun buildDestinationItems(): List<DestinationItem> = listOf(
-    DestinationItem(Routes.HOME, R.string.nav_home, Icons.Default.Home),
-    DestinationItem(Routes.LIVE_TV, R.string.nav_live_tv, Icons.Default.PlayArrow),
-    DestinationItem(Routes.MOVIES, R.string.nav_movies, Icons.Default.Star),
-    DestinationItem(Routes.SERIES, R.string.nav_series, Icons.Default.Menu),
-    DestinationItem(Routes.EPG, R.string.nav_epg, Icons.Default.Info),
-    DestinationItem(Routes.SEARCH, R.string.search_title, Icons.Default.Search),
-    DestinationItem(Routes.PLUGINS, R.string.nav_plugins, PluginBlocksIcon),
-    DestinationItem(Routes.SETTINGS, R.string.nav_settings, Icons.Default.Settings)
-)
+private fun buildDestinationItems(): List<DestinationItem> = buildList {
+    add(DestinationItem(Routes.HOME, R.string.nav_home, Icons.Default.Home))
+    add(DestinationItem(Routes.LIVE_TV, R.string.nav_live_tv, Icons.Default.PlayArrow))
+    add(DestinationItem(Routes.MOVIES, R.string.nav_movies, Icons.Default.Star))
+    add(DestinationItem(Routes.SERIES, R.string.nav_series, Icons.Default.Menu))
+    add(DestinationItem(Routes.EPG, R.string.nav_epg, Icons.Default.Info))
+    add(DestinationItem(Routes.SEARCH, R.string.search_title, Icons.Default.Search))
+    if (!com.streamvault.app.senal.SenalServerConfig.hidePlugins) {
+        add(DestinationItem(Routes.PLUGINS, R.string.nav_plugins, PluginBlocksIcon))
+    }
+    if (!com.streamvault.app.senal.SenalServerConfig.hideSettings) {
+        add(DestinationItem(Routes.SETTINGS, R.string.nav_settings, Icons.Default.Settings))
+    }
+}
 
 private val PluginBlocksIcon: ImageVector
     get() {

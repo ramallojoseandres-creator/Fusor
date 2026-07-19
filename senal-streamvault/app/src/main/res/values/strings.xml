@@ -12,19 +12,21 @@
     <string name="nav_plugins">Plugins</string>
 
     
-    <string name="welcome_enter_app">Enter App</string>
+    <string name="welcome_enter_app">Entrar</string>
+    <string name="welcome_username_label">Usuario</string>
+    <string name="welcome_password_label">Contraseña</string>
     <string name="welcome_manage_providers">Manage Providers</string>
     <string name="welcome_setup_provider">Setup Provider</string>
     <string name="welcome_setup_later">Set up later</string>
-    <string name="welcome_version">v1.0.3</string>
-    <string name="welcome_loading_title">Preparing your library</string>
-    <string name="welcome_loading_subtitle">Opening the right screen for this device.</string>
+    <string name="welcome_version">v1.1.0</string>
+    <string name="welcome_loading_title">Preparando tu biblioteca</string>
+    <string name="welcome_loading_subtitle">Sincronizando canales en vivo…</string>
     <string name="sync_section_live">Live</string>
     <string name="sync_section_vod">VOD</string>
     <string name="sync_section_series">Series</string>
     <string name="sync_items_indexed_format">%1$d items indexed</string>
-    <string name="welcome_tagline">SEÑAL TV — IPTV para la sala</string>
-    <string name="welcome_subtitle">Lean back into live channels, catch-up viewing, movies, and series with a first-party Android TV experience.</string>
+    <string name="welcome_tagline">TV en vivo para la sala</string>
+    <string name="welcome_subtitle">Inicia sesión y empieza a ver. Sin fuentes, sin ajustes de contenido.</string>
     <string name="welcome_feature_live">Fast live browsing with remote-first focus</string>
     <string name="welcome_feature_library">Large-library movies and series without the clutter</string>
     <string name="welcome_feature_player">Unified player overlays, guide access, and saved content</string>

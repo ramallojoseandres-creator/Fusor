@@ -3,17 +3,17 @@ package com.streamvault.app.senal
 import com.streamvault.app.BuildConfig
 
 /**
- * SEÑAL playlist policy for this fork:
- * - Clients authenticate against the panel.
- * - Content always comes from a single file on the VPS: `downloads/lista.m3u`
- * - Admin renames/replaces files on the VPS; the app never lets clients paste arbitrary M3U URLs.
+ * SEÑAL playlist policy:
+ * - Panel login = access control only
+ * - Content always from VPS `downloads/lista_importada.m3u`
+ *   (file on server: senal-server/data/lista_importada.m3u)
+ * - Clients never paste arbitrary M3U URLs or manage sources in-app
  */
 object SenalServerConfig {
     val baseUrl: String
         get() = BuildConfig.SENAL_BASE_URL.trimEnd('/')
 
-    /** Only this filename is used by the app. */
-    const val LISTA_FILENAME = "lista.m3u"
+    const val LISTA_FILENAME = "lista_importada.m3u"
 
     val listaUrl: String
         get() {
@@ -25,7 +25,13 @@ object SenalServerConfig {
     val listaName: String
         get() = BuildConfig.SENAL_LISTA_NAME.ifBlank { "SEÑAL" }
 
-    /** Clients cannot add custom playlists in-app. */
     val allowClientPlaylistAdd: Boolean
         get() = BuildConfig.SENAL_ALLOW_CLIENT_PLAYLISTS
+
+    /** Locked SEÑAL experience: no Settings / content-edit chrome. */
+    val hideSettings: Boolean
+        get() = BuildConfig.SENAL_HIDE_SETTINGS && !allowClientPlaylistAdd
+
+    val hidePlugins: Boolean
+        get() = BuildConfig.SENAL_HIDE_PLUGINS && !allowClientPlaylistAdd
 }

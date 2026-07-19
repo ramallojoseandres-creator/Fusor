@@ -146,7 +146,9 @@ fun DashboardScreen(
                         }
                     }
                 }
-                if (uiState.providerWarnings.isNotEmpty()) {
+                if (uiState.providerWarnings.isNotEmpty() &&
+                    !com.streamvault.app.senal.SenalServerConfig.hideSettings
+                ) {
                     item(key = "provider_warnings") {
                         DashboardProviderWarningCard(
                             warnings = uiState.providerWarnings,
@@ -155,12 +157,14 @@ fun DashboardScreen(
                     }
                 }
                 uiState.updateNotice?.let { updateNotice ->
-                    item(key = "update_notice") {
-                        DashboardUpdateCard(
-                            notice = updateNotice,
-                            onOpenSettings = { onNavigate(Routes.SETTINGS) },
-                            onInstallUpdate = viewModel::installDownloadedUpdate
-                        )
+                    if (!com.streamvault.app.senal.SenalServerConfig.hideSettings) {
+                        item(key = "update_notice") {
+                            DashboardUpdateCard(
+                                notice = updateNotice,
+                                onOpenSettings = { onNavigate(Routes.SETTINGS) },
+                                onInstallUpdate = viewModel::installDownloadedUpdate
+                            )
+                        }
                     }
                 }
                 items(orderedSections, key = { it.name }) { section ->
@@ -756,7 +760,7 @@ private fun EmptyDashboard(
                     text = if (allowAdd) {
                         stringResource(R.string.dashboard_empty_body)
                     } else {
-                        "Inicia sesión en SEÑAL para sincronizar downloads/lista.m3u del servidor."
+                        "Inicia sesión en SEÑAL para cargar tu lista de canales."
                     },
                     style = MaterialTheme.typography.titleMedium,
                     color = OnSurfaceDim
@@ -767,15 +771,17 @@ private fun EmptyDashboard(
                             Text(stringResource(R.string.settings_add_provider))
                         }
                     }
-                    TvButton(
-                        onClick = onOpenSettings,
-                        colors = ButtonDefaults.colors(
-                            containerColor = SurfaceElevated,
-                            focusedContainerColor = Primary.copy(alpha = 0.24f),
-                            contentColor = TextPrimary
-                        )
-                    ) {
-                        Text(stringResource(R.string.nav_settings))
+                    if (!com.streamvault.app.senal.SenalServerConfig.hideSettings) {
+                        TvButton(
+                            onClick = onOpenSettings,
+                            colors = ButtonDefaults.colors(
+                                containerColor = SurfaceElevated,
+                                focusedContainerColor = Primary.copy(alpha = 0.24f),
+                                contentColor = TextPrimary
+                            )
+                        ) {
+                            Text(stringResource(R.string.nav_settings))
+                        }
                     }
                 }
             }
