@@ -21,15 +21,12 @@ cd senal-streamvault
 # APK: app/build/outputs/apk/release/
 ```
 
-## Uso
+## Política de listas (VPS)
 
-Al abrir: Welcome → Setup Provider → M3U / Xtream / Stalker → sync → Live / Movies / Series.
+1. Pantalla de bienvenida: **usuario + contraseña** del panel (`POST /api/auth/login`)
+2. Tras el login, la app sincroniza **solo** `http://<servidor>/downloads/lista.m3u`
+3. El administrador puede subir varias listas al VPS con nombres distintos; la app **solo lee** el archivo llamado `lista.m3u`
+4. En la app **no** se pueden agregar playlists ni pegar URLs M3U arbitrarias
 
-## Servidor SEÑAL (como la app anterior)
-
-1. Pantalla de bienvenida: **usuario + contraseña** del panel  
-2. `POST /api/auth/login` → M3U del **bouquet** vía `/get.php?username=&password=&type=m3u_plus`  
-3. **No** se auto-carga la lista pública gigante `/downloads/lista.m3u`  
-4. Listas extra opcionales + “lista pública completa (lenta)” solo manual en Setup → M3U  
-
-Servidor: `http://185.192.20.245:3000`
+Servidor por defecto: `http://185.192.20.245:3000`  
+Lista fija: `http://185.192.20.245:3000/downloads/lista.m3u`

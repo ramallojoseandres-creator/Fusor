@@ -155,29 +155,38 @@ internal fun LazyListScope.providerSection(
     }
 
     item {
-        TvClickableSurface(
-            onClick = onAddProvider,
-            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
-            colors = ClickableSurfaceDefaults.colors(
-                containerColor = Primary.copy(alpha = 0.15f),
-                focusedContainerColor = Primary.copy(alpha = 0.3f)
-            ),
-            scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
+        if (com.streamvault.app.senal.SenalServerConfig.allowClientPlaylistAdd) {
+            TvClickableSurface(
+                onClick = onAddProvider,
+                shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
+                colors = ClickableSurfaceDefaults.colors(
+                    containerColor = Primary.copy(alpha = 0.15f),
+                    focusedContainerColor = Primary.copy(alpha = 0.3f)
+                ),
+                scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    text = stringResource(R.string.settings_add_provider),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Primary
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_add_provider),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Primary
+                    )
+                }
             }
+        } else {
+            Text(
+                text = "La lista la administra el servidor (downloads/lista.m3u). No se pueden agregar playlists en la app.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = OnSurfaceDim,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 12.dp),
+            )
         }
     }
 }

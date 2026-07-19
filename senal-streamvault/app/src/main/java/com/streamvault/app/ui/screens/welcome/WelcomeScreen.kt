@@ -127,7 +127,8 @@ class WelcomeViewModel @Inject constructor(
     }
 
     /**
-     * Same flow as the previous SEÑAL app: panel login → bouquet M3U (/get.php).
+     * Login against the panel (access control), then sync only VPS `downloads/lista.m3u`.
+     * Clients cannot attach arbitrary playlist URLs.
      */
     fun loginWithSenal(username: String, password: String) {
         if (_loginBusy.value) return
@@ -138,25 +139,16 @@ class WelcomeViewModel @Inject constructor(
             val result = senalAuthClient.login(username, password)
             result.fold(
                 onSuccess = { session ->
-                    val extras = listOf(
-                        SenalServerConfig.extraLista1Url to SenalServerConfig.extraLista1Name,
-                        SenalServerConfig.extraLista2Url to SenalServerConfig.extraLista2Name,
-                    )
                     val add = validateAndAddProvider.addM3u(
                         M3uProviderSetupCommand(
-                            url = session.playlistUrl,
-                            name = "SEÑAL (${session.username})",
+                            url = SenalServerConfig.listaUrl,
+                            name = SenalServerConfig.listaName,
                         ),
                     )
                     when (add) {
                         is ValidateAndAddProviderResult.Success,
                         is ValidateAndAddProviderResult.SavedWithWarning -> {
-                            for ((url, name) in extras) {
-                                if (url.isBlank()) continue
-                                validateAndAddProvider.addM3u(
-                                    M3uProviderSetupCommand(url = url, name = name),
-                                )
-                            }
+                            // Connected — SyncManager will index lista.m3u
                         }
                         is ValidateAndAddProviderResult.ValidationError -> {
                             _loginError.value = add.message
@@ -184,6 +176,9 @@ fun WelcomeScreen(
     onNavigateToSetup: () -> Unit,
     viewModel: WelcomeViewModel = hiltViewModel(),
 ) {
+    // onNavigateToSetup kept for nav graph compatibility; clients cannot add playlists.
+    @Suppress("UNUSED_PARAMETER")
+    val unusedSetup = onNavigateToSetup
     val hasProviders by viewModel.hasProviders.collectAsStateWithLifecycle()
     val syncProgress by viewModel.syncProgress.collectAsStateWithLifecycle()
     val loginBusy by viewModel.loginBusy.collectAsStateWithLifecycle()
@@ -217,7 +212,6 @@ fun WelcomeScreen(
                 loginBusy = loginBusy,
                 loginError = loginError,
                 onLogin = viewModel::loginWithSenal,
-                onNavigateToSetup = onNavigateToSetup,
                 modifier = Modifier
                     .align(Alignment.Center)
                     .padding(32.dp),
@@ -272,7 +266,7 @@ private fun WelcomeLoadingCard(
             val subtitle = if (syncProgress != null && syncProgress.currentLabel.isNotBlank()) {
                 syncProgress.currentLabel
             } else {
-                "Descargando tu bouquet SEÑAL (como la app anterior)…"
+                "Sincronizando lista.m3u del servidor…"
             }
             Text(
                 text = subtitle,
@@ -315,7 +309,6 @@ private fun WelcomeStartCard(
     loginBusy: Boolean,
     loginError: String?,
     onLogin: (String, String) -> Unit,
-    onNavigateToSetup: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var username by rememberSaveable { mutableStateOf("") }
@@ -347,7 +340,7 @@ private fun WelcomeStartCard(
                 containerColor = AppColors.BrandMuted,
             )
             Text(
-                text = "Inicia sesión en tu servidor SEÑAL",
+                text = "Inicia sesión en SEÑAL",
                 style = MaterialTheme.typography.headlineSmall,
                 color = AppColors.TextPrimary,
                 textAlign = TextAlign.Center,
@@ -358,7 +351,7 @@ private fun WelcomeStartCard(
                 color = AppColors.TextTertiary,
             )
             Text(
-                text = "Igual que la app anterior: login → bouquet (no la lista pública completa).",
+                text = "Tras el login se carga solo downloads/lista.m3u del VPS (la pone el administrador).",
                 style = MaterialTheme.typography.bodyMedium,
                 color = AppColors.TextSecondary,
                 textAlign = TextAlign.Center,
@@ -396,22 +389,11 @@ private fun WelcomeStartCard(
             if (loginBusy) {
                 CircularProgressIndicator(color = AppColors.Brand)
             }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            TvButton(
+                onClick = { onLogin(username, password) },
+                enabled = !loginBusy && username.isNotBlank() && password.isNotBlank(),
             ) {
-                TvButton(
-                    onClick = { onLogin(username, password) },
-                    enabled = !loginBusy && username.isNotBlank() && password.isNotBlank(),
-                ) {
-                    Text("Entrar a SEÑAL")
-                }
-                TvButton(
-                    onClick = onNavigateToSetup,
-                    enabled = !loginBusy,
-                ) {
-                    Text("Otras listas / M3U")
-                }
+                Text("Entrar a SEÑAL")
             }
         }
     }

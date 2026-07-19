@@ -16,14 +16,12 @@ import org.json.JSONObject
 
 data class SenalLoginResult(
     val username: String,
-    /** Bouquet M3U via classic IPTV URL (same filter as /playlist.m3u). */
-    val playlistUrl: String,
     val token: String?,
 )
 
 /**
- * Same auth path as the previous SEÑAL Compose app:
- * POST /api/auth/login → user bouquet playlist (via /get.php).
+ * Panel login only (access control). Playlist content always comes from
+ * [SenalServerConfig.listaUrl] (`downloads/lista.m3u` on the VPS).
  */
 @Singleton
 class SenalAuthClient @Inject constructor(
@@ -73,11 +71,7 @@ class SenalAuthClient @Inject constructor(
                     val token = sequenceOf("token", "accessToken", "jwt")
                         .map { json.optString(it) }
                         .firstOrNull { it.isNotBlank() }
-                    SenalLoginResult(
-                        username = user,
-                        playlistUrl = SenalServerConfig.accountPlaylistUrl(user, pass),
-                        token = token,
-                    )
+                    SenalLoginResult(username = user, token = token)
                 }
             }
         }

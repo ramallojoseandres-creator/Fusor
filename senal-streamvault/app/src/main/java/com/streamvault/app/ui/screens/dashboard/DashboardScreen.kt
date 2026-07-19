@@ -721,6 +721,7 @@ private fun EmptyDashboard(
     onAddProvider: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
+    val allowAdd = com.streamvault.app.senal.SenalServerConfig.allowClientPlaylistAdd
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -752,13 +753,19 @@ private fun EmptyDashboard(
                     color = OnBackground
                 )
                 Text(
-                    text = stringResource(R.string.dashboard_empty_body),
+                    text = if (allowAdd) {
+                        stringResource(R.string.dashboard_empty_body)
+                    } else {
+                        "Inicia sesión en SEÑAL para sincronizar downloads/lista.m3u del servidor."
+                    },
                     style = MaterialTheme.typography.titleMedium,
                     color = OnSurfaceDim
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    TvButton(onClick = onAddProvider) {
-                        Text(stringResource(R.string.settings_add_provider))
+                    if (allowAdd) {
+                        TvButton(onClick = onAddProvider) {
+                            Text(stringResource(R.string.settings_add_provider))
+                        }
                     }
                     TvButton(
                         onClick = onOpenSettings,

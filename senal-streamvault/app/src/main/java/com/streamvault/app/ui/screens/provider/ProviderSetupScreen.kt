@@ -750,16 +750,6 @@ private fun ProviderFormContent(
                 }
 
                 SourceType.M3U_URL -> {
-                    SenalPlaylistPresets(
-                        username = username,
-                        onUsernameChange = onUsernameChange,
-                        password = password,
-                        onPasswordChange = onPasswordChange,
-                        onApply = { presetName, presetUrl ->
-                            if (presetName.isNotBlank()) onNameChange(presetName)
-                            onM3uUrlChange(presetUrl)
-                        },
-                    )
                     ProviderTextField(
                         value = m3uUrl, onValueChange = onM3uUrlChange,
                         placeholder = androidx.compose.ui.res.stringResource(R.string.setup_m3u_hint),

@@ -445,6 +445,19 @@ class ProviderSetupViewModel @Inject constructor(
             return
         }
 
+        if (!com.streamvault.app.senal.SenalServerConfig.allowClientPlaylistAdd) {
+            val allowed = com.streamvault.app.senal.SenalServerConfig.listaUrl.trimEnd('/')
+            val requested = url.trim().trimEnd('/')
+            if (!requested.equals(allowed, ignoreCase = true)) {
+                _uiState.update {
+                    it.copy(
+                        validationError = "Solo se permite downloads/lista.m3u del servidor SEÑAL.",
+                    )
+                }
+                return
+            }
+        }
+
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, validationError = null, syncProgress = "Validating...") }
             val existingId = if (_uiState.value.isEditing) _uiState.value.existingProviderId else null

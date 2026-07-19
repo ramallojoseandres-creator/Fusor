@@ -90,11 +90,13 @@ internal fun CombinedM3uProfilesCard(
                         color = OnSurfaceDim
                     )
                 }
-                CompactSettingsActionChip(
-                    label = "Create Combined",
-                    accent = Primary,
-                    onClick = onCreateProfile
-                )
+                if (com.streamvault.app.senal.SenalServerConfig.allowClientPlaylistAdd) {
+                    CompactSettingsActionChip(
+                        label = "Create Combined",
+                        accent = Primary,
+                        onClick = onCreateProfile
+                    )
+                }
             }
 
             if (profiles.isEmpty()) {
@@ -134,11 +136,13 @@ internal fun CombinedM3uProfilesCard(
                             accent = OnBackground,
                             onClick = { onRenameProfile(selectedProfile.id) }
                         )
-                        CompactSettingsActionChip(
-                            label = "Add Playlist",
-                            accent = OnBackground,
-                            onClick = { onAddProvider(selectedProfile.id) }
-                        )
+                        if (com.streamvault.app.senal.SenalServerConfig.allowClientPlaylistAdd) {
+                            CompactSettingsActionChip(
+                                label = "Add Playlist",
+                                accent = OnBackground,
+                                onClick = { onAddProvider(selectedProfile.id) }
+                            )
+                        }
                         CompactSettingsActionChip(
                             label = "Delete",
                             accent = ErrorColor,

@@ -347,16 +347,21 @@ fun AppNavigation(mainActivity: MainActivity) {
             val providerId = backStackEntry.arguments?.getLong("providerId")?.takeIf { it != -1L }
             val importUri = backStackEntry.arguments?.getString("importUri")?.takeIf { it.isNotBlank() }
             
-            ProviderSetupScreen(
-                editProviderId = providerId,
-                initialImportUri = importUri,
-                onBack = { navController.popBackStack() },
-                onProviderAdded = dropUnlessResumed {
-                    navController.navigate(Routes.HOME) {
-                        popUpTo(Routes.PROVIDER_SETUP) { inclusive = true }
+            // New playlists are server-managed (lista.m3u). Allow edit of an existing provider only.
+            if (!com.streamvault.app.senal.SenalServerConfig.allowClientPlaylistAdd && providerId == null) {
+                LaunchedEffect(Unit) { navController.popBackStack() }
+            } else {
+                ProviderSetupScreen(
+                    editProviderId = providerId,
+                    initialImportUri = importUri,
+                    onBack = { navController.popBackStack() },
+                    onProviderAdded = dropUnlessResumed {
+                        navController.navigate(Routes.HOME) {
+                            popUpTo(Routes.PROVIDER_SETUP) { inclusive = true }
+                        }
                     }
-                }
-            )
+                )
+            }
         }
 // ...
 
@@ -364,7 +369,9 @@ fun AppNavigation(mainActivity: MainActivity) {
             DashboardScreen(
                 onNavigate = { route -> tabNavigate(route) },
                 onAddProvider = dropUnlessResumed {
-                    navController.navigate(Routes.providerSetup(null))
+                    if (com.streamvault.app.senal.SenalServerConfig.allowClientPlaylistAdd) {
+                        navController.navigate(Routes.providerSetup(null))
+                    }
                 },
                 onRecentChannelClick = { channel, combinedProfileId ->
                     navController.navigateToPlayer(
@@ -562,7 +569,9 @@ fun AppNavigation(mainActivity: MainActivity) {
             SettingsScreen(
                 onNavigate = { route -> tabNavigate(route) },
                 onAddProvider = dropUnlessResumed {
-                    navController.navigate(Routes.providerSetup(null))
+                    if (com.streamvault.app.senal.SenalServerConfig.allowClientPlaylistAdd) {
+                        navController.navigate(Routes.providerSetup(null))
+                    }
                 },
                 onEditProvider = { provider ->
                     navController.navigateIfResumed(Routes.providerSetup(provider.id))
