@@ -21,23 +21,17 @@ Crédito del software original: **Carlos Mundaray / Solvitco** — [vitalfiappsw
 
 Apple **no permite** escanear BSSID / RSSI de redes Wi‑Fi ajenas. En iPhone esta app es de **coordinación** (mapa, historial, enjambre), no detector de víctimas por Wi‑Fi.
 
-Si tienes **LiveContainer** (como SEÑAL):
+Si tienes **LiveContainer** (igual que SEÑAL):
 
-1. En GitHub Actions corre el workflow **Build ResQRadar iOS IPA (LiveContainer)** (`workflow_dispatch` o push a `flutter_app/`).
-2. Descarga el artefacto / release `ResQRadar-VE-LiveContainer.ipa`.
-3. En LiveContainer: **Settings → Import Certificate** desde AltStore/SideStore (modo JIT-Less).
-4. **My Apps → +** → elige el IPA → ábrela desde LiveContainer.
+1. Genera el IPA (CI o Mac):
+   - GitHub Actions: workflow **Build ResQRadar iOS IPA (LiveContainer)** → artifact `ResQRadar-VE-LiveContainer.ipa`
+   - O en Mac: `bash scripts/package_livecontainer_ipa.sh`
+2. LiveContainer → **Settings → Import Certificate** (AltStore/SideStore, JIT-Less).
+3. **My Apps → +** → elige el IPA → ábrela desde LiveContainer.
 
-LiveContainer **re-firma** el IPA; no hace falta cuenta Apple Developer de pago.
+LiveContainer **re-firma** el IPA; no hace falta Apple Developer de pago.
 
-Build local (Mac):
-
-```bash
-cd flutter_app
-flutter pub get
-flutter build ios --release --no-codesign
-# empaquetar Payload/Runner.app → ResQRadar-VE-LiveContainer.ipa
-```
+> Si Actions falla al instante con *spending limit / payments*, hay que subir el límite de billing de GitHub (macOS runners de pago) o generar el IPA en un Mac.
 
 ## Entrenar el modelo TFLite (opcional)
 
