@@ -4,6 +4,12 @@ Herramienta experimental de apoyo a brigadas de rescate: analiza variaciones de 
 
 > **Aviso:** estimaciones, no 100 % confiables. No reemplaza equipos ni protocolos oficiales de búsqueda y rescate.
 
+## Descargas (GitHub Release)
+
+- [VitalFi-VE-1.4.0.apk](https://github.com/ramallojoseandres-creator/Fusor/releases/download/vitalfi-ve-1.4.0/VitalFi-VE-1.4.0.apk) — radar Wi‑Fi (recomendado)
+- [ResQRadar-VE-1.4.0.apk](https://github.com/ramallojoseandres-creator/Fusor/releases/download/vitalfi-ve-1.4.0/ResQRadar-VE-1.4.0.apk) — Flutter
+- Release: https://github.com/ramallojoseandres-creator/Fusor/releases/tag/vitalfi-ve-1.4.0
+
 ## Origen y licencia
 
 - Base original **VitalFi / WhoFi** de **Carlos Mundaray — Solvitco**, licenciada **MIT** (ver `LICENSE`).
