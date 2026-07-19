@@ -80,5 +80,12 @@
 	<key>NSMotionUsageDescription</key>
 	<string>Sensores para orientación del dispositivo en el mapa de coordinación.</string>
 
+
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
+
 </dict>
 </plist>

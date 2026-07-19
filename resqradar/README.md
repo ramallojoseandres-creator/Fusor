@@ -54,14 +54,20 @@ flutter build apk --release
 flutter build ios --release   # requiere macOS + Xcode
 ```
 
-### iOS — limitaciones importantes
+### iOS + LiveContainer
 
-Apple **no permite** escanear redes Wi‑Fi/RSSI como Android. En iPhone:
+Apple **no permite** escanear redes Wi‑Fi/RSSI como Android. La IPA es **coordinación de brigada**.
 
-- Funciona bien: mapas, enjambre P2P (Nearby), historial, reportes, portal cautivo (según APIs).
-- El radar biométrico Wi‑Fi queda **limitado o no disponible** sin APIs privadas/entitlements especiales.
+Con **LiveContainer** (misma ruta que SEÑAL):
 
-La IPA de este fork se plantea como **app de coordinación de brigada**; el radar Wi‑Fi completo sigue siendo prioridad Android.
+1. Workflow GitHub: `Build ResQRadar iOS IPA (LiveContainer)` → artefacto `ResQRadar-VE-LiveContainer.ipa`
+2. LiveContainer → importar certificado (JIT-Less) → **+** → IPA
+
+```bash
+flutter build ios --release --no-codesign   # Mac / CI
+```
+
+El radar Wi‑Fi completo sigue siendo prioridad Android (`VitalFi-VE-*.apk`).
 
 ## Créditos
 

@@ -2,15 +2,20 @@
 
 Fork MIT de VitalFi / ResQRadar (Carlos Mundaray — Solvitco).
 
-## Builds
+## Android
 
 ```bash
 flutter pub get
-flutter build apk --release          # Android
-flutter build ios --release          # macOS + Xcode
-flutter build ipa                    # con cuenta Apple Developer
+flutter build apk --release
 ```
 
-## iOS
+## iOS → LiveContainer
 
-Apple no permite el radar Wi‑Fi/RSSI de Android. Esta IPA es **coordinación de brigada** (mapa, historial, enjambre). Ver `../COORDINACION.md`.
+```bash
+flutter build ios --release --no-codesign
+# Empaquetar build/ios/iphoneos/Runner.app como IPA (Payload/)
+```
+
+En el iPhone: LiveContainer → **+** → `ResQRadar-VE-LiveContainer.ipa` (CI lo genera en `.github/workflows/resqradar-ios.yml`).
+
+Sin radar Wi‑Fi en iOS (límite Apple). Ver `../COORDINACION.md`.
