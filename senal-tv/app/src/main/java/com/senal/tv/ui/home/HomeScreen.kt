@@ -94,9 +94,6 @@ import com.senal.tv.ui.settings.SettingsScreen
 import com.senal.tv.ui.theme.BrandOrange
 import com.senal.tv.ui.theme.BrandOrangeHot
 import com.senal.tv.ui.theme.LiveGreen
-import com.senal.tv.ui.theme.LiveRed
-import com.senal.tv.ui.theme.NeonBlue
-import com.senal.tv.ui.theme.NeonPurple
 import com.senal.tv.ui.theme.TextMuted
 import com.senal.tv.ui.theme.TextPrimary
 import com.senal.tv.util.CatalogRules
@@ -124,28 +121,28 @@ private val flujoTiles = listOf(
         HomeSection.LIVE, "VIVO",
         R.mipmap.bg_main_live_category_item_n,
         R.mipmap.bg_main_live_category_item_f,
-        LiveRed,
+        Color(0xFFE85D55),
         TileIcon.LIVE
     ),
     NavTile(
         HomeSection.SERIES, "SERIE",
         R.mipmap.bg_main_special_category_item_n,
         R.mipmap.bg_main_special_category_item_f,
-        NeonBlue,
+        Color(0xFF5BA8E8),
         TileIcon.SERIES
     ),
     NavTile(
         HomeSection.MOVIES, "PELÍCULA",
         R.mipmap.bg_main_vod_category_item_n,
         R.mipmap.bg_main_vod_category_item_f,
-        LiveGreen,
+        Color(0xFF3ECF8E),
         TileIcon.MOVIE
     ),
     NavTile(
         HomeSection.SERIES, "ANIME",
         R.mipmap.bg_main_game_category_item_n,
         R.mipmap.bg_main_game_category_item_f,
-        NeonPurple,
+        Color(0xFF8B6FE0),
         TileIcon.ANIME
     ),
     NavTile(
@@ -170,7 +167,6 @@ fun HomeScreen(
     var livePreview by remember { mutableStateOf<CatalogItem?>(null) }
     var spotlight by remember { mutableStateOf<CatalogItem?>(null) }
     var sidePoster by remember { mutableStateOf<CatalogItem?>(null) }
-    var featured by remember { mutableStateOf<List<CatalogItem>>(emptyList()) }
     var clock by remember { mutableStateOf(nowParts()) }
     var didAutoPlay by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -246,12 +242,17 @@ fun HomeScreen(
             ?: series.firstOrNull()
             ?: movies.firstOrNull()
 
-        sidePoster = movies.firstOrNull { !it.resolvePoster().isNullOrBlank() && it.resolveId() != spotlight?.resolveId() }
-            ?: series.firstOrNull { !it.resolvePoster().isNullOrBlank() && it.resolveId() != spotlight?.resolveId() }
-
-        featured = (listOfNotNull(spotlight) + live.take(3) + series.take(2) + movies.take(2))
-            .distinctBy { it.resolveId() }
-            .take(5)
+        fun isRealPoster(item: CatalogItem): Boolean {
+            val p = item.resolvePoster().orEmpty()
+            if (p.isBlank()) return false
+            // Evitar logos de canal (suelen ser pequeños / mismos que logo).
+            if (p == item.resolveLogo().orEmpty() && item.contentType() == ContentType.LIVE) return false
+            return p.startsWith("http")
+        }
+        sidePoster = movies.firstOrNull(::isRealPoster)
+            ?: series.firstOrNull(::isRealPoster)
+            ?: movies.firstOrNull { !it.resolvePoster().isNullOrBlank() }
+            ?: series.firstOrNull { !it.resolvePoster().isNullOrBlank() }
 
         if (autoPlayLastChannel && !didAutoPlay && livePreview != null && lastId.isNotBlank()) {
             didAutoPlay = true
@@ -262,63 +263,66 @@ fun HomeScreen(
         }
     }
 
-    SenalBackground(
-        content = {
-            if (section == null) {
-                FlujoHomeHub(
-                    container = container,
-                    clock = clock,
-                    livePreview = livePreview,
-                    sidePoster = sidePoster,
-                    featured = featured,
-                    onOpen = { section = it },
-                    onPlayItem = { item ->
-                        when (item.contentType()) {
-                            ContentType.LIVE -> onPlay(item, 0L, live.ifEmpty { listOf(item) })
-                            else -> onPlay(item, 0L, listOf(item))
-                        }
+    if (section == null) {
+        // Fondo plano estilo Flujo (sin grilla ATV).
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(Color(0xFF0E0E10))
+        ) {
+            FlujoHomeHub(
+                container = container,
+                clock = clock,
+                livePreview = livePreview,
+                sidePoster = sidePoster,
+                onOpen = { section = it },
+                onPlayItem = { item ->
+                    when (item.contentType()) {
+                        ContentType.LIVE -> onPlay(item, 0L, live.ifEmpty { listOf(item) })
+                        else -> onPlay(item, 0L, listOf(item))
                     }
-                )
-            } else {
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .padding(if (section == HomeSection.LIVE) 0.dp else 20.dp)
-                ) {
-                    SectionBody(
-                        section = section!!,
-                        container = container,
-                        onBack = { section = null },
-                        onPlay = onPlay,
-                        onLogout = onLogout
-                    )
                 }
+            )
+        }
+    } else {
+        SenalBackground {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .padding(if (section == HomeSection.LIVE) 0.dp else 20.dp)
+            ) {
+                SectionBody(
+                    section = section!!,
+                    container = container,
+                    onBack = { section = null },
+                    onPlay = onPlay,
+                    onLogout = onLogout
+                )
             }
         }
-    )
+    }
 }
 
-/** Home hub exacto Flujo: header · featured con vídeo vivo · 5 tiles. */
+/** Home hub exacto Flujo: header · featured vídeo · póster · 5 tiles. */
 @Composable
 private fun FlujoHomeHub(
     container: AppContainer,
     clock: ClockParts,
     livePreview: CatalogItem?,
     sidePoster: CatalogItem?,
-    featured: List<CatalogItem>,
     onOpen: (HomeSection) -> Unit,
     onPlayItem: (CatalogItem) -> Unit
 ) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val compact = maxWidth < 900.dp
-        val padH = if (compact) 28.dp else 40.dp
-        val padV = if (compact) 16.dp else 22.dp
-        val tileH = if (DeviceUi.isTabletBuild) 108.dp else if (compact) 100.dp else 118.dp
+        val padH = if (compact) 36.dp else 48.dp
+        val padV = if (compact) 18.dp else 24.dp
+        val tileH = if (DeviceUi.isTabletBuild) 112.dp else if (compact) 104.dp else 120.dp
         val featureFocus = remember { FocusRequester() }
 
         LaunchedEffect(Unit) {
             if (!DeviceUi.isTabletBuild) {
-                delay(160)
+                delay(200)
                 runCatching { featureFocus.requestFocus() }
             }
         }
@@ -333,42 +337,41 @@ private fun FlujoHomeHub(
                 onSettings = { onOpen(HomeSection.SETTINGS) }
             )
 
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(18.dp))
 
             Row(
                 Modifier
                     .weight(1f)
                     .fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 FlujoFeatureCard(
                     container = container,
-                    item = livePreview ?: featured.firstOrNull(),
+                    item = livePreview,
                     modifier = Modifier
-                        .weight(0.68f)
+                        .weight(0.72f)
                         .fillMaxHeight()
                         .focusRequester(featureFocus),
                     onClick = { onOpen(HomeSection.LIVE) }
                 )
                 FlujoPosterCard(
-                    item = sidePoster ?: featured.getOrNull(1),
+                    item = sidePoster,
                     modifier = Modifier
-                        .weight(0.32f)
+                        .weight(0.28f)
                         .fillMaxHeight(),
                     onClick = {
-                        val item = sidePoster ?: featured.getOrNull(1)
-                        if (item != null) onPlayItem(item) else onOpen(HomeSection.MOVIES)
+                        if (sidePoster != null) onPlayItem(sidePoster) else onOpen(HomeSection.MOVIES)
                     }
                 )
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(18.dp))
 
             Row(
                 Modifier
                     .fillMaxWidth()
                     .height(tileH),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 flujoTiles.forEach { tile ->
@@ -382,20 +385,22 @@ private fun FlujoHomeHub(
                 }
                 Column(
                     Modifier
-                        .width(48.dp)
+                        .width(52.dp)
                         .fillMaxHeight(),
-                    verticalArrangement = Arrangement.SpaceEvenly,
+                    verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     RoundIconBtn(
                         normal = R.mipmap.history_btn_n,
                         focused = R.mipmap.history_btn,
-                        onClick = { onOpen(HomeSection.SEARCH) }
+                        onClick = { onOpen(HomeSection.SEARCH) },
+                        size = 44.dp
                     )
                     RoundIconBtn(
                         normal = R.mipmap.fav_btn_n,
                         focused = R.mipmap.fav_btn,
-                        onClick = { onOpen(HomeSection.FAVORITES) }
+                        onClick = { onOpen(HomeSection.FAVORITES) },
+                        size = 44.dp
                     )
                 }
             }
@@ -419,40 +424,48 @@ private fun FlujoTopBar(
                 contentDescription = "SEÑAL",
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
-                    .height(36.dp)
-                    .widthIn(max = 150.dp)
+                    .height(38.dp)
+                    .widthIn(max = 160.dp)
             )
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(12.dp))
             Text(
                 text = BuildConfig.VERSION_NAME,
-                color = TextMuted,
-                fontSize = 14.sp,
+                color = Color.White.copy(0.85f),
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Medium
             )
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            WifiGlyph(Modifier.size(22.dp))
-            Spacer(Modifier.width(12.dp))
-            Column(horizontalAlignment = Alignment.End) {
+            WifiGlyph(Modifier.size(24.dp))
+            Spacer(Modifier.width(14.dp))
+            Text(
+                text = clock.time,
+                color = Color.White,
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.5.sp
+            )
+            Spacer(Modifier.width(10.dp))
+            Column {
                 Text(
-                    text = clock.time,
-                    color = TextPrimary,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.5.sp
+                    text = clock.week.replaceFirstChar { it.uppercase() } + ".",
+                    color = Color.White.copy(0.9f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
                 )
                 Text(
-                    text = "${clock.week.replaceFirstChar { it.uppercase() }}. ${clock.date}",
-                    color = TextMuted,
-                    fontSize = 12.sp
+                    text = clock.date,
+                    color = Color.White.copy(0.9f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
                 )
             }
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(16.dp))
             RoundIconBtn(
                 normal = R.mipmap.ic_settings_n,
                 focused = R.mipmap.ic_settings_h,
                 onClick = onSettings,
-                size = 36.dp
+                size = 38.dp
             )
         }
     }
@@ -468,7 +481,7 @@ private fun FlujoFeatureCard(
 ) {
     var focused by remember { mutableStateOf(false) }
     var ready by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (focused) 1.015f else 1f, tween(160), label = "feat")
+    var bitrate by remember { mutableStateOf("—") }
     val context = LocalContext.current
 
     val player = remember {
@@ -489,7 +502,14 @@ private fun FlujoFeatureCard(
     DisposableEffect(player) {
         val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_READY) ready = true
+                if (playbackState == Player.STATE_READY) {
+                    ready = true
+                    val br = player.videoFormat?.bitrate ?: player.audioFormat?.bitrate ?: 0
+                    bitrate = if (br > 0) {
+                        val mb = br / 1_000_000f
+                        if (mb >= 1f) String.format("%.0f Mb/s", mb) else String.format("%.0f Kb/s", br / 1000f)
+                    } else "1 Mb/s"
+                }
             }
         }
         player.addListener(listener)
@@ -533,26 +553,25 @@ private fun FlujoFeatureCard(
 
     Surface(
         onClick = onClick,
-        modifier = modifier
-            .graphicsLayer { scaleX = scale; scaleY = scale }
-            .onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+        modifier = modifier.onFocusChanged { focused = it.isFocused },
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color(0xFF0A101C),
-            focusedContainerColor = Color(0xFF0A101C)
+            containerColor = Color.Black,
+            focusedContainerColor = Color.Black
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f)
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.01f),
+        border = ClickableSurfaceDefaults.border(
+            focusedBorder = androidx.tv.material3.Border(
+                border = androidx.compose.foundation.BorderStroke(3.dp, BrandOrange),
+                shape = RoundedCornerShape(10.dp)
+            ),
+            border = androidx.tv.material3.Border(
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(0.08f)),
+                shape = RoundedCornerShape(10.dp)
+            )
+        )
     ) {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .clip(RoundedCornerShape(12.dp))
-                .border(
-                    width = if (focused) 2.5.dp else 1.dp,
-                    color = if (focused) BrandOrange else Color.White.copy(0.12f),
-                    shape = RoundedCornerShape(12.dp)
-                )
-        ) {
+        Box(Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp))) {
             AndroidView(
                 factory = { ctx ->
                     PlayerView(ctx).apply {
@@ -581,47 +600,34 @@ private fun FlujoFeatureCard(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
-                } else {
-                    Box(
-                        Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(Color(0xFF0C2238), Color(0xFF061018), Color(0xFF102830))
-                                )
-                            )
-                    )
                 }
             }
 
-            Image(
-                painter = painterResource(R.drawable.brand_logo),
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(12.dp)
-                    .height(22.dp)
-                    .widthIn(max = 100.dp)
-            )
-
+            // Gradiente suave solo abajo (como Flujo).
             Box(
                 Modifier
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
                             0f to Color.Transparent,
-                            0.55f to Color.Transparent,
-                            1f to Color.Black.copy(0.85f)
+                            0.62f to Color.Transparent,
+                            1f to Color.Black.copy(0.72f)
                         )
                     )
             )
-            Column(
+
+            Row(
                 Modifier
                     .align(Alignment.BottomStart)
-                    .padding(16.dp)
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
                     Box(
                         Modifier
                             .size(8.dp)
@@ -632,17 +638,17 @@ private fun FlujoFeatureCard(
                     Text(
                         text = item?.resolveTitle() ?: "SEÑAL · En vivo",
                         color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
                 Text(
-                    text = "Tu ventana al mundo",
-                    color = BrandOrangeHot,
+                    text = bitrate,
+                    color = Color.White.copy(0.85f),
                     fontSize = 12.sp,
-                    modifier = Modifier.padding(top = 4.dp)
+                    fontWeight = FontWeight.Medium
                 )
             }
         }
@@ -656,30 +662,28 @@ private fun FlujoPosterCard(
     modifier: Modifier = Modifier
 ) {
     var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (focused) 1.02f else 1f, tween(160), label = "poster")
 
     Surface(
         onClick = onClick,
-        modifier = modifier
-            .graphicsLayer { scaleX = scale; scaleY = scale }
-            .onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+        modifier = modifier.onFocusChanged { focused = it.isFocused },
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color(0xFF0A101C),
-            focusedContainerColor = Color(0xFF0A101C)
+            containerColor = Color(0xFF1A1A1E),
+            focusedContainerColor = Color(0xFF1A1A1E)
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f)
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
+        border = ClickableSurfaceDefaults.border(
+            focusedBorder = androidx.tv.material3.Border(
+                border = androidx.compose.foundation.BorderStroke(3.dp, BrandOrange),
+                shape = RoundedCornerShape(10.dp)
+            ),
+            border = androidx.tv.material3.Border(
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(0.08f)),
+                shape = RoundedCornerShape(10.dp)
+            )
+        )
     ) {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .clip(RoundedCornerShape(12.dp))
-                .border(
-                    width = if (focused) 2.5.dp else 1.dp,
-                    color = if (focused) BrandOrange else Color.White.copy(0.12f),
-                    shape = RoundedCornerShape(12.dp)
-                )
-        ) {
+        Box(Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp))) {
             val art = item?.resolvePoster()
             if (!art.isNullOrBlank()) {
                 AsyncImage(
@@ -692,14 +696,31 @@ private fun FlujoPosterCard(
                 Box(
                     Modifier
                         .fillMaxSize()
-                        .background(Brush.verticalGradient(listOf(Color(0xFF1A1030), Color(0xFF060A14))))
+                        .background(Brush.verticalGradient(listOf(Color(0xFF2A2038), Color(0xFF121018))))
                 )
                 Text(
-                    "PELÍCULAS",
-                    color = TextMuted,
+                    "PELÍCULA",
+                    color = Color.White.copy(0.7f),
                     fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
                     modifier = Modifier.align(Alignment.Center)
                 )
+            }
+            // Dots carrusel estilo Flujo
+            Row(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                repeat(4) { i ->
+                    Box(
+                        Modifier
+                            .size(if (i == 0) 7.dp else 6.dp)
+                            .clip(CircleShape)
+                            .background(if (i == 0) BrandOrange else Color.White.copy(0.35f))
+                    )
+                }
             }
         }
     }
@@ -712,14 +733,14 @@ private fun FlujoNavTile(
     modifier: Modifier = Modifier
 ) {
     var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (focused) 1.05f else 1f, tween(150), label = "tile")
+    val scale by animateFloatAsState(if (focused) 1.06f else 1f, tween(140), label = "tile")
 
     Surface(
         onClick = onClick,
         modifier = modifier
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Transparent,
             focusedContainerColor = Color.Transparent
@@ -729,44 +750,41 @@ private fun FlujoNavTile(
         Box(
             Modifier
                 .fillMaxSize()
-                .clip(RoundedCornerShape(14.dp))
-                .border(
-                    width = if (focused) 2.5.dp else 0.dp,
-                    color = if (focused) BrandOrangeHot else Color.Transparent,
-                    shape = RoundedCornerShape(14.dp)
-                )
-        ) {
-            Image(
-                painter = painterResource(if (focused) tile.focusedRes else tile.normalRes),
-                contentDescription = tile.label,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(
-                                tile.accent.copy(if (focused) 0.55f else 0.42f),
-                                tile.accent.copy(if (focused) 0.78f else 0.65f),
-                                Color.Black.copy(0.35f)
-                            )
+                .clip(RoundedCornerShape(16.dp))
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            tile.accent.copy(alpha = if (focused) 0.95f else 0.88f),
+                            tile.accent.copy(alpha = if (focused) 0.75f else 0.62f),
+                            Color(0xFF101018).copy(alpha = 0.55f)
                         )
                     )
-            )
+                )
+                .border(
+                    width = if (focused) 2.5.dp else 0.dp,
+                    color = if (focused) Color.White.copy(0.85f) else Color.Transparent,
+                    shape = RoundedCornerShape(16.dp)
+                )
+        ) {
+            // Burbujas sutiles estilo Flujo
+            Canvas(Modifier.fillMaxSize()) {
+                val c = Color.White.copy(alpha = 0.08f)
+                drawCircle(c, radius = size.minDimension * 0.22f, center = Offset(size.width * 0.2f, size.height * 0.3f))
+                drawCircle(c, radius = size.minDimension * 0.14f, center = Offset(size.width * 0.75f, size.height * 0.25f))
+                drawCircle(c, radius = size.minDimension * 0.18f, center = Offset(size.width * 0.55f, size.height * 0.7f))
+            }
             Column(
                 Modifier.align(Alignment.Center),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 TileGlyph(kind = tile.iconKind, focused = focused)
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(6.dp))
                 Text(
                     text = tile.label,
                     color = Color.White,
-                    fontWeight = FontWeight.Black,
-                    fontSize = if (focused) 15.sp else 13.sp,
-                    letterSpacing = 1.2.sp
+                    fontWeight = FontWeight.Bold,
+                    fontSize = if (focused) 14.sp else 13.sp,
+                    letterSpacing = 1.sp
                 )
             }
         }
