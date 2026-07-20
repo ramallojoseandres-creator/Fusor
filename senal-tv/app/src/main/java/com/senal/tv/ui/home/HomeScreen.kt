@@ -420,12 +420,12 @@ private fun FlujoTopBar(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Image(
-                painter = painterResource(R.drawable.brand_logo),
+                painter = painterResource(R.drawable.brand_logo_pill),
                 contentDescription = "SEÑAL",
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
-                    .height(38.dp)
-                    .widthIn(max = 160.dp)
+                    .height(42.dp)
+                    .widthIn(max = 170.dp)
             )
             Spacer(Modifier.width(12.dp))
             Text(
@@ -951,12 +951,12 @@ private fun SectionBody(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Image(
-                    painter = painterResource(R.drawable.brand_logo),
+                    painter = painterResource(R.drawable.brand_logo_pill),
                     contentDescription = "SEÑAL",
                     contentScale = ContentScale.Fit,
                     modifier = Modifier
-                        .height(32.dp)
-                        .widthIn(max = 140.dp)
+                        .height(34.dp)
+                        .widthIn(max = 150.dp)
                 )
                 FocusableButton(label = "INICIO", onClick = onBack, primary = true)
             }

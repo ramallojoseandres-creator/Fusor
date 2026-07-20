@@ -605,7 +605,7 @@ fun LiveTvScreen(
                             .padding(vertical = 4.dp)
                     ) {
                         Image(
-                            painter = painterResource(R.drawable.brand_logo),
+                            painter = painterResource(R.drawable.brand_logo_pill),
                             contentDescription = "SEÑAL",
                             contentScale = ContentScale.Fit,
                             modifier = Modifier

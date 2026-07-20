@@ -147,7 +147,7 @@ fun LoginScreen(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Image(
-                        painter = painterResource(R.drawable.brand_logo),
+                        painter = painterResource(R.drawable.brand_logo_pill),
                         contentDescription = "SEÑAL",
                         contentScale = ContentScale.Fit,
                         modifier = Modifier
