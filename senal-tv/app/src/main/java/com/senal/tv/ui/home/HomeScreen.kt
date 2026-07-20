@@ -162,7 +162,7 @@ fun HomeScreen(
     onLogout: () -> Unit,
     autoPlayLastChannel: Boolean = true
 ) {
-    var section by remember { mutableStateOf<HomeSection?>(null) }
+    var section by remember { mutableStateOf<HomeSection?>(HomeSection.LIVE) }
     var live by remember { mutableStateOf<List<CatalogItem>>(emptyList()) }
     var livePreview by remember { mutableStateOf<CatalogItem?>(null) }
     var spotlight by remember { mutableStateOf<CatalogItem?>(null) }
@@ -727,11 +727,11 @@ private fun SpotlightHero(
                         .fillMaxWidth(0.92f)
                 ) {
                     Text(
-                        text = "SEÑAL Spotlight",
+                        text = "SEÑAL",
                         color = BrandOrangeHot,
                         fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.2.sp
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 2.sp
                     )
                     Spacer(Modifier.height(6.dp))
                     Text(
@@ -742,13 +742,13 @@ private fun SpotlightHero(
                                 else -> "En vivo"
                             }
                             "“$title” ($kind)"
-                        } ?: "Tu señal, al instante",
+                        } ?: "Tu ventana al mundo",
                         color = Color.White,
-                        fontSize = 26.sp,
+                        fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
-                        lineHeight = 30.sp
+                        lineHeight = 28.sp
                     )
                     Spacer(Modifier.height(10.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -99,10 +99,10 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 /**
- * Guía EN VIVO sobre el reproductor.
- * Scroll/foco por categorías/canales **NO** cambia el stream.
- * SELECT en un canal → sintoniza y oculta la guía (el vídeo sigue).
- * SELECT / toque con guía oculta → vuelve a mostrar la lista (sin pausar).
+ * Guía EN VIVO estilo Flujo (SEÑAL):
+ * vídeo a pantalla completa + categorías | canales a la izquierda.
+ * Al navegar con el mando, el foco previsualiza el canal (~280 ms).
+ * SELECT confirma y oculta la guía; SELECT otra vez la vuelve a mostrar.
  */
 @OptIn(UnstableApi::class)
 @Composable
@@ -314,7 +314,19 @@ fun LiveTvScreen(
         loadingChannels = false
     }
 
-    // 3) Reproducir SOLO cuando cambia el canal aprobado (SELECT), nunca por foco.
+    // Preview al enfocar (estilo Flujo): debounce para no spamear el decoder.
+    LaunchedEffect(focusedChannelId, guideVisible, channels) {
+        if (!guideVisible) return@LaunchedEffect
+        val id = focusedChannelId ?: return@LaunchedEffect
+        delay(280)
+        if (focusedChannelId != id) return@LaunchedEffect
+        val channel = channels.firstOrNull { it.resolveId() == id } ?: return@LaunchedEffect
+        if (playing?.resolveId() != id) {
+            tune(channel)
+        }
+    }
+
+    // 3) Reproducir cuando cambia el canal en aire.
     LaunchedEffect(playing?.resolveId(), allowPlayback) {
         if (!allowPlayback) return@LaunchedEffect
         val item = playing ?: return@LaunchedEffect
@@ -518,33 +530,41 @@ fun LiveTvScreen(
                         .fillMaxSize()
                         .padding(start = 16.dp, top = 16.dp, bottom = 16.dp, end = 16.dp)
                 ) {
-                    val catW = if (DeviceUi.isTabletBuild) 220.dp else 190.dp
-                    val chW = if (DeviceUi.isTabletBuild) 360.dp else 320.dp
+                    val catW = if (DeviceUi.isTabletBuild) 200.dp else 168.dp
+                    val chW = if (DeviceUi.isTabletBuild) 340.dp else 292.dp
                     Column(
                         modifier = Modifier
                             .width(catW)
                             .fillMaxHeight()
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(Color(0xB008101C))
-                            .border(1.dp, Color.White.copy(0.1f), RoundedCornerShape(14.dp))
-                            .padding(8.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xCC050810))
+                            .border(1.dp, BrandOrange.copy(0.22f), RoundedCornerShape(6.dp))
+                            .padding(6.dp)
                     ) {
                         Text(
-                            "CATEGORÍAS",
+                            "SEÑAL",
                             color = BrandOrangeHot,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            letterSpacing = 1.2.sp,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                            fontWeight = FontWeight.Black,
+                            fontSize = 11.sp,
+                            letterSpacing = 2.sp,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                        )
+                        Text(
+                            "CATEGORÍAS",
+                            color = TextMuted,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 10.sp,
+                            letterSpacing = 1.sp,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                         )
                         LazyColumn(
                             state = catListState,
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                            verticalArrangement = Arrangement.spacedBy(1.dp)
                         ) {
                             if (loadingCats && categories.isEmpty()) {
                                 item {
                                     Text(
-                                        "Cargando categorías…",
+                                        "Cargando…",
                                         color = TextMuted,
                                         modifier = Modifier.padding(8.dp)
                                     )
@@ -554,14 +574,14 @@ fun LiveTvScreen(
                                 val active = category.label() == selected
                                 Surface(
                                     onClick = { selected = category.label() },
-                                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
+                                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(4.dp)),
                                     colors = ClickableSurfaceDefaults.colors(
                                         containerColor = if (active) {
-                                            BrandOrange.copy(alpha = 0.28f)
+                                            BrandOrange.copy(alpha = 0.32f)
                                         } else {
                                             Color.Transparent
                                         },
-                                        focusedContainerColor = BrandOrange.copy(alpha = 0.4f)
+                                        focusedContainerColor = BrandOrange.copy(alpha = 0.45f)
                                     ),
                                     scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
                                     modifier = Modifier
@@ -570,8 +590,8 @@ fun LiveTvScreen(
                                             if (active) {
                                                 Modifier.border(
                                                     1.dp,
-                                                    BrandOrange.copy(0.55f),
-                                                    RoundedCornerShape(8.dp)
+                                                    BrandOrange.copy(0.65f),
+                                                    RoundedCornerShape(4.dp)
                                                 )
                                             } else {
                                                 Modifier
@@ -582,35 +602,35 @@ fun LiveTvScreen(
                                         text = category.label(),
                                         color = if (active) BrandOrangeHot else TextPrimary,
                                         fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
-                                        fontSize = 14.sp,
+                                        fontSize = 13.sp,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp)
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp)
                                     )
                                 }
                             }
                         }
                     }
 
-                    Spacer(Modifier.width(10.dp))
+                    Spacer(Modifier.width(8.dp))
 
                     Column(
                         modifier = Modifier
                             .width(chW)
                             .fillMaxHeight()
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(Color(0xB008101C))
-                            .border(1.dp, Color.White.copy(0.1f), RoundedCornerShape(14.dp))
-                            .padding(8.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xCC050810))
+                            .border(1.dp, Color.White.copy(0.08f), RoundedCornerShape(6.dp))
+                            .padding(6.dp)
                     ) {
                         Text(
                             selected?.uppercase() ?: "CANALES",
                             color = TextPrimary,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
                         )
                         when {
                             error != null -> Text(
@@ -674,10 +694,10 @@ fun LiveTvScreen(
                                 .padding(horizontal = 12.dp, vertical = 10.dp)
                         ) {
                             Text(
-                                text = playing?.resolveTitle() ?: "SEÑAL EN VIVO",
+                                text = playing?.resolveTitle() ?: "SEÑAL · EN VIVO",
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp,
+                                fontSize = 15.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -687,10 +707,10 @@ fun LiveTvScreen(
                                     playError != null -> playError!!
                                     !allowPlayback -> "Guía lista…"
                                     buffering -> "Sintonizando…"
-                                    else -> "SELECT = ver · Mantener = favorito"
+                                    else -> "Tu ventana al mundo · SELECT cierra guía"
                                 },
                                 color = if (playError != null) Color(0xFFFF8A80) else BrandOrangeHot,
-                                fontSize = 12.sp,
+                                fontSize = 11.sp,
                                 modifier = Modifier.padding(top = 2.dp)
                             )
                         }
@@ -708,18 +728,17 @@ private fun LivePlayerHud(
     buffering: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val progress = remember(channel?.resolveId()) { fakeProgress(channel) }
     Row(
         modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(Color(0xE6080C14))
-            .border(1.dp, Color.White.copy(0.12f), RoundedCornerShape(14.dp))
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0xE6050810))
+            .border(1.dp, BrandOrange.copy(0.25f), RoundedCornerShape(8.dp))
+            .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        ChannelMark(channel, size = 44.dp)
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
+        ChannelMark(channel, size = 36.dp)
+        Spacer(Modifier.width(10.dp))
+        Column(modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val num = channel?.resolveNumber()
                 if (num != null) {
@@ -727,15 +746,15 @@ private fun LivePlayerHud(
                         text = "$num",
                         color = ChannelGold,
                         fontWeight = FontWeight.Black,
-                        fontSize = 22.sp
+                        fontSize = 18.sp
                     )
                     Spacer(Modifier.width(8.dp))
                 }
                 Text(
-                    text = channel?.resolveTitle() ?: "SEÑAL EN VIVO",
+                    text = channel?.resolveTitle() ?: "SEÑAL · EN VIVO",
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
+                    fontSize = 16.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false)
@@ -745,40 +764,23 @@ private fun LivePlayerHud(
                     Modifier
                         .clip(RoundedCornerShape(50))
                         .background(LiveRed)
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
-                    Text("● EN VIVO", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text("EN VIVO", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 }
             }
             Text(
                 text = when {
                     error != null -> error
                     buffering -> "Sintonizando…"
-                    else -> channel?.resolveNow()?.ifBlank { "Programación en vivo" }
-                        ?: "SELECT = guía · Mantener = favorito"
+                    else -> channel?.resolveNow()?.ifBlank { "Tu ventana al mundo" }
+                        ?: "SELECT = guía"
                 },
-                color = if (error != null) Color(0xFFFF8A80) else TextPrimary,
-                fontSize = 14.sp,
+                color = if (error != null) Color(0xFFFF8A80) else TextMuted,
+                fontSize = 12.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-            Spacer(Modifier.height(8.dp))
-            ProgressBar(progress = progress, color = ChannelGold)
-        }
-        Spacer(Modifier.width(16.dp))
-        Column(horizontalAlignment = Alignment.End) {
-            Text(
-                "★ Favorito",
-                color = Color.White.copy(0.9f),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-            Text(
-                "Guía del canal",
-                color = TextMuted,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(top = 6.dp)
+                modifier = Modifier.padding(top = 2.dp)
             )
         }
     }

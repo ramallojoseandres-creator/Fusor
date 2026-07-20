@@ -42,6 +42,7 @@ import com.senal.tv.ui.components.FocusableButton
 import com.senal.tv.ui.components.LoadingPulse
 import com.senal.tv.ui.components.SenalBackground
 import com.senal.tv.ui.theme.BrandOrange
+import com.senal.tv.ui.theme.BrandOrangeHot
 import com.senal.tv.ui.theme.GraphiteCard
 import com.senal.tv.ui.theme.LocalSenalTypography
 import com.senal.tv.ui.theme.Teal
@@ -94,7 +95,13 @@ fun LoginScreen(
                 BrandMark(compact = true)
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text = "TV en vivo",
+                    text = "Tu ventana al mundo",
+                    style = LocalSenalTypography.current.tagline,
+                    color = BrandOrangeHot
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "TV en vivo · películas · series",
                     style = LocalSenalTypography.current.caption,
                     color = TextMuted
                 )
