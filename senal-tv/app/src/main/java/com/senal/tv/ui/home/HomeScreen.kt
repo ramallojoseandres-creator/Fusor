@@ -4,12 +4,7 @@ import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -28,11 +23,11 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,32 +40,29 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.zIndex
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface
 import coil.compose.AsyncImage
 import com.senal.tv.AppContainer
+import com.senal.tv.BuildConfig
 import com.senal.tv.R
-import com.senal.tv.data.api.BannerItem
 import com.senal.tv.data.model.CatalogItem
 import com.senal.tv.data.model.ContentType
 import com.senal.tv.data.model.HomeSection
@@ -86,72 +78,66 @@ import com.senal.tv.ui.settings.SettingsScreen
 import com.senal.tv.ui.theme.BrandOrange
 import com.senal.tv.ui.theme.BrandOrangeHot
 import com.senal.tv.ui.theme.LiveGreen
+import com.senal.tv.ui.theme.LiveRed
 import com.senal.tv.ui.theme.NeonBlue
-import com.senal.tv.ui.theme.NeonMagenta
 import com.senal.tv.ui.theme.NeonPurple
 import com.senal.tv.ui.theme.TextMuted
+import com.senal.tv.ui.theme.TextPrimary
 import com.senal.tv.util.CatalogRules
 import com.senal.tv.util.DeviceUi
-import com.senal.tv.util.rememberTabletLayout
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlin.math.sin
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
 
+/** Flujo-style bottom tiles — labels exactos; acentos SEÑAL (teal donde Flujo usaba naranja). */
 private data class NavTile(
     val section: HomeSection,
     val label: String,
-    val subtitle: String,
     val normalRes: Int,
     val focusedRes: Int,
-    val accent: Color
+    val accent: Color,
+    val iconKind: TileIcon
 )
 
-private data class RailShortcut(
-    val label: String,
-    val section: HomeSection?
-)
+private enum class TileIcon { LIVE, SERIES, MOVIE, ANIME, SPECIAL }
 
-private val railShortcuts = listOf(
-    RailShortcut("TV", HomeSection.LIVE),
-    RailShortcut("PEL", HomeSection.MOVIES),
-    RailShortcut("SER", HomeSection.SERIES),
-    RailShortcut("FAV", HomeSection.FAVORITES),
-    RailShortcut("TV+", HomeSection.LIVE),
-)
-
-private val navTiles = listOf(
+private val flujoTiles = listOf(
     NavTile(
-        HomeSection.LIVE, "EN VIVO", "TV en directo",
+        HomeSection.LIVE, "VIVO",
         R.mipmap.bg_main_live_category_item_n,
         R.mipmap.bg_main_live_category_item_f,
-        BrandOrange
+        LiveRed,
+        TileIcon.LIVE
     ),
     NavTile(
-        HomeSection.MOVIES, "PELÍCULAS", "Catálogo VOD",
+        HomeSection.SERIES, "SERIE",
+        R.mipmap.bg_main_special_category_item_n,
+        R.mipmap.bg_main_special_category_item_f,
+        NeonBlue,
+        TileIcon.SERIES
+    ),
+    NavTile(
+        HomeSection.MOVIES, "PELÍCULA",
         R.mipmap.bg_main_vod_category_item_n,
         R.mipmap.bg_main_vod_category_item_f,
-        NeonMagenta
+        LiveGreen,
+        TileIcon.MOVIE
     ),
     NavTile(
-        HomeSection.SERIES, "SERIES", "Temporadas",
-        R.mipmap.bg_main_special_category_item_n,
-        R.mipmap.bg_main_special_category_item_f,
-        NeonPurple
-    ),
-    NavTile(
-        HomeSection.FAVORITES, "FAVORITOS", "Mis favoritos",
+        HomeSection.SEARCH, "ANIME",
         R.mipmap.bg_main_game_category_item_n,
         R.mipmap.bg_main_game_category_item_f,
-        NeonPurple
+        NeonPurple,
+        TileIcon.ANIME
     ),
     NavTile(
-        HomeSection.SEARCH, "BUSCAR", "Búsqueda universal",
+        HomeSection.RECENTS, "ESPECIAL",
         R.mipmap.bg_main_special_category_item_n,
         R.mipmap.bg_main_special_category_item_f,
-        NeonBlue
+        BrandOrange,
+        TileIcon.SPECIAL
     ),
 )
 
@@ -160,36 +146,31 @@ fun HomeScreen(
     container: AppContainer,
     onPlay: (CatalogItem, Long, List<CatalogItem>) -> Unit,
     onLogout: () -> Unit,
-    autoPlayLastChannel: Boolean = true
+    autoPlayLastChannel: Boolean = false
 ) {
-    var section by remember { mutableStateOf<HomeSection?>(HomeSection.LIVE) }
+    // Hub Flujo primero (no auto-entrar a LIVE).
+    var section by remember { mutableStateOf<HomeSection?>(null) }
     var live by remember { mutableStateOf<List<CatalogItem>>(emptyList()) }
     var livePreview by remember { mutableStateOf<CatalogItem?>(null) }
     var spotlight by remember { mutableStateOf<CatalogItem?>(null) }
-    var newReleases by remember { mutableStateOf<List<CatalogItem>>(emptyList()) }
-    var newsBanners by remember { mutableStateOf<List<BannerItem>>(emptyList()) }
+    var sidePoster by remember { mutableStateOf<CatalogItem?>(null) }
+    var featured by remember { mutableStateOf<List<CatalogItem>>(emptyList()) }
     var clock by remember { mutableStateOf(nowParts()) }
     var didAutoPlay by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val activity = context as? Activity
     var lastBackPressAt by remember { mutableLongStateOf(0L) }
 
-    // Dentro de una sección → volver al home. En live, LiveTvScreen intercepta primero (guía).
     BackHandler(enabled = section != null) {
         section = null
     }
-    // En la página principal: doble atrás para salir de la app.
     BackHandler(enabled = section == null) {
         val now = System.currentTimeMillis()
         if (now - lastBackPressAt < 2_000L) {
             activity?.finish()
         } else {
             lastBackPressAt = now
-            Toast.makeText(
-                context,
-                "Pulsa atrás otra vez para salir",
-                Toast.LENGTH_SHORT
-            ).show()
+            Toast.makeText(context, "Pulsa atrás otra vez para salir", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -243,33 +224,18 @@ fun HomeScreen(
                 .resolveItems()
         }.getOrDefault(emptyList())
 
-        spotlight = series.firstOrNull { !it.resolvePoster().isNullOrBlank() }
+        spotlight = livePreview
+            ?: series.firstOrNull { !it.resolvePoster().isNullOrBlank() }
             ?: movies.firstOrNull { !it.resolvePoster().isNullOrBlank() }
             ?: series.firstOrNull()
             ?: movies.firstOrNull()
-            ?: livePreview
 
-        newReleases = (series + movies)
-            .filter { !it.resolvePoster().isNullOrBlank() }
+        sidePoster = movies.firstOrNull { !it.resolvePoster().isNullOrBlank() && it.resolveId() != spotlight?.resolveId() }
+            ?: series.firstOrNull { !it.resolvePoster().isNullOrBlank() && it.resolveId() != spotlight?.resolveId() }
+
+        featured = (listOfNotNull(spotlight) + live.take(3) + series.take(2) + movies.take(2))
             .distinctBy { it.resolveId() }
-            .take(4)
-
-        runCatching { container.api.banner() }
-            .onSuccess { resp ->
-                val items = resp.items.filter { it.active != false }
-                newsBanners = when {
-                    items.isNotEmpty() -> items
-                    !resp.title.isNullOrBlank() || !resp.body.isNullOrBlank() || !resp.message.isNullOrBlank() ->
-                        listOf(
-                            BannerItem(
-                                title = resp.title,
-                                body = resp.body ?: resp.message,
-                                active = resp.enabled != false
-                            )
-                        )
-                    else -> emptyList()
-                }
-            }
+            .take(5)
 
         if (autoPlayLastChannel && !didAutoPlay && livePreview != null && lastId.isNotBlank()) {
             didAutoPlay = true
@@ -283,21 +249,17 @@ fun HomeScreen(
     SenalBackground(
         content = {
             if (section == null) {
-                SpotlightHome(
+                FlujoHomeHub(
                     clock = clock,
                     livePreview = livePreview,
-                    spotlight = spotlight,
-                    newsBanners = newsBanners,
-                    newReleases = newReleases,
+                    sidePoster = sidePoster,
+                    featured = featured,
                     onOpen = { section = it },
-                    onPlaySpotlight = { item ->
+                    onPlayItem = { item ->
                         when (item.contentType()) {
                             ContentType.LIVE -> onPlay(item, 0L, live.ifEmpty { listOf(item) })
                             else -> onPlay(item, 0L, listOf(item))
                         }
-                    },
-                    onPlayLive = { ch ->
-                        onPlay(ch, 0L, live.ifEmpty { listOf(ch) })
                     }
                 )
             } else {
@@ -319,147 +281,109 @@ fun HomeScreen(
     )
 }
 
+/** Home hub exacto Flujo: header · featured · 5 tiles VIVO/SERIE/PELÍCULA/ANIME/ESPECIAL. */
 @Composable
-private fun SpotlightHome(
+private fun FlujoHomeHub(
     clock: ClockParts,
     livePreview: CatalogItem?,
-    spotlight: CatalogItem?,
-    newsBanners: List<BannerItem>,
-    newReleases: List<CatalogItem>,
+    sidePoster: CatalogItem?,
+    featured: List<CatalogItem>,
     onOpen: (HomeSection) -> Unit,
-    onPlaySpotlight: (CatalogItem) -> Unit,
-    onPlayLive: (CatalogItem) -> Unit
+    onPlayItem: (CatalogItem) -> Unit
 ) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val layout = rememberTabletLayout()
-        val compact = maxWidth < 900.dp && !layout.isTablet
-        val padH = when {
-            layout.isTablet -> layout.padH
-            compact -> 28.dp
-            else -> 48.dp
-        }
-        val padV = when {
-            layout.isTablet -> layout.padV
-            compact -> 18.dp
-            else -> 24.dp
-        }
-        val tileH = when {
-            layout.isTablet -> layout.tileHeight
-            compact -> 96.dp
-            else -> 112.dp
-        }
-        val sideW = when {
-            layout.isTablet -> layout.sideWeight
-            compact -> 0.38f
-            else -> 0.34f
-        }
-        val liveFocus = remember { FocusRequester() }
+        val compact = maxWidth < 900.dp
+        val padH = if (compact) 28.dp else 40.dp
+        val padV = if (compact) 16.dp else 22.dp
+        val tileH = if (DeviceUi.isTabletBuild) 108.dp else if (compact) 100.dp else 118.dp
+        val firstTileFocus = remember { FocusRequester() }
 
-        // En TV pedimos foco D-pad; en tablet SM-X200 el usuario toca.
         LaunchedEffect(Unit) {
             if (!DeviceUi.isTabletBuild) {
-                delay(120)
-                runCatching { liveFocus.requestFocus() }
+                delay(140)
+                runCatching { firstTileFocus.requestFocus() }
             }
         }
 
-        Row(Modifier.fillMaxSize()) {
-            LeftNavRail(
-                compact = compact,
-                onOpen = onOpen,
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .padding(start = 10.dp, top = padV, bottom = padV)
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(start = padH, end = padH, top = padV, bottom = padV)
+        ) {
+            FlujoTopBar(
+                clock = clock,
+                onSettings = { onOpen(HomeSection.SETTINGS) }
             )
 
-            Column(
-                modifier = Modifier
+            Spacer(Modifier.height(14.dp))
+
+            Row(
+                Modifier
                     .weight(1f)
-                    .fillMaxHeight()
-                    .padding(start = 12.dp, end = padH, top = padV, bottom = padV)
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                HeaderBar(
-                    clock = clock,
-                    onSettings = { onOpen(HomeSection.SETTINGS) }
-                )
-
-                Spacer(Modifier.height(if (compact) 12.dp else 16.dp))
-
-                Row(
+                FlujoFeatureCard(
+                    item = livePreview ?: featured.firstOrNull(),
+                    isLive = true,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 16.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .weight(1f - sideW)
-                            .fillMaxHeight()
-                            .zIndex(2f)
-                    ) {
-                        SpotlightHero(
-                            item = spotlight,
-                            onClick = { spotlight?.let(onPlaySpotlight) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth()
-                        )
-                        Spacer(Modifier.height(10.dp))
-                        LiveNowChip(
-                            item = livePreview,
-                            onClick = { livePreview?.let(onPlayLive) }
-                        )
+                        .weight(0.68f)
+                        .fillMaxHeight(),
+                    onClick = {
+                        val item = livePreview ?: featured.firstOrNull()
+                        if (item != null) onPlayItem(item) else onOpen(HomeSection.LIVE)
                     }
+                )
+                FlujoPosterCard(
+                    item = sidePoster ?: featured.getOrNull(1),
+                    modifier = Modifier
+                        .weight(0.32f)
+                        .fillMaxHeight(),
+                    onClick = {
+                        val item = sidePoster ?: featured.getOrNull(1)
+                        if (item != null) onPlayItem(item) else onOpen(HomeSection.MOVIES)
+                    }
+                )
+            }
 
-                    RightRail(
-                        newsBanners = newsBanners,
-                        newReleases = newReleases,
-                        onOpenCatalog = { onOpen(HomeSection.MOVIES) },
-                        onPlayItem = onPlaySpotlight,
+            Spacer(Modifier.height(16.dp))
+
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .height(tileH),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                flujoTiles.forEachIndexed { index, tile ->
+                    FlujoNavTile(
+                        tile = tile,
+                        onClick = { onOpen(tile.section) },
                         modifier = Modifier
-                            .weight(sideW)
+                            .weight(1f)
                             .fillMaxHeight()
+                            .then(
+                                if (index == 0) Modifier.focusRequester(firstTileFocus) else Modifier
+                            )
                     )
                 }
-
-                Spacer(Modifier.height(if (compact) 12.dp else 16.dp))
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(tileH),
-                    horizontalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    Modifier
+                        .width(48.dp)
+                        .fillMaxHeight(),
+                    verticalArrangement = Arrangement.SpaceEvenly,
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    navTiles.forEachIndexed { index, tile ->
-                        SpotlightNavTile(
-                            tile = tile,
-                            showVisualizer = tile.section == HomeSection.LIVE,
-                            onClick = { onOpen(tile.section) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .then(
-                                    if (index == 0) Modifier.focusRequester(liveFocus) else Modifier
-                                )
-                        )
-                    }
-                    Column(
-                        modifier = Modifier.width(if (compact) 40.dp else 44.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        IconFocusButton(
-                            normal = R.mipmap.history_btn_n,
-                            focused = R.mipmap.history_btn,
-                            onClick = { onOpen(HomeSection.RECENTS) }
-                        )
-                        IconFocusButton(
-                            normal = R.mipmap.fav_btn_n,
-                            focused = R.mipmap.fav_btn,
-                            onClick = { onOpen(HomeSection.FAVORITES) }
-                        )
-                    }
+                    RoundIconBtn(
+                        normal = R.mipmap.history_btn_n,
+                        focused = R.mipmap.history_btn,
+                        onClick = { onOpen(HomeSection.SEARCH) }
+                    )
+                    RoundIconBtn(
+                        normal = R.mipmap.fav_btn_n,
+                        focused = R.mipmap.fav_btn,
+                        onClick = { onOpen(HomeSection.FAVORITES) }
+                    )
                 }
             }
         }
@@ -467,562 +391,151 @@ private fun SpotlightHome(
 }
 
 @Composable
-private fun LeftNavRail(
-    compact: Boolean,
-    onOpen: (HomeSection) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val railW = if (compact) 52.dp else 64.dp
-    Column(
-        modifier = modifier
-            .width(railW)
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color(0x66060A14))
-            .border(1.dp, Color.White.copy(0.08f), RoundedCornerShape(16.dp))
-            .padding(vertical = 12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        RailIconButton(
-            label = "⌕",
-            accent = NeonBlue,
-            onClick = { onOpen(HomeSection.SEARCH) }
-        )
-        Spacer(Modifier.height(4.dp))
-        railShortcuts.forEach { shortcut ->
-            RailTextButton(
-                label = shortcut.label,
-                highlighted = shortcut.label == "TV",
-                onClick = { shortcut.section?.let(onOpen) }
-            )
-        }
-        Spacer(Modifier.weight(1f))
-        RailTextButton(
-            label = "S",
-            highlighted = false,
-            accent = BrandOrange,
-            onClick = { onOpen(HomeSection.SETTINGS) }
-        )
-    }
-}
-
-@Composable
-private fun RailIconButton(
-    label: String,
-    accent: Color,
-    onClick: () -> Unit
-) {
-    var focused by remember { mutableStateOf(false) }
-    Surface(
-        onClick = onClick,
-        modifier = Modifier
-            .size(40.dp)
-            .onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (focused) accent.copy(0.25f) else Color.Transparent,
-            focusedContainerColor = accent.copy(0.3f)
-        ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f)
-    ) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(
-                text = label,
-                color = if (focused) accent else Color.White.copy(0.75f),
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
-    }
-}
-
-@Composable
-private fun RailTextButton(
-    label: String,
-    highlighted: Boolean,
-    onClick: () -> Unit,
-    accent: Color = BrandOrange
-) {
-    var focused by remember { mutableStateOf(false) }
-    val active = highlighted || focused
-    Surface(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 6.dp)
-            .height(34.dp)
-            .onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = when {
-                highlighted && !focused -> Color(0xFF102848)
-                focused -> accent.copy(0.35f)
-                else -> Color.Transparent
-            },
-            focusedContainerColor = accent.copy(0.4f)
-        ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.04f)
-    ) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(
-                text = label,
-                color = when {
-                    active -> BrandOrangeHot
-                    else -> Color.White.copy(0.55f)
-                },
-                fontSize = 11.sp,
-                fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
-                letterSpacing = 0.6.sp
-            )
-        }
-    }
-}
-
-@Composable
-private fun HeaderBar(
+private fun FlujoTopBar(
     clock: ClockParts,
     onSettings: () -> Unit
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(42.dp),
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Image(
-            painter = painterResource(R.drawable.brand_logo),
-            contentDescription = "SEÑAL",
-            contentScale = ContentScale.Fit,
-            modifier = Modifier
-                .height(32.dp)
-                .widthIn(max = 140.dp)
-        )
-        Spacer(Modifier.width(8.dp))
-        Text(
-            text = "SEÑAL",
-            color = BrandOrangeHot,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Black,
-            fontFamily = FontFamily.SansSerif,
-            letterSpacing = 2.sp,
-            modifier = Modifier.drawBehind {
-                drawRoundRect(
-                    color = BrandOrange.copy(alpha = 0.18f),
-                    cornerRadius = CornerRadius(6.dp.toPx()),
-                    size = Size(size.width + 10.dp.toPx(), size.height + 4.dp.toPx()),
-                    topLeft = Offset(-5.dp.toPx(), -2.dp.toPx())
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Image(
+                painter = painterResource(R.drawable.brand_logo),
+                contentDescription = "SEÑAL",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .height(36.dp)
+                    .widthIn(max = 150.dp)
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = BuildConfig.VERSION_NAME,
+                color = TextMuted,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            WifiGlyph(Modifier.size(22.dp))
+            Spacer(Modifier.width(12.dp))
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = clock.time,
+                    color = TextPrimary,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp
+                )
+                Text(
+                    text = "${clock.week.replaceFirstChar { it.uppercase() }}. ${clock.date}",
+                    color = TextMuted,
+                    fontSize = 12.sp
                 )
             }
-        )
-        Box(modifier = Modifier.weight(1f))
-        Text(
-            text = clock.time,
-            color = Color.White,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.SemiBold,
-            fontFamily = FontFamily.SansSerif,
-            letterSpacing = 0.5.sp
-        )
-        Spacer(Modifier.width(10.dp))
-        Text(
-            text = clock.date,
-            color = Color.White.copy(0.78f),
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium
-        )
-        Spacer(Modifier.width(18.dp))
-        IconFocusButton(
-            normal = R.mipmap.ic_settings_n,
-            focused = R.mipmap.ic_settings_h,
-            onClick = onSettings,
-            size = 32.dp
-        )
+            Spacer(Modifier.width(14.dp))
+            RoundIconBtn(
+                normal = R.mipmap.ic_settings_n,
+                focused = R.mipmap.ic_settings_h,
+                onClick = onSettings,
+                size = 36.dp
+            )
+        }
     }
 }
 
 @Composable
-private fun SpotlightHero(
+private fun FlujoFeatureCard(
     item: CatalogItem?,
+    isLive: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var focused by remember { mutableStateOf(false) }
-    val pulse by animateFloatAsState(
-        targetValue = if (focused) 1f else 0f,
-        animationSpec = tween(220),
-        label = "heroPulse"
-    )
+    val scale by animateFloatAsState(if (focused) 1.015f else 1f, tween(160), label = "feat")
 
     Surface(
         onClick = onClick,
         modifier = modifier
-            .graphicsLayer {
-                scaleX = 1f + 0.02f * pulse
-                scaleY = 1f + 0.02f * pulse
-            }
-            .drawBehind {
-                if (pulse > 0f) {
-                    drawRoundRect(
-                        color = BrandOrangeHot.copy(alpha = 0.28f * pulse),
-                        cornerRadius = CornerRadius(18.dp.toPx()),
-                        size = Size(size.width + 10.dp.toPx(), size.height + 10.dp.toPx()),
-                        topLeft = Offset(-5.dp.toPx(), -5.dp.toPx())
-                    )
-                }
-            }
+            .graphicsLayer { scaleX = scale; scaleY = scale }
             .onFocusChanged { focused = it.isFocused },
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color(0xFF071018),
-            focusedContainerColor = Color(0xFF071018)
+            containerColor = Color(0xFF0A101C),
+            focusedContainerColor = Color(0xFF0A101C)
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
-        content = {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(12.dp))
-                    .border(
-                        width = if (focused) 2.5.dp else 1.dp,
-                        color = if (focused) BrandOrangeHot else Color.White.copy(0.12f),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-            ) {
-                val art = item?.resolvePoster() ?: item?.resolveLogo()
-                if (!art.isNullOrBlank()) {
-                    AsyncImage(
-                        model = art,
-                        contentDescription = item?.resolveTitle(),
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Box(
-                        Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(Color(0xFF0A2A38), Color(0xFF050A10))
-                                )
-                            )
-                    )
-                }
-
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                0f to Color.Black.copy(0.15f),
-                                0.45f to Color.Black.copy(0.35f),
-                                1f to Color.Black.copy(0.88f)
-                            )
-                        )
-                )
-
-                Column(
-                    Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(horizontal = 20.dp, vertical = 18.dp)
-                        .fillMaxWidth(0.92f)
-                ) {
-                    Text(
-                        text = "SEÑAL",
-                        color = BrandOrangeHot,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 2.sp
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        text = item?.resolveTitle()?.let { title ->
-                            val kind = when (item.contentType()) {
-                                ContentType.SERIES, ContentType.EPISODE -> "Serie"
-                                ContentType.MOVIE -> "Película"
-                                else -> "En vivo"
-                            }
-                            "“$title” ($kind)"
-                        } ?: "Tu ventana al mundo",
-                        color = Color.White,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        lineHeight = 28.sp
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SpotlightTag(tagForType(item))
-                        if (item?.contentType() == ContentType.MOVIE) SpotlightTag("ATMOS")
-                        item?.year?.let { SpotlightTag("$it") }
-                        if (item?.contentType() == ContentType.SERIES) SpotlightTag("Serie")
-                        item?.resolveGenre()?.takeIf { it.isNotBlank() }?.split(",")?.firstOrNull()
-                            ?.trim()?.take(12)?.let { SpotlightTag(it) }
-                    }
-                }
-            }
-        }
-    )
-}
-
-@Composable
-private fun SpotlightTag(label: String) {
-    Box(
-        Modifier
-            .clip(RoundedCornerShape(4.dp))
-            .background(Color.White.copy(0.14f))
-            .border(1.dp, Color.White.copy(0.22f), RoundedCornerShape(4.dp))
-            .padding(horizontal = 8.dp, vertical = 3.dp)
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f)
     ) {
-        Text(
-            text = label,
-            color = Color.White.copy(0.92f),
-            fontSize = 11.sp,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = 0.4.sp
-        )
-    }
-}
-
-private fun tagForType(item: CatalogItem?): String = when (item?.contentType()) {
-    ContentType.LIVE -> "LIVE"
-    ContentType.MOVIE -> "4K"
-    ContentType.SERIES, ContentType.EPISODE -> "HD"
-    null -> "SEÑAL"
-}
-
-@Composable
-private fun LiveNowChip(
-    item: CatalogItem?,
-    onClick: () -> Unit
-) {
-    var focused by remember { mutableStateOf(false) }
-    Surface(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(36.dp)
-            .onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(6.dp)),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color.Transparent,
-            focusedContainerColor = Color.White.copy(0.06f)
-        ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
-        content = {
-            Row(
-                Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(12.dp))
+                .border(
+                    width = if (focused) 2.5.dp else 1.dp,
+                    color = if (focused) BrandOrange else Color.White.copy(0.12f),
+                    shape = RoundedCornerShape(12.dp)
+                )
+        ) {
+            val art = item?.resolvePoster() ?: item?.resolveLogo()
+            if (!art.isNullOrBlank()) {
+                AsyncImage(
+                    model = art,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
                 Box(
-                    Modifier
-                        .size(8.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(NeonBlue)
-                )
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    text = item?.let { "${it.resolveTitle()} · en vivo" } ?: "SEÑAL · en vivo",
-                    color = Color.White.copy(if (focused) 1f else 0.9f),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-    )
-}
-
-@Composable
-private fun RightRail(
-    newsBanners: List<BannerItem>,
-    newReleases: List<CatalogItem>,
-    onOpenCatalog: () -> Unit,
-    onPlayItem: (CatalogItem) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val news = newsBanners.firstOrNull() ?: BannerItem(
-        title = "SEÑAL News",
-        body = "Avisos del administrador aparecen aquí."
-    )
-
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        NewsPickCard(
-            item = news,
-            modifier = Modifier
-                .weight(0.42f)
-                .fillMaxWidth()
-        )
-        SystemStatusCard(
-            modifier = Modifier
-                .heightIn(min = 56.dp, max = 72.dp)
-                .fillMaxWidth()
-        )
-        NewReleasesCard(
-            items = newReleases,
-            onOpen = onOpenCatalog,
-            onPlayItem = onPlayItem,
-            modifier = Modifier
-                .weight(0.58f)
-                .fillMaxWidth()
-        )
-    }
-}
-
-@Composable
-private fun NewsPickCard(
-    item: BannerItem,
-    modifier: Modifier = Modifier
-) {
-    var focused by remember { mutableStateOf(false) }
-    Surface(
-        onClick = {},
-        modifier = modifier.onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color(0xFF0B141C),
-            focusedContainerColor = Color(0xFF12202C)
-        ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
-        content = {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(10.dp))
-                    .border(
-                        1.dp,
-                        if (focused) BrandOrangeHot.copy(0.7f) else Color.White.copy(0.1f),
-                        RoundedCornerShape(10.dp)
-                    )
-            ) {
-                item.art()?.let { url ->
-                    AsyncImage(
-                        model = url,
-                        contentDescription = item.headline(),
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                    Box(Modifier.fillMaxSize().background(Color.Black.copy(0.5f)))
-                } ?: Box(
                     Modifier
                         .fillMaxSize()
                         .background(
                             Brush.linearGradient(
-                                listOf(Color(0xFF123848), Color(0xFF071018))
+                                listOf(Color(0xFF0C2238), Color(0xFF061018), Color(0xFF102830))
                             )
                         )
                 )
-                Column(
-                    Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(12.dp)
-                ) {
-                    Text(
-                        text = "Recomendado",
-                        color = BrandOrangeHot,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.8.sp
+            }
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            0f to Color.Transparent,
+                            0.45f to Color.Transparent,
+                            1f to Color.Black.copy(0.88f)
+                        )
                     )
-                    Spacer(Modifier.height(4.dp))
+            )
+            Column(
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(16.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isLive) {
+                        Box(
+                            Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(LiveGreen)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                    }
                     Text(
-                        text = item.headline(),
+                        text = item?.resolveTitle() ?: "SEÑAL · En vivo",
                         color = Color.White,
-                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        maxLines = 2,
+                        fontSize = 18.sp,
+                        maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    val body = item.text()
-                    if (body.isNotBlank() && body != item.headline()) {
-                        Spacer(Modifier.height(3.dp))
-                        Text(
-                            text = body,
-                            color = Color.White.copy(0.8f),
-                            fontSize = 12.sp,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
                 }
-            }
-        }
-    )
-}
-
-@Composable
-private fun SystemStatusCard(modifier: Modifier = Modifier) {
-    val shimmer = rememberInfiniteTransition(label = "status")
-    val phase by shimmer.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2800, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "phase"
-    )
-
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
-            .background(Color(0xFF0B141C))
-            .border(1.dp, Color.White.copy(0.1f), RoundedCornerShape(10.dp))
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.Center
-    ) {
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
                 Text(
-                    text = "Estado del sistema",
-                    color = Color.White,
+                    text = "Tu ventana al mundo",
+                    color = BrandOrangeHot,
                     fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = "Conexión y señal",
-                    color = TextMuted,
-                    fontSize = 10.sp
-                )
-            }
-            Text(
-                text = "● ESTABLE",
-                color = LiveGreen,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
-        Spacer(Modifier.height(6.dp))
-        Canvas(
-            Modifier
-                .fillMaxWidth()
-                .height(12.dp)
-        ) {
-            val colors = listOf(
-                BrandOrange,
-                NeonMagenta,
-                NeonPurple,
-                LiveGreen,
-                NeonBlue
-            )
-            val seg = size.width / colors.size
-            colors.forEachIndexed { i, c ->
-                val boost = 0.55f + 0.45f * ((sin((phase + i * 0.18f) * Math.PI * 2).toFloat() + 1f) / 2f)
-                drawRoundRect(
-                    color = c.copy(alpha = boost),
-                    topLeft = Offset(i * seg + 1.dp.toPx(), 0f),
-                    size = Size(seg - 2.dp.toPx(), size.height),
-                    cornerRadius = CornerRadius(3.dp.toPx())
+                    modifier = Modifier.padding(top = 4.dp)
                 )
             }
         }
@@ -1030,261 +543,242 @@ private fun SystemStatusCard(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun NewReleasesCard(
-    items: List<CatalogItem>,
-    onOpen: () -> Unit,
-    onPlayItem: (CatalogItem) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var focused by remember { mutableStateOf(false) }
-    Surface(
-        onClick = onOpen,
-        modifier = modifier.onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color(0xFF0B141C),
-            focusedContainerColor = Color(0xFF12202C)
-        ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
-        content = {
-            Column(
-                Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(10.dp))
-                    .border(
-                        1.dp,
-                        if (focused) BrandOrangeHot.copy(0.7f) else Color.White.copy(0.1f),
-                        RoundedCornerShape(10.dp)
-                    )
-                    .padding(10.dp)
-            ) {
-                Text(
-                    text = "Nuevos estrenos",
-                    color = Color.White,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(Modifier.height(8.dp))
-                Column(
-                    Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    items.take(3).forEach { item ->
-                        ReleaseRow(item = item, onClick = { onPlayItem(item) })
-                    }
-                    if (items.isEmpty()) {
-                        Text(
-                            text = "El catálogo se llenará al sincronizar.",
-                            color = TextMuted,
-                            fontSize = 12.sp
-                        )
-                    }
-                }
-            }
-        }
-    )
-}
-
-@Composable
-private fun ReleaseRow(
-    item: CatalogItem,
-    onClick: () -> Unit
-) {
-    var focused by remember { mutableStateOf(false) }
-    Surface(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(48.dp)
-            .onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(6.dp)),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (focused) Color.White.copy(0.08f) else Color.Transparent,
-            focusedContainerColor = Color.White.copy(0.1f)
-        ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
-        content = {
-            Row(
-                Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 2.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                AsyncImage(
-                    model = item.resolvePoster() ?: item.resolveLogo(),
-                    contentDescription = item.resolveTitle(),
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(width = 34.dp, height = 44.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(Color(0xFF152028))
-                )
-                Spacer(Modifier.width(10.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        text = item.resolveTitle(),
-                        color = Color.White,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = when (item.contentType()) {
-                            ContentType.SERIES -> "Serie"
-                            ContentType.MOVIE -> "Película"
-                            else -> "Contenido"
-                        },
-                        color = TextMuted,
-                        fontSize = 11.sp,
-                        maxLines = 1
-                    )
-                }
-            }
-        }
-    )
-}
-
-@Composable
-private fun SpotlightNavTile(
-    tile: NavTile,
-    showVisualizer: Boolean,
+private fun FlujoPosterCard(
+    item: CatalogItem?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (focused) 1.04f else 1f,
-        animationSpec = tween(180),
-        label = "tileScale"
-    )
+    val scale by animateFloatAsState(if (focused) 1.02f else 1f, tween(160), label = "poster")
 
     Surface(
         onClick = onClick,
         modifier = modifier
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .drawBehind {
-                if (focused) {
-                    drawRoundRect(
-                        color = tile.accent.copy(alpha = 0.4f),
-                        cornerRadius = CornerRadius(14.dp.toPx()),
-                        size = Size(size.width + 8.dp.toPx(), size.height + 8.dp.toPx()),
-                        topLeft = Offset(-4.dp.toPx(), -4.dp.toPx())
-                    )
-                }
-            }
+            .graphicsLayer { scaleX = scale; scaleY = scale }
             .onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = Color(0xFF0A101C),
+            focusedContainerColor = Color(0xFF0A101C)
+        ),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f)
+    ) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(12.dp))
+                .border(
+                    width = if (focused) 2.5.dp else 1.dp,
+                    color = if (focused) BrandOrange else Color.White.copy(0.12f),
+                    shape = RoundedCornerShape(12.dp)
+                )
+        ) {
+            val art = item?.resolvePoster()
+            if (!art.isNullOrBlank()) {
+                AsyncImage(
+                    model = art,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(Brush.verticalGradient(listOf(Color(0xFF1A1030), Color(0xFF060A14))))
+                )
+                Text(
+                    "PELÍCULAS",
+                    color = TextMuted,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FlujoNavTile(
+    tile: NavTile,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var focused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (focused) 1.05f else 1f, tween(150), label = "tile")
+
+    Surface(
+        onClick = onClick,
+        modifier = modifier
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .onFocusChanged { focused = it.isFocused },
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Transparent,
             focusedContainerColor = Color.Transparent
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
-        content = {
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f)
+    ) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(14.dp))
+                .border(
+                    width = if (focused) 2.5.dp else 0.dp,
+                    color = if (focused) BrandOrangeHot else Color.Transparent,
+                    shape = RoundedCornerShape(14.dp)
+                )
+        ) {
+            Image(
+                painter = painterResource(if (focused) tile.focusedRes else tile.normalRes),
+                contentDescription = tile.label,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
             Box(
                 Modifier
                     .fillMaxSize()
-                    .clip(RoundedCornerShape(10.dp))
-                    .border(
-                        width = if (focused) 2.5.dp else 1.dp,
-                        color = if (focused) tile.accent else Color.White.copy(0.14f),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-            ) {
-                Image(
-                    painter = painterResource(if (focused) tile.focusedRes else tile.normalRes),
-                    contentDescription = tile.label,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(
-                                    tile.accent.copy(if (focused) 0.22f else 0.08f),
-                                    Color.Black.copy(if (focused) 0.55f else 0.68f)
-                                )
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                tile.accent.copy(if (focused) 0.55f else 0.42f),
+                                tile.accent.copy(if (focused) 0.78f else 0.65f),
+                                Color.Black.copy(0.35f)
                             )
                         )
+                    )
+            )
+            Column(
+                Modifier.align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                TileGlyph(kind = tile.iconKind, focused = focused)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = tile.label,
+                    color = Color.White,
+                    fontWeight = FontWeight.Black,
+                    fontSize = if (focused) 15.sp else 13.sp,
+                    letterSpacing = 1.2.sp
                 )
-                Column(
-                    Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(horizontal = 12.dp, vertical = 10.dp)
-                ) {
-                    Text(
-                        text = tile.label,
-                        color = Color.White,
-                        fontSize = if (focused) 16.sp else 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.6.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = tile.subtitle,
-                        color = Color.White.copy(0.72f),
-                        fontSize = 10.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    if (showVisualizer && focused) {
-                        Spacer(Modifier.height(6.dp))
-                        AudioBars(
-                            color = tile.accent,
-                            modifier = Modifier
-                                .fillMaxWidth(0.55f)
-                                .height(12.dp)
-                        )
-                    }
-                }
             }
         }
-    )
+    }
 }
 
 @Composable
-private fun AudioBars(
-    color: Color,
-    modifier: Modifier = Modifier
-) {
-    val t = rememberInfiniteTransition(label = "bars")
-    val phase by t.animateFloat(
-        initialValue = 0f,
-        targetValue = (Math.PI * 2).toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(900, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "barPhase"
-    )
+private fun TileGlyph(kind: TileIcon, focused: Boolean) {
+    val glyph = if (focused) 36.dp else 32.dp
+    Box(
+        Modifier
+            .size(glyph + 10.dp)
+            .clip(CircleShape)
+            .background(Color.White.copy(0.18f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(Modifier.size(glyph)) {
+            val c = Color.White
+            val stroke = Stroke(width = 2.5.dp.toPx())
+            val w = this.size.width
+            val h = this.size.height
+            val minD = this.size.minDimension
+            when (kind) {
+                TileIcon.LIVE -> {
+                    drawRoundRect(
+                        color = c,
+                        topLeft = Offset(w * 0.12f, h * 0.28f),
+                        size = androidx.compose.ui.geometry.Size(w * 0.55f, h * 0.44f),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(4.dp.toPx())
+                    )
+                    val path = Path().apply {
+                        moveTo(w * 0.68f, h * 0.35f)
+                        lineTo(w * 0.92f, h * 0.22f)
+                        lineTo(w * 0.92f, h * 0.78f)
+                        lineTo(w * 0.68f, h * 0.65f)
+                        close()
+                    }
+                    drawPath(path, c)
+                }
+                TileIcon.SERIES -> {
+                    drawRoundRect(
+                        color = c,
+                        topLeft = Offset(w * 0.18f, h * 0.22f),
+                        size = androidx.compose.ui.geometry.Size(w * 0.64f, h * 0.48f),
+                        style = stroke,
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(3.dp.toPx())
+                    )
+                    drawLine(
+                        c,
+                        Offset(w * 0.3f, h * 0.78f),
+                        Offset(w * 0.7f, h * 0.78f),
+                        strokeWidth = 2.5.dp.toPx()
+                    )
+                }
+                TileIcon.MOVIE -> {
+                    drawCircle(c, radius = minD * 0.32f, style = stroke)
+                    drawCircle(c, radius = minD * 0.12f)
+                }
+                TileIcon.ANIME -> {
+                    drawCircle(c, radius = minD * 0.28f, center = Offset(w * 0.5f, h * 0.55f), style = stroke)
+                    drawCircle(c, radius = minD * 0.08f, center = Offset(w * 0.38f, h * 0.5f))
+                    drawCircle(c, radius = minD * 0.08f, center = Offset(w * 0.62f, h * 0.5f))
+                    drawCircle(c, radius = minD * 0.14f, center = Offset(w * 0.28f, h * 0.28f), style = stroke)
+                    drawCircle(c, radius = minD * 0.14f, center = Offset(w * 0.72f, h * 0.28f), style = stroke)
+                }
+                TileIcon.SPECIAL -> {
+                    drawRoundRect(
+                        color = c,
+                        topLeft = Offset(w * 0.22f, h * 0.2f),
+                        size = androidx.compose.ui.geometry.Size(w * 0.56f, h * 0.62f),
+                        style = stroke,
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(3.dp.toPx())
+                    )
+                    val cx = w * 0.5f
+                    val cy = h * 0.48f
+                    val r = minD * 0.14f
+                    val star = Path()
+                    for (i in 0 until 5) {
+                        val a = Math.toRadians((-90 + i * 144).toDouble())
+                        val x = cx + (r * kotlin.math.cos(a)).toFloat()
+                        val y = cy + (r * kotlin.math.sin(a)).toFloat()
+                        if (i == 0) star.moveTo(x, y) else star.lineTo(x, y)
+                    }
+                    star.close()
+                    drawPath(star, c)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WifiGlyph(modifier: Modifier = Modifier) {
     Canvas(modifier) {
-        val bars = 7
-        val gap = 3.dp.toPx()
-        val w = (size.width - gap * (bars - 1)) / bars
-        for (i in 0 until bars) {
-            val h = size.height * (0.25f + 0.75f * ((sin(phase + i * 0.7f) + 1f) / 2f))
-            drawRoundRect(
-                color = color,
-                topLeft = Offset(i * (w + gap), size.height - h),
-                size = Size(w, h),
-                cornerRadius = CornerRadius(2.dp.toPx())
+        val c = Color.White
+        val cx = size.width / 2f
+        val cy = size.height * 0.78f
+        drawCircle(c, radius = size.minDimension * 0.08f, center = Offset(cx, cy))
+        for (i in 1..3) {
+            val r = size.minDimension * (0.18f + i * 0.18f)
+            drawArc(
+                color = c,
+                startAngle = 220f,
+                sweepAngle = 100f,
+                useCenter = false,
+                topLeft = Offset(cx - r, cy - r),
+                size = androidx.compose.ui.geometry.Size(r * 2, r * 2),
+                style = Stroke(width = 1.8.dp.toPx())
             )
         }
     }
 }
 
 @Composable
-private fun IconFocusButton(
+private fun RoundIconBtn(
     normal: Int,
     focused: Int,
     onClick: () -> Unit,
-    size: Dp = 30.dp
+    size: Dp = 40.dp
 ) {
     var isFocused by remember { mutableStateOf(false) }
     Surface(
@@ -1292,26 +786,28 @@ private fun IconFocusButton(
         modifier = Modifier
             .size(size)
             .graphicsLayer {
-                val s = if (isFocused) 1.08f else 1f
+                val s = if (isFocused) 1.1f else 1f
                 scaleX = s
                 scaleY = s
             }
-            .onFocusChanged { isFocused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(4.dp)),
+            .onFocusChanged { isFocused = it.isFocused }
+            .then(
+                if (isFocused) Modifier.border(2.dp, BrandOrange, CircleShape) else Modifier
+            ),
+        shape = ClickableSurfaceDefaults.shape(CircleShape),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Transparent,
             focusedContainerColor = Color.Transparent
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
-        content = {
-            Image(
-                painter = painterResource(if (isFocused) focused else normal),
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxSize()
-            )
-        }
-    )
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f)
+    ) {
+        Image(
+            painter = painterResource(if (isFocused) focused else normal),
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.fillMaxSize()
+        )
+    }
 }
 
 @Composable
@@ -1351,13 +847,10 @@ private fun SectionBody(
             content = { current ->
                 Box(Modifier.fillMaxSize()) {
                     when (current) {
-                        HomeSection.LIVE -> {
-                            // BACK: cierra guía → home (sin botón INICIO).
-                            LiveTvScreen(
-                                container = container,
-                                onBack = onBack
-                            ) { item, n -> onPlay(item, 0L, n) }
-                        }
+                        HomeSection.LIVE -> LiveTvScreen(
+                            container = container,
+                            onBack = onBack
+                        ) { item, n -> onPlay(item, 0L, n) }
                         HomeSection.MOVIES -> MoviesScreen(container) { onPlay(it, 0L, listOf(it)) }
                         HomeSection.SERIES -> SeriesScreen(container) { onPlay(it, 0L, listOf(it)) }
                         HomeSection.FAVORITES -> FavoritesScreen(container) { onPlay(it, 0L, listOf(it)) }
@@ -1381,7 +874,7 @@ private data class ClockParts(val time: String, val week: String, val date: Stri
 private fun nowParts(): ClockParts {
     val now = Date()
     val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(now)
-    val week = SimpleDateFormat("EEE", Locale("es")).format(now).lowercase(Locale.getDefault())
-    val date = SimpleDateFormat("dd/MM", Locale.getDefault()).format(now)
+    val week = SimpleDateFormat("EEE", Locale("es")).format(now)
+    val date = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(now)
     return ClockParts(time, week, date)
 }

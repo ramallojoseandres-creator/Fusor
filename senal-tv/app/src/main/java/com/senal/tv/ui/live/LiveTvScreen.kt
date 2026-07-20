@@ -9,6 +9,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
@@ -26,9 +28,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
@@ -61,6 +65,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -81,12 +86,14 @@ import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface
 import coil.compose.AsyncImage
 import com.senal.tv.AppContainer
+import com.senal.tv.R
 import com.senal.tv.data.model.CatalogItem
 import com.senal.tv.data.model.Category
 import com.senal.tv.ui.theme.BrandOrange
 import com.senal.tv.ui.theme.BrandOrangeHot
 import com.senal.tv.ui.theme.ChannelGold
 import com.senal.tv.ui.theme.Graphite
+import com.senal.tv.ui.theme.LiveGreen
 import com.senal.tv.ui.theme.LiveRed
 import com.senal.tv.ui.theme.TextMuted
 import com.senal.tv.ui.theme.TextPrimary
@@ -536,30 +543,22 @@ fun LiveTvScreen(
                         modifier = Modifier
                             .width(catW)
                             .fillMaxHeight()
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0xCC050810))
-                            .border(1.dp, BrandOrange.copy(0.22f), RoundedCornerShape(6.dp))
-                            .padding(6.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(0xB3050810))
+                            .padding(vertical = 4.dp)
                     ) {
-                        Text(
-                            "SEÑAL",
-                            color = BrandOrangeHot,
-                            fontWeight = FontWeight.Black,
-                            fontSize = 11.sp,
-                            letterSpacing = 2.sp,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
-                        )
-                        Text(
-                            "CATEGORÍAS",
-                            color = TextMuted,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 10.sp,
-                            letterSpacing = 1.sp,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        Image(
+                            painter = painterResource(R.drawable.brand_logo),
+                            contentDescription = "SEÑAL",
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier
+                                .padding(horizontal = 10.dp, vertical = 8.dp)
+                                .height(22.dp)
+                                .widthIn(max = 110.dp)
                         )
                         LazyColumn(
                             state = catListState,
-                            verticalArrangement = Arrangement.spacedBy(1.dp)
+                            verticalArrangement = Arrangement.spacedBy(0.dp)
                         ) {
                             if (loadingCats && categories.isEmpty()) {
                                 item {
@@ -574,64 +573,59 @@ fun LiveTvScreen(
                                 val active = category.label() == selected
                                 Surface(
                                     onClick = { selected = category.label() },
-                                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(4.dp)),
+                                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(0.dp)),
                                     colors = ClickableSurfaceDefaults.colors(
                                         containerColor = if (active) {
-                                            BrandOrange.copy(alpha = 0.32f)
+                                            BrandOrange.copy(alpha = 0.88f)
                                         } else {
                                             Color.Transparent
                                         },
-                                        focusedContainerColor = BrandOrange.copy(alpha = 0.45f)
+                                        focusedContainerColor = BrandOrange.copy(alpha = 0.95f)
                                     ),
-                                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .then(
-                                            if (active) {
-                                                Modifier.border(
-                                                    1.dp,
-                                                    BrandOrange.copy(0.65f),
-                                                    RoundedCornerShape(4.dp)
-                                                )
-                                            } else {
-                                                Modifier
-                                            }
-                                        )
+                                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Text(
-                                        text = category.label(),
-                                        color = if (active) BrandOrangeHot else TextPrimary,
-                                        fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
-                                        fontSize = 13.sp,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp)
-                                    )
+                                    Row(
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            Modifier
+                                                .size(if (active) 7.dp else 5.dp)
+                                                .clip(CircleShape)
+                                                .background(
+                                                    if (active) Color.White else Color.White.copy(0.7f)
+                                                )
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(
+                                            text = category.label(),
+                                            color = if (active) Color.White else TextPrimary,
+                                            fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                                            fontSize = 13.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
 
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(6.dp))
 
                     Column(
                         modifier = Modifier
                             .width(chW)
                             .fillMaxHeight()
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0xCC050810))
-                            .border(1.dp, Color.White.copy(0.08f), RoundedCornerShape(6.dp))
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(0xB3181C24))
                             .padding(6.dp)
                     ) {
-                        Text(
-                            selected?.uppercase() ?: "CANALES",
-                            color = TextPrimary,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
-                        )
+                        FavTipsBanner(Modifier.padding(horizontal = 4.dp, vertical = 4.dp))
+                        Spacer(Modifier.height(4.dp))
                         when {
                             error != null -> Text(
                                 error!!,
@@ -730,71 +724,109 @@ private fun LivePlayerHud(
 ) {
     Row(
         modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(0.dp))
             .background(Color(0xE6050810))
-            .border(1.dp, BrandOrange.copy(0.25f), RoundedCornerShape(8.dp))
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            .padding(horizontal = 18.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        ChannelMark(channel, size = 36.dp)
-        Spacer(Modifier.width(10.dp))
-        Column(modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                val num = channel?.resolveNumber()
-                if (num != null) {
-                    Text(
-                        text = "$num",
-                        color = ChannelGold,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 18.sp
-                    )
-                    Spacer(Modifier.width(8.dp))
-                }
-                Text(
-                    text = channel?.resolveTitle() ?: "SEÑAL · EN VIVO",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false)
-                )
-                Spacer(Modifier.width(10.dp))
-                Box(
-                    Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(LiveRed)
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                ) {
-                    Text("EN VIVO", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                }
-            }
+        ChannelMark(channel, size = 42.dp)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            val num = channel?.resolveNumber()
+            Text(
+                text = buildString {
+                    if (num != null) append("$num ")
+                    append(channel?.resolveTitle() ?: "SEÑAL · EN VIVO")
+                },
+                color = BrandOrangeHot,
+                fontWeight = FontWeight.Bold,
+                fontSize = 17.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
             Text(
                 text = when {
                     error != null -> error
                     buffering -> "Sintonizando…"
-                    else -> channel?.resolveNow()?.ifBlank { "Tu ventana al mundo" }
-                        ?: "SELECT = guía"
+                    else -> channel?.resolveNow()?.ifBlank { "No información" } ?: "No información"
                 },
-                color = if (error != null) Color(0xFFFF8A80) else TextMuted,
+                color = if (error != null) Color(0xFFFF8A80) else Color.White.copy(0.9f),
                 fontSize = 12.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = 2.dp)
             )
+            Text(
+                text = "Next :${channel?.resolveNext()?.ifBlank { "No información" } ?: "No información"}",
+                color = Color.White.copy(0.7f),
+                fontSize = 11.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
+        Spacer(Modifier.width(12.dp))
+        Column {
+            FavTipLine(menu = true)
+            Spacer(Modifier.height(4.dp))
+            FavTipLine(menu = false)
+        }
+    }
+}
+
+@Composable
+private fun FavTipsBanner(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0xCC0A0E16))
+            .padding(horizontal = 10.dp, vertical = 8.dp)
+    ) {
+        FavTipLine(menu = true)
+        Spacer(Modifier.height(4.dp))
+        FavTipLine(menu = false)
+    }
+}
+
+@Composable
+private fun FavTipLine(menu: Boolean) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            Modifier
+                .size(18.dp)
+                .clip(CircleShape)
+                .background(if (menu) BrandOrange else LiveGreen),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                if (menu) "≡" else "OK",
+                color = Color.White,
+                fontSize = if (menu) 11.sp else 8.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = if (menu) {
+                "MENU Agregar / Eliminar "
+            } else {
+                "Mantenga presionada OK 2s Agregar/Eliminar "
+            },
+            color = Color.White.copy(0.9f),
+            fontSize = 10.sp
+        )
+        Text("FAV", color = BrandOrangeHot, fontSize = 10.sp, fontWeight = FontWeight.Bold)
     }
 }
 
 @Composable
 private fun ChannelMark(channel: CatalogItem?, size: androidx.compose.ui.unit.Dp = 40.dp) {
     val initials = channelInitials(channel)
-    val color = logoColor(channel)
     Box(
         modifier = Modifier
             .size(size)
-            .clip(RoundedCornerShape(8.dp))
-            .background(color),
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color.White),
         contentAlignment = Alignment.Center
     ) {
         val logo = channel?.resolveLogo()
@@ -802,30 +834,14 @@ private fun ChannelMark(channel: CatalogItem?, size: androidx.compose.ui.unit.Dp
             AsyncImage(
                 model = logo,
                 contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(3.dp)
             )
         } else {
-            Text(initials, color = Color.Black, fontWeight = FontWeight.Black, fontSize = 14.sp)
+            Text(initials, color = Color.Black, fontWeight = FontWeight.Black, fontSize = 12.sp)
         }
-    }
-}
-
-@Composable
-private fun ProgressBar(progress: Float, color: Color) {
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .height(3.dp)
-            .clip(RoundedCornerShape(2.dp))
-            .background(Color.White.copy(0.15f))
-    ) {
-        Box(
-            Modifier
-                .fillMaxWidth(progress.coerceIn(0.08f, 0.95f))
-                .fillMaxHeight()
-                .background(color)
-        )
     }
 }
 
@@ -840,21 +856,21 @@ private fun GuideChannelRow(
 ) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
-        targetValue = if (focused) 1.015f else 1f,
-        animationSpec = tween(140),
+        targetValue = if (focused) 1.01f else 1f,
+        animationSpec = tween(120),
         label = "chScale"
     )
-    val epg = item.resolveNow().ifBlank { "En vivo" }
+    val epg = item.resolveNow().ifBlank { "No información" }
 
     Surface(
         onClick = onClick,
         onLongClick = onLongClick,
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(4.dp)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = when {
-                focused -> BrandOrange.copy(alpha = 0.85f)
-                selected -> BrandOrange.copy(alpha = 0.22f)
-                else -> Color.White.copy(alpha = 0.04f)
+                focused -> BrandOrange.copy(alpha = 0.92f)
+                selected -> BrandOrange.copy(alpha = 0.28f)
+                else -> Color.Transparent
             },
             focusedContainerColor = BrandOrange
         ),
@@ -870,37 +886,47 @@ private fun GuideChannelRow(
                 focused = it.isFocused
                 if (it.isFocused) onFocused()
             }
-            .then(
-                if (selected && !focused) {
-                    Modifier.border(1.dp, BrandOrange.copy(alpha = 0.45f), RoundedCornerShape(8.dp))
-                } else {
-                    Modifier
-                }
-            )
     ) {
-        val rowPadV = if (DeviceUi.isTabletBuild) 11.dp else 7.dp
+        val rowPadV = if (DeviceUi.isTabletBuild) 10.dp else 6.dp
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp, vertical = rowPadV),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = (item.resolveNumber() ?: "·").toString(),
-                color = if (focused) Color.White else BrandOrangeHot,
-                fontWeight = FontWeight.Bold,
-                fontSize = 12.sp,
-                modifier = Modifier.width(34.dp)
-            )
-            AsyncImage(
-                model = item.resolveLogo(),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(30.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(Graphite)
-            )
+            if (selected || focused) {
+                SignalBars(
+                    color = if (focused) Color.White else BrandOrangeHot,
+                    modifier = Modifier
+                        .width(28.dp)
+                        .height(16.dp)
+                )
+            } else {
+                Text(
+                    text = (item.resolveNumber() ?: "·").toString(),
+                    color = Color.White.copy(0.9f),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    modifier = Modifier.width(28.dp)
+                )
+            }
+            Spacer(Modifier.width(6.dp))
+            Box(
+                Modifier
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(5.dp))
+                    .background(Color.White),
+                contentAlignment = Alignment.Center
+            ) {
+                AsyncImage(
+                    model = item.resolveLogo(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(2.dp)
+                )
+            }
             Spacer(modifier = Modifier.width(8.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -923,6 +949,23 @@ private fun GuideChannelRow(
     }
 }
 
+@Composable
+private fun SignalBars(color: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val gaps = 3.dp.toPx()
+        val w = (size.width - gaps * 2) / 3f
+        val heights = listOf(0.45f, 0.7f, 1f)
+        heights.forEachIndexed { i, hFrac ->
+            val h = size.height * hFrac
+            drawRect(
+                color = color,
+                topLeft = androidx.compose.ui.geometry.Offset(i * (w + gaps), size.height - h),
+                size = androidx.compose.ui.geometry.Size(w, h)
+            )
+        }
+    }
+}
+
 private fun channelInitials(channel: CatalogItem?): String {
     val title = channel?.resolveTitle().orEmpty().trim()
     if (title.isBlank()) return "S"
@@ -931,23 +974,4 @@ private fun channelInitials(channel: CatalogItem?): String {
         parts.size >= 2 -> "${parts[0].first().uppercaseChar()}${parts[1].first().uppercaseChar()}"
         else -> title.take(2).uppercase()
     }
-}
-
-private fun logoColor(channel: CatalogItem?): Color {
-    val seed = abs((channel?.resolveId() ?: channel?.resolveTitle().orEmpty()).hashCode())
-    val palette = listOf(
-        Color(0xFF39E56A),
-        Color(0xFF4AA8FF),
-        Color(0xFFE53935),
-        Color(0xFF2AD4C8),
-        Color(0xFFC6FF00),
-        Color(0xFFFF2D95),
-        Color(0xFFFF9800)
-    )
-    return palette[seed % palette.size]
-}
-
-private fun fakeProgress(channel: CatalogItem?): Float {
-    val seed = abs((channel?.resolveId() ?: "senal").hashCode())
-    return 0.28f + (seed % 55) / 100f
 }

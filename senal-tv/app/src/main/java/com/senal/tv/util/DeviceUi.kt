@@ -13,8 +13,8 @@ import com.senal.tv.BuildConfig
 object DeviceUi {
     val isTabletBuild: Boolean get() = BuildConfig.IS_TABLET
 
-    /** Autoplay del último canal: molesto en tablet; útil en TV. */
-    val autoPlayLastChannelDefault: Boolean get() = !isTabletBuild
+    /** Flujo hub primero: no autoplay al último canal. */
+    val autoPlayLastChannelDefault: Boolean get() = false
 }
 
 data class TabletLayout(

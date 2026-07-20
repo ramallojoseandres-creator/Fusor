@@ -1,7 +1,10 @@
 package com.senal.tv.ui.settings
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,24 +27,37 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.background
+import androidx.compose.ui.unit.sp
+import androidx.tv.material3.ClickableSurfaceDefaults
+import androidx.tv.material3.Surface
 import com.senal.tv.AppContainer
 import com.senal.tv.BuildConfig
 import com.senal.tv.data.local.AppSettings
 import com.senal.tv.ui.components.FocusableButton
-import com.senal.tv.ui.components.SectionHeader
 import com.senal.tv.ui.theme.BrandOrange
+import com.senal.tv.ui.theme.BrandOrangeHot
 import com.senal.tv.ui.theme.GraphiteCard
+import com.senal.tv.ui.theme.LiveGreen
 import com.senal.tv.ui.theme.LocalSenalTypography
-import com.senal.tv.ui.theme.Teal
+import com.senal.tv.ui.theme.NeonBlue
+import com.senal.tv.ui.theme.NeonMagenta
+import com.senal.tv.ui.theme.NeonPurple
 import com.senal.tv.ui.theme.TextMuted
 import com.senal.tv.ui.theme.TextPrimary
 import kotlinx.coroutines.launch
@@ -60,7 +77,6 @@ fun SettingsScreen(
     var status by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    // BACK en subpantallas de ajustes → menú de ajustes (luego el home maneja el siguiente).
     BackHandler(enabled = mode != SettingsMode.Menu) {
         error = null
         status = null
@@ -70,49 +86,39 @@ fun SettingsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(end = 24.dp)
+            .padding(end = 16.dp)
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        SectionHeader("AJUSTES", "Cuenta · $userLabel")
+        Text(
+            "AJUSTES",
+            color = TextPrimary,
+            fontWeight = FontWeight.Black,
+            fontSize = 22.sp,
+            letterSpacing = 1.sp
+        )
+        Text(
+            "Cuenta · $userLabel · v${BuildConfig.VERSION_NAME}",
+            color = TextMuted,
+            fontSize = 13.sp
+        )
 
         error?.let {
-            Text(it, color = androidx.compose.ui.graphics.Color(0xFFFF8A80), style = LocalSenalTypography.current.body)
+            Text(it, color = Color(0xFFFF8A80), style = LocalSenalTypography.current.body)
         }
         status?.let {
-            Text(it, color = Teal, style = LocalSenalTypography.current.body)
+            Text(it, color = BrandOrangeHot, style = LocalSenalTypography.current.body)
         }
 
         when (mode) {
             SettingsMode.Menu -> {
-                FocusableButton(
-                    label = "Cambiar contraseña",
-                    onClick = {
-                        error = null; status = null
-                        mode = SettingsMode.ChangePassword
-                    }
-                )
-
-                val lockLabel = when {
-                    settings.adultsLocked && !adultsSession ->
-                        "Adultos: bloqueados · Desactivar / desbloquear"
-                    settings.adultsLocked && adultsSession ->
-                        "Adultos: desbloqueados (sesión) · Volver a bloquear / desactivar"
-                    else ->
-                        "Bloquear contenido de adultos (con clave)"
+                val adultLabel = when {
+                    settings.adultsLocked && !adultsSession -> "Adultos"
+                    settings.adultsLocked && adultsSession -> "Adultos ON"
+                    else -> "Adultos"
                 }
-                FocusableButton(
-                    label = lockLabel,
-                    onClick = {
-                        error = null; status = null
-                        mode = if (settings.adultsLocked) SettingsMode.AdultUnlock else SettingsMode.AdultEnable
-                    },
-                    primary = false
-                )
-
-                FocusableButton(
-                    label = "Actualizar lista desde servidor",
-                    onClick = {
+                val tiles = listOf(
+                    SettingsTile("Actualizar", "Lista VPS", BrandOrange) {
                         scope.launch {
                             error = null
                             status = "Descargando catálogo…"
@@ -130,37 +136,21 @@ fun SettingsScreen(
                                 }
                         }
                     },
-                    primary = false
-                )
-
-                if (isAdmin) {
-                    Spacer(Modifier.height(8.dp))
-                    Text("Admin", style = LocalSenalTypography.current.caption, color = BrandOrange)
-                    Text(
-                        "Catálogo: sync multi-fuente (playlist + lista VPS)",
-                        style = LocalSenalTypography.current.caption,
-                        color = Teal
-                    )
-                    val syncHint = settings.playlistSyncedAt.takeIf { it > 0 }?.let {
-                        java.text.SimpleDateFormat("dd/MM HH:mm", java.util.Locale.getDefault())
-                            .format(java.util.Date(it))
-                    } ?: "nunca"
-                    Text(
-                        "Última sync: $syncHint · ${settings.playlistChannelCount} ch",
-                        style = LocalSenalTypography.current.caption,
-                        color = TextMuted
-                    )
-                    Text(
-                        "v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
-                        style = LocalSenalTypography.current.caption,
-                        color = TextMuted
-                    )
-                }
-
-                Spacer(Modifier.height(16.dp))
-                FocusableButton(
-                    label = "Cerrar sesión",
-                    onClick = {
+                    SettingsTile(adultLabel, "Parental", NeonMagenta) {
+                        error = null; status = null
+                        mode = if (settings.adultsLocked) SettingsMode.AdultUnlock else SettingsMode.AdultEnable
+                    },
+                    SettingsTile("Usuario", userLabel.take(12), NeonBlue) {
+                        error = null; status = null
+                        mode = SettingsMode.ChangePassword
+                    },
+                    SettingsTile("EPG", "Guía", LiveGreen) {
+                        status = "EPG desde lista local"
+                    },
+                    SettingsTile("Caché", "Disco", NeonPurple) {
+                        status = "Catálogo en caché local · ${settings.playlistChannelCount} ch"
+                    },
+                    SettingsTile("Salir", "Sesión", Color(0xFFE53935)) {
                         scope.launch {
                             container.adultsUnlockedSession.value = false
                             container.authRepository.logout()
@@ -169,6 +159,40 @@ fun SettingsScreen(
                         }
                     }
                 )
+
+                tiles.chunked(3).forEach { row ->
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        row.forEach { tile ->
+                            SettingsGridTile(
+                                title = tile.title,
+                                subtitle = tile.subtitle,
+                                accent = tile.accent,
+                                onClick = tile.onClick,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        repeat(3 - row.size) {
+                            Spacer(Modifier.weight(1f))
+                        }
+                    }
+                }
+
+                if (isAdmin) {
+                    Spacer(Modifier.height(8.dp))
+                    Text("Admin", color = BrandOrange, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    val syncHint = settings.playlistSyncedAt.takeIf { it > 0 }?.let {
+                        java.text.SimpleDateFormat("dd/MM HH:mm", java.util.Locale.getDefault())
+                            .format(java.util.Date(it))
+                    } ?: "nunca"
+                    Text(
+                        "Última sync: $syncHint · ${settings.playlistChannelCount} ch · v${BuildConfig.VERSION_NAME}",
+                        color = TextMuted,
+                        fontSize = 12.sp
+                    )
+                }
             }
 
             SettingsMode.ChangePassword -> ChangePasswordPanel(
@@ -244,6 +268,95 @@ fun SettingsScreen(
     }
 }
 
+private data class SettingsTile(
+    val title: String,
+    val subtitle: String,
+    val accent: Color,
+    val onClick: () -> Unit
+)
+
+@Composable
+private fun SettingsGridTile(
+    title: String,
+    subtitle: String,
+    accent: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var focused by remember { mutableStateOf(false) }
+    Surface(
+        onClick = onClick,
+        modifier = modifier
+            .height(110.dp)
+            .graphicsLayer {
+                val s = if (focused) 1.04f else 1f
+                scaleX = s
+                scaleY = s
+            }
+            .onFocusChanged { focused = it.isFocused },
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = Color.Transparent,
+            focusedContainerColor = Color.Transparent
+        ),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f)
+    ) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(14.dp))
+                .background(
+                    Brush.verticalGradient(
+                        listOf(accent.copy(0.55f), accent.copy(0.28f), Color(0xFF0A1018))
+                    )
+                )
+                .border(
+                    width = if (focused) 2.5.dp else 1.dp,
+                    color = if (focused) BrandOrangeHot else Color.White.copy(0.12f),
+                    shape = RoundedCornerShape(14.dp)
+                )
+                .padding(12.dp)
+        ) {
+            Column(
+                Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Box(
+                    Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color.White.copy(0.18f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        title.take(1).uppercase(),
+                        color = Color.White,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 16.sp
+                    )
+                }
+                Column {
+                    Text(
+                        title,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        subtitle,
+                        color = Color.White.copy(0.7f),
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+    }
+}
+
 private enum class SettingsMode { Menu, ChangePassword, AdultEnable, AdultUnlock }
 
 @Composable
@@ -261,7 +374,7 @@ private fun ChangePasswordPanel(
     SettingsField("Contraseña actual", current, { current = it }, password = true, modifier = Modifier.focusRequester(focus))
     SettingsField("Nueva contraseña", next, { next = it }, password = true)
     SettingsField("Repetir nueva", confirm, { confirm = it }, password = true)
-    localError?.let { Text(it, color = androidx.compose.ui.graphics.Color(0xFFFF8A80)) }
+    localError?.let { Text(it, color = Color(0xFFFF8A80)) }
 
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         FocusableButton(
@@ -296,7 +409,7 @@ private fun AdultPinPanel(
     if (needConfirm) {
         SettingsField("Repetir clave", confirm, { if (it.length <= 8 && it.all(Char::isDigit)) confirm = it }, password = true, number = true)
     }
-    localError?.let { Text(it, color = androidx.compose.ui.graphics.Color(0xFFFF8A80)) }
+    localError?.let { Text(it, color = Color(0xFFFF8A80)) }
 
     DigitPad(
         onDigit = { d ->
@@ -333,7 +446,7 @@ private fun AdultLockedActions(
 
     Text("Control parental · adultos", style = LocalSenalTypography.current.title, color = TextPrimary)
     SettingsField("Clave de adultos", pin, { if (it.length <= 8 && it.all(Char::isDigit)) pin = it }, password = true, number = true)
-    localError?.let { Text(it, color = androidx.compose.ui.graphics.Color(0xFFFF8A80)) }
+    localError?.let { Text(it, color = Color(0xFFFF8A80)) }
     DigitPad(
         onDigit = { d -> if (pin.length < 8) pin += d },
         onDelete = { if (pin.isNotEmpty()) pin = pin.dropLast(1) }
