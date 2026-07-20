@@ -43,6 +43,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -135,6 +136,8 @@ fun LiveTvScreen(
     var guideVisible by remember { mutableStateOf(true) }
     /** HUD inferior: se muestra al cerrar guía / cambiar canal y se oculta a los 5 s. */
     var hudVisible by remember { mutableStateOf(false) }
+    var okDownAt by remember { mutableLongStateOf(0L) }
+    var okLongFired by remember { mutableStateOf(false) }
 
     /** Cursor visual al navegar (no implica reproducción). */
     var focusedChannelId by remember { mutableStateOf<String?>(null) }
@@ -155,6 +158,8 @@ fun LiveTvScreen(
     LaunchedEffect(guideVisible) {
         guideVisibleRef.set(guideVisible)
         if (!guideVisible) {
+            okDownAt = 0L
+            okLongFired = false
             delay(40)
             runCatching { rootFocus.requestFocus() }
         }
@@ -270,6 +275,23 @@ fun LiveTvScreen(
         }
         guideVisible = true
         guideFocusTick++
+    }
+
+    fun toggleFavForCurrent() {
+        val channel = channels.firstOrNull { it.resolveId() == focusedChannelId }
+            ?: playing
+            ?: return
+        scope.launch {
+            val added = runCatching {
+                container.libraryRepository.toggleFavorite(channel)
+            }.getOrNull()
+            val msg = when (added) {
+                true -> "FAV · ${channel.resolveTitle()}"
+                false -> "Quitado de FAV · ${channel.resolveTitle()}"
+                null -> "No se pudo actualizar FAV"
+            }
+            android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+        }
     }
 
     // 1) Categorías primero.
@@ -413,7 +435,6 @@ fun LiveTvScreen(
             .focusRequester(rootFocus)
             .focusable()
             .onPreviewKeyEvent { event ->
-                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 val guiding = guideVisibleRef.get()
                 val code = event.key.keyCode.toInt()
                 val isSelect =
@@ -429,6 +450,37 @@ fun LiveTvScreen(
                 val isBack =
                     event.key == Key.Back ||
                         code == android.view.KeyEvent.KEYCODE_BACK
+
+                // Flujo: mantener OK ~2s = FAV
+                if (isSelect && guiding) {
+                    when (event.type) {
+                        KeyEventType.KeyDown -> {
+                            if (okDownAt == 0L) okDownAt = System.currentTimeMillis()
+                            val held = System.currentTimeMillis() - okDownAt
+                            if (held >= 2_000L && !okLongFired) {
+                                okLongFired = true
+                                toggleFavForCurrent()
+                            }
+                            return@onPreviewKeyEvent true
+                        }
+                        KeyEventType.KeyUp -> {
+                            val held = if (okDownAt > 0L) System.currentTimeMillis() - okDownAt else 0L
+                            val longPress = okLongFired
+                            okDownAt = 0L
+                            okLongFired = false
+                            if (!longPress && held < 2_000L) {
+                                // short OK = confirm channel when focused
+                                val ch = channels.firstOrNull { it.resolveId() == focusedChannelId }
+                                    ?: playing
+                                if (ch != null) confirmChannel(ch)
+                            }
+                            return@onPreviewKeyEvent true
+                        }
+                        else -> Unit
+                    }
+                }
+
+                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 when {
                     isBack && guiding -> {
                         guideVisible = false
@@ -438,12 +490,17 @@ fun LiveTvScreen(
                         onBack()
                         true
                     }
-                    (isSelect || isMenu) && !guiding -> {
+                    isSelect && !guiding -> {
                         showGuide()
                         true
                     }
                     isMenu && guiding -> {
-                        guideVisible = false
+                        // Flujo: MENU = Agregar/Eliminar FAV
+                        toggleFavForCurrent()
+                        true
+                    }
+                    isMenu && !guiding -> {
+                        showGuide()
                         true
                     }
                     else -> false

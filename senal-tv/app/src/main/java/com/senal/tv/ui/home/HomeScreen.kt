@@ -1,6 +1,22 @@
 package com.senal.tv.ui.home
 
 import android.app.Activity
+
+import android.view.ViewGroup
+import android.widget.FrameLayout
+import androidx.annotation.OptIn
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.hls.HlsMediaSource
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
@@ -126,14 +142,14 @@ private val flujoTiles = listOf(
         TileIcon.MOVIE
     ),
     NavTile(
-        HomeSection.SEARCH, "ANIME",
+        HomeSection.SERIES, "ANIME",
         R.mipmap.bg_main_game_category_item_n,
         R.mipmap.bg_main_game_category_item_f,
         NeonPurple,
         TileIcon.ANIME
     ),
     NavTile(
-        HomeSection.RECENTS, "ESPECIAL",
+        HomeSection.FAVORITES, "ESPECIAL",
         R.mipmap.bg_main_special_category_item_n,
         R.mipmap.bg_main_special_category_item_f,
         BrandOrange,
@@ -250,6 +266,7 @@ fun HomeScreen(
         content = {
             if (section == null) {
                 FlujoHomeHub(
+                    container = container,
                     clock = clock,
                     livePreview = livePreview,
                     sidePoster = sidePoster,
@@ -281,9 +298,10 @@ fun HomeScreen(
     )
 }
 
-/** Home hub exacto Flujo: header · featured · 5 tiles VIVO/SERIE/PELÍCULA/ANIME/ESPECIAL. */
+/** Home hub exacto Flujo: header · featured con vídeo vivo · 5 tiles. */
 @Composable
 private fun FlujoHomeHub(
+    container: AppContainer,
     clock: ClockParts,
     livePreview: CatalogItem?,
     sidePoster: CatalogItem?,
@@ -296,12 +314,12 @@ private fun FlujoHomeHub(
         val padH = if (compact) 28.dp else 40.dp
         val padV = if (compact) 16.dp else 22.dp
         val tileH = if (DeviceUi.isTabletBuild) 108.dp else if (compact) 100.dp else 118.dp
-        val firstTileFocus = remember { FocusRequester() }
+        val featureFocus = remember { FocusRequester() }
 
         LaunchedEffect(Unit) {
             if (!DeviceUi.isTabletBuild) {
-                delay(140)
-                runCatching { firstTileFocus.requestFocus() }
+                delay(160)
+                runCatching { featureFocus.requestFocus() }
             }
         }
 
@@ -324,15 +342,13 @@ private fun FlujoHomeHub(
                 horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 FlujoFeatureCard(
+                    container = container,
                     item = livePreview ?: featured.firstOrNull(),
-                    isLive = true,
                     modifier = Modifier
                         .weight(0.68f)
-                        .fillMaxHeight(),
-                    onClick = {
-                        val item = livePreview ?: featured.firstOrNull()
-                        if (item != null) onPlayItem(item) else onOpen(HomeSection.LIVE)
-                    }
+                        .fillMaxHeight()
+                        .focusRequester(featureFocus),
+                    onClick = { onOpen(HomeSection.LIVE) }
                 )
                 FlujoPosterCard(
                     item = sidePoster ?: featured.getOrNull(1),
@@ -355,16 +371,13 @@ private fun FlujoHomeHub(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                flujoTiles.forEachIndexed { index, tile ->
+                flujoTiles.forEach { tile ->
                     FlujoNavTile(
                         tile = tile,
                         onClick = { onOpen(tile.section) },
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
-                            .then(
-                                if (index == 0) Modifier.focusRequester(firstTileFocus) else Modifier
-                            )
                     )
                 }
                 Column(
@@ -445,15 +458,78 @@ private fun FlujoTopBar(
     }
 }
 
+@OptIn(UnstableApi::class)
 @Composable
 private fun FlujoFeatureCard(
+    container: AppContainer,
     item: CatalogItem?,
-    isLive: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var focused by remember { mutableStateOf(false) }
+    var ready by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(if (focused) 1.015f else 1f, tween(160), label = "feat")
+    val context = LocalContext.current
+
+    val player = remember {
+        ExoPlayer.Builder(context)
+            .setLoadControl(
+                DefaultLoadControl.Builder()
+                    .setBufferDurationsMs(1_200, 20_000, 800, 1_200)
+                    .build()
+            )
+            .build()
+            .apply {
+                volume = 0f
+                playWhenReady = true
+                repeatMode = Player.REPEAT_MODE_ONE
+            }
+    }
+
+    DisposableEffect(player) {
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_READY) ready = true
+            }
+        }
+        player.addListener(listener)
+        onDispose {
+            player.removeListener(listener)
+            player.release()
+        }
+    }
+
+    LaunchedEffect(item?.resolveId()) {
+        ready = false
+        val channel = item ?: return@LaunchedEffect
+        runCatching { container.catalogRepository.playback(channel.resolveId()) }
+            .onSuccess { playback ->
+                val url = playback.resolveUrl() ?: channel.resolveStreamUrl()
+                if (url.isNullOrBlank()) return@onSuccess
+                val headers = playback.headers.orEmpty().toMutableMap()
+                channel.userAgent?.takeIf { it.isNotBlank() }?.let {
+                    headers.putIfAbsent("User-Agent", it)
+                }
+                val mediaItem = MediaItem.fromUri(url)
+                if (headers.isNotEmpty()) {
+                    val http = DefaultHttpDataSource.Factory()
+                        .setAllowCrossProtocolRedirects(true)
+                        .setConnectTimeoutMs(8_000)
+                        .setReadTimeoutMs(12_000)
+                        .setDefaultRequestProperties(headers)
+                    val source = if (url.contains(".m3u8", ignoreCase = true)) {
+                        HlsMediaSource.Factory(http).createMediaSource(mediaItem)
+                    } else {
+                        DefaultMediaSourceFactory(http).createMediaSource(mediaItem)
+                    }
+                    player.setMediaSource(source)
+                } else {
+                    player.setMediaItem(mediaItem)
+                }
+                player.prepare()
+                player.play()
+            }
+    }
 
     Surface(
         onClick = onClick,
@@ -477,33 +553,66 @@ private fun FlujoFeatureCard(
                     shape = RoundedCornerShape(12.dp)
                 )
         ) {
-            val art = item?.resolvePoster() ?: item?.resolveLogo()
-            if (!art.isNullOrBlank()) {
-                AsyncImage(
-                    model = art,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.linearGradient(
-                                listOf(Color(0xFF0C2238), Color(0xFF061018), Color(0xFF102830))
-                            )
+            AndroidView(
+                factory = { ctx ->
+                    PlayerView(ctx).apply {
+                        useController = false
+                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                        this.player = player
+                        layoutParams = FrameLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
                         )
-                )
+                        setShutterBackgroundColor(android.graphics.Color.BLACK)
+                        isFocusable = false
+                        descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+                    }
+                },
+                update = { it.player = player },
+                modifier = Modifier.fillMaxSize()
+            )
+
+            if (!ready) {
+                val art = item?.resolvePoster() ?: item?.resolveLogo()
+                if (!art.isNullOrBlank()) {
+                    AsyncImage(
+                        model = art,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(Color(0xFF0C2238), Color(0xFF061018), Color(0xFF102830))
+                                )
+                            )
+                    )
+                }
             }
+
+            Image(
+                painter = painterResource(R.drawable.brand_logo),
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(12.dp)
+                    .height(22.dp)
+                    .widthIn(max = 100.dp)
+            )
+
             Box(
                 Modifier
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
                             0f to Color.Transparent,
-                            0.45f to Color.Transparent,
-                            1f to Color.Black.copy(0.88f)
+                            0.55f to Color.Transparent,
+                            1f to Color.Black.copy(0.85f)
                         )
                     )
             )
@@ -513,15 +622,13 @@ private fun FlujoFeatureCard(
                     .padding(16.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (isLive) {
-                        Box(
-                            Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(LiveGreen)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                    }
+                    Box(
+                        Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(LiveGreen)
+                    )
+                    Spacer(Modifier.width(8.dp))
                     Text(
                         text = item?.resolveTitle() ?: "SEÑAL · En vivo",
                         color = Color.White,

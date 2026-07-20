@@ -14,8 +14,8 @@ android {
         applicationId = "com.senal.tv"
         minSdk = 24
         targetSdk = 34
-        versionCode = 160
-        versionName = "1.6.0"
+        versionCode = 161
+        versionName = "1.6.1"
         buildConfigField("String", "API_BASE_URL", "\"http://185.192.20.245:3000/\"")
         buildConfigField("boolean", "IS_TABLET", "false")
         vectorDrawables.useSupportLibrary = true
@@ -27,8 +27,8 @@ android {
         create("tv") {
             dimension = "device"
             applicationId = "com.senal.tv"
-            versionCode = 160
-            versionName = "1.6.0"
+            versionCode = 161
+            versionName = "1.6.1"
             buildConfigField("boolean", "IS_TABLET", "false")
             ndk {
                 // Fire Stick / Android TV boxes: ARM. Sin x86 para APK más liviana.
