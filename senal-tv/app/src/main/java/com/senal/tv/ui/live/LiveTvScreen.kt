@@ -43,7 +43,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -136,8 +135,6 @@ fun LiveTvScreen(
     var guideVisible by remember { mutableStateOf(true) }
     /** HUD inferior: se muestra al cerrar guía / cambiar canal y se oculta a los 5 s. */
     var hudVisible by remember { mutableStateOf(false) }
-    var okDownAt by remember { mutableLongStateOf(0L) }
-    var okLongFired by remember { mutableStateOf(false) }
 
     /** Cursor visual al navegar (no implica reproducción). */
     var focusedChannelId by remember { mutableStateOf<String?>(null) }
@@ -158,8 +155,6 @@ fun LiveTvScreen(
     LaunchedEffect(guideVisible) {
         guideVisibleRef.set(guideVisible)
         if (!guideVisible) {
-            okDownAt = 0L
-            okLongFired = false
             delay(40)
             runCatching { rootFocus.requestFocus() }
         }
@@ -451,33 +446,11 @@ fun LiveTvScreen(
                     event.key == Key.Back ||
                         code == android.view.KeyEvent.KEYCODE_BACK
 
-                // Flujo: mantener OK ~2s = FAV
-                if (isSelect && guiding) {
-                    when (event.type) {
-                        KeyEventType.KeyDown -> {
-                            if (okDownAt == 0L) okDownAt = System.currentTimeMillis()
-                            val held = System.currentTimeMillis() - okDownAt
-                            if (held >= 2_000L && !okLongFired) {
-                                okLongFired = true
-                                toggleFavForCurrent()
-                            }
-                            return@onPreviewKeyEvent true
-                        }
-                        KeyEventType.KeyUp -> {
-                            val held = if (okDownAt > 0L) System.currentTimeMillis() - okDownAt else 0L
-                            val longPress = okLongFired
-                            okDownAt = 0L
-                            okLongFired = false
-                            if (!longPress && held < 2_000L) {
-                                // short OK = confirm channel when focused
-                                val ch = channels.firstOrNull { it.resolveId() == focusedChannelId }
-                                    ?: playing
-                                if (ch != null) confirmChannel(ch)
-                            }
-                            return@onPreviewKeyEvent true
-                        }
-                        else -> Unit
-                    }
+                // Con guía abierta: NO consumir OK aquí.
+                // Las categorías / canales deben recibir el click del Surface (si no, no se selecciona).
+                // Solo manejamos MENU=FAV y BACK; OK largo FAV lo hace onLongClick del canal.
+                if (guiding && isSelect) {
+                    return@onPreviewKeyEvent false
                 }
 
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
@@ -495,7 +468,6 @@ fun LiveTvScreen(
                         true
                     }
                     isMenu && guiding -> {
-                        // Flujo: MENU = Agregar/Eliminar FAV
                         toggleFavForCurrent()
                         true
                     }
@@ -628,19 +600,27 @@ fun LiveTvScreen(
                             }
                             items(categories, key = { it.label() }) { category ->
                                 val active = category.label() == selected
+                                var catFocused by remember(category.label()) { mutableStateOf(false) }
                                 Surface(
                                     onClick = { selected = category.label() },
                                     shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(0.dp)),
                                     colors = ClickableSurfaceDefaults.colors(
-                                        containerColor = if (active) {
-                                            BrandOrange.copy(alpha = 0.88f)
-                                        } else {
-                                            Color.Transparent
+                                        containerColor = when {
+                                            active || catFocused -> BrandOrange.copy(alpha = 0.92f)
+                                            else -> Color.Transparent
                                         },
                                         focusedContainerColor = BrandOrange.copy(alpha = 0.95f)
                                     ),
                                     scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .onFocusChanged { state ->
+                                            catFocused = state.isFocused
+                                            // Flujo: al enfocar categoría se selecciona y carga canales
+                                            if (state.isFocused) {
+                                                selected = category.label()
+                                            }
+                                        }
                                 ) {
                                     Row(
                                         Modifier
@@ -650,17 +630,17 @@ fun LiveTvScreen(
                                     ) {
                                         Box(
                                             Modifier
-                                                .size(if (active) 7.dp else 5.dp)
+                                                .size(if (active || catFocused) 7.dp else 5.dp)
                                                 .clip(CircleShape)
                                                 .background(
-                                                    if (active) Color.White else Color.White.copy(0.7f)
+                                                    if (active || catFocused) Color.White else Color.White.copy(0.7f)
                                                 )
                                         )
                                         Spacer(Modifier.width(8.dp))
                                         Text(
                                             text = category.label(),
-                                            color = if (active) Color.White else TextPrimary,
-                                            fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (active || catFocused) Color.White else TextPrimary,
+                                            fontWeight = if (active || catFocused) FontWeight.Bold else FontWeight.Medium,
                                             fontSize = 13.sp,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
