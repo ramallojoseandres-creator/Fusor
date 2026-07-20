@@ -1,0 +1,138 @@
+[English](README_EN.md) | **中文**
+
+<h1 align="center">XPlayer</h1>
+
+<p align="center">跨平台 IPTV / M3U 播放器 · Android（含平板/TV）· iOS（含 iPad）· macOS · Windows · Linux</p>
+
+<p align="center">开箱即用，内置 <a href="https://github.com/iptv-org/iptv">iptv-org</a> 公开直播源，支持<b>频道分组、搜索</b>、EPG 节目单、收藏，以及<b>手机遥控 TV 输入</b>。</p>
+
+<p align="center">
+  <a href="https://github.com/TNT-Likely/xplayer/releases/latest"><img src="https://img.shields.io/github/v/release/TNT-Likely/xplayer?style=flat-square&color=brightgreen" alt="最新版本"></a>
+  <a href="https://github.com/TNT-Likely/xplayer/releases"><img src="https://img.shields.io/github/downloads/TNT-Likely/xplayer/total?style=flat-square&color=blue" alt="下载量"></a>
+  <a href="https://apps.apple.com/app/id6783271337"><img src="https://img.shields.io/badge/App%20Store-下载-0D96F6?style=flat-square&logo=apple&logoColor=white" alt="App Store"></a>
+  <a href="https://testflight.apple.com/join/BD5BMpqe"><img src="https://img.shields.io/badge/iOS-TestFlight%20公测-0D96F6?style=flat-square&logo=apple&logoColor=white" alt="iOS TestFlight 公测"></a>
+  <a href="https://github.com/TNT-Likely/xplayer/stargazers"><img src="https://img.shields.io/github/stars/TNT-Likely/xplayer?style=flat-square" alt="Stars"></a>
+  <a href="https://github.com/TNT-Likely/xplayer/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/TNT-Likely/xplayer/release.yml?style=flat-square&label=release" alt="构建状态"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/TNT-Likely/xplayer?style=flat-square" alt="License"></a>
+</p>
+
+---
+
+## ✨ 特性
+
+- 📺 **开箱即用的直播源**：内置 [iptv-org](https://github.com/iptv-org/iptv) 公开订阅源，首启自动加载「中国」，也可一键添加 全部/港/台/新/美/英/日/韩 + 体育/新闻/电影 等推荐源；同时支持导入任意 M3U/M3U8（本地文件或网络 URL）。
+- 🖼️ **电视画质更清晰**：Android 内置原生播放引擎，视频直接走电视硬件视频平面（SurfaceView），吃到电视的 VPP / 超分，明显比普通纹理渲染更锐利；出问题可在设置一键切回。
+- 🔊 **解决「有画面没声音」**：内置 FFmpeg 音频软解,补齐 AC-3 / E-AC-3 / DTS / MP2 等很多设备硬件解不了的音频编码。
+- 🎚️ **画质选择**：多码率直播源可手动选清晰度（1080P/720P/…）。
+- 🎧 **多音轨切换**：多语言/多音轨频道可切换音轨。
+- 🔎 **分组 + 搜索**：频道太多找不到好看的？顶部搜索框按名称即时过滤，分组标签一键筛选 News / Sports / Movies…（世界杯看球更快）。
+- 🗓️ **EPG 节目单**：支持 XMLTV 节目单。
+- ⭐ **收藏 + 🕘 最近播放**：首页直达常看频道与最近看过的（最近播放跨播放列表）。
+- 😴 **睡眠定时**：定时自动停止播放,适合躺着看。
+- 🔁 **局域网配置同步**：同一 WiFi 内,从另一台设备拉取播放列表 / 代理 / 收藏 / 设置,同步前可逐项预览勾选。
+- 📊 **播放信息面板**：分辨率/编码/码率/帧率/缓冲/丢帧/解码器等实时诊断信息。
+- 🖥️ **全平台**：Android（手机/平板）、Android TV、iOS / iPad、macOS、Windows、Linux，一套代码。
+- 📱 **手机遥控 TV 输入**：TV 端打字麻烦？手机自动发现同一局域网内的 TV，远程输入实时同步（含删除键）。
+- 🌐 **多语言**：中文 / English。
+
+## 📸 预览
+
+<p align="center">
+  <img src="screenshots/home.png" width="240" alt="频道网格:浏览 / 分组 / 搜索" />
+  <img src="screenshots/player.png" width="240" alt="直播播放与控制" />
+  <img src="screenshots/search.png" width="240" alt="频道搜索" />
+  <br/>
+  <img src="screenshots/groups.png" width="240" alt="按分组浏览" />
+  <img src="screenshots/remote.png" width="240" alt="手机遥控 TV(同一局域网)" />
+</p>
+
+<details>
+<summary><b>📱 iPad / 🖥️ macOS 截图</b></summary>
+
+<p align="center">
+  <img src="screenshots/ipad-home.png" width="420" alt="iPad:频道网格" />
+  <img src="screenshots/ipad-player.png" width="420" alt="iPad:直播播放" />
+  <br/>
+  <img src="screenshots/ipad-groups.png" width="420" alt="iPad:分组" />
+  <img src="screenshots/mac-home.png" width="420" alt="macOS:频道网格" />
+  <br/>
+  <img src="screenshots/mac-player.png" width="420" alt="macOS:直播播放" />
+  <img src="screenshots/mac-groups.png" width="420" alt="macOS:分组" />
+</p>
+
+</details>
+
+<details>
+<summary><b>🚀 安装</b></summary>
+
+**iOS / iPad / macOS** 已上架 [App Store](https://apps.apple.com/app/id6783271337)（目前仅在中国大陆以外地区上架 —— 大陆区需 ICP 备案，备案名额已用完，可通过[捐赠](#-捐赠--donate)帮忙分担备案与服务器成本以支持大陆上架）。其余平台前往 [Releases](https://github.com/TNT-Likely/xplayer/releases) 下载：
+
+- **Android / Android TV / 平板**（已按 CPU 架构拆包，体积更小）：
+  - `xplayer-<版本>-arm64-v8a.apk` —— 绝大多数手机 / 平板 / 电视盒子（**推荐**）
+  - `xplayer-<版本>-armeabi-v7a.apk` —— 较老的 32 位设备
+  - `xplayer-<版本>-x86_64.apk` —— 模拟器 / x86 设备
+  - `xplayer-<版本>-universal.apk` —— 不确定架构时的通用兜底包
+- **Windows**：`xplayer-windows-x64.zip`
+- **macOS**：[App Store 下载](https://apps.apple.com/app/id6783271337)（推荐）；或 `xplayer-macos.dmg`（首次打开见常见问题）
+- **Linux**：`xplayer-linux-x64.tar.gz`
+- **iOS / iPad**：[App Store 下载](https://apps.apple.com/app/id6783271337)（推荐）；或 [TestFlight 公测版](https://testflight.apple.com/join/BD5BMpqe)、Releases 里的未签名 ipa 自行签名
+
+</details>
+
+<details>
+<summary><b>🕹️ 使用</b></summary>
+
+1. 打开 App，首启会自动加载内置的 iptv-org 中国直播源；
+2. 用顶部搜索框 / 分组标签快速定位频道，⭐ 收藏常看的；左侧菜单「推荐源」可添加更多预置源或导入自己的 M3U；**管理 / 编辑 / 删除源在「播放列表」页**；
+3. TV 端可在手机上打开「远程输入」，自动发现 TV 并远程打字。
+
+</details>
+
+<details>
+<summary><b>🛠️ 开发 / 构建</b></summary>
+
+```sh
+flutter pub get
+flutter run -d <device_id>
+
+# 构建
+flutter build apk --release -PabiSplit   # Android：按 ABI 拆分 APK
+flutter build appbundle --release        # Android：Play 上架用 AAB（不拆分）
+flutter build ios --release              # iOS / iPad
+flutter build macos --release            # macOS
+flutter build windows --release          # Windows
+flutter build linux --release            # Linux
+```
+
+> Release 签名：复制 `android/key.properties.sample` 为 `android/key.properties` 并填入 keystore 信息；CI 通过 GitHub Secrets 注入，详见 `.github/workflows/release.yml`。
+>
+> 国内网络下若 `flutter pub get` / Gradle 卡住：用 `flutter pub get --offline` + `flutter run --no-pub`，或设国内镜像 `PUB_HOSTED_URL` / `FLUTTER_STORAGE_BASE_URL`（仓库 `.vscode/launch.json` 已内置适配）。
+
+</details>
+
+## ⚖️ 免责声明
+
+XPlayer 是一个**播放器**，本身不托管、不提供任何直播流。内置的推荐源来自开源项目 [iptv-org/iptv](https://github.com/iptv-org/iptv) 公开聚合的、可公开访问的流地址，App 在运行时从上游拉取（不打包静态副本）。请仅用于个人、合法用途；如发现侵权链接，请向上游 iptv-org 反馈移除。
+
+<details>
+<summary>❓ 常见问题</summary>
+
+**macOS 如何打开未签名的包？** 首次打开如遇“无法验证开发者”，右键 XPlayer.app > 打开，或在“系统设置 > 隐私与安全性”中允许；或终端执行 `sudo xattr -rd com.apple.quarantine XPlayer.app`。
+
+**远程输入无法发现 TV？** 确保手机和 TV 在同一局域网；路由器需支持 mDNS/Bonjour；可尝试重启 App。
+
+</details>
+
+## 💝 捐赠 / Donate
+
+如果这个项目对你有用，欢迎请作者喝杯咖啡 ☕
+
+[![PayPal](https://img.shields.io/badge/PayPal-Donate-0070BA?logo=paypal&logoColor=white&style=for-the-badge)](https://paypal.me/sunxiaoyes)
+
+| 支付宝 | 微信支付 | Binance |
+|:---:|:---:|:---:|
+| <img src="assets/donate/alipay.png" width="180" alt="支付宝"/> | <img src="assets/donate/wechat.png" width="180" alt="微信支付"/> | <img src="assets/donate/binance.png" width="180" alt="Binance"/> |
+
+## 📄 开源协议
+
+本项目基于 [MIT](LICENSE) 协议开源。内置直播源来自开源项目 [iptv-org/iptv](https://github.com/iptv-org/iptv)（The Unlicense）。

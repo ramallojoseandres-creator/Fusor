@@ -1,0 +1,5 @@
+{
+  "java.configuration.updateBuildConfiguration": "interactive",
+  "dart.runPubGetOnPubspecChanges": false,
+  "dart.flutterSdkPath": ".fvm/versions/3.41.9"
+}
