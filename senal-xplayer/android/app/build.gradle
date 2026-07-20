@@ -1,0 +1,106 @@
+plugins {
+    id "com.android.application"
+    id "org.jetbrains.kotlin.android"
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader('UTF-8') { reader ->
+        localProperties.load(reader)
+    }
+}
+
+def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
+if (flutterVersionCode == null) {
+    flutterVersionCode = '1'
+}
+
+def flutterVersionName = localProperties.getProperty('flutter.versionName')
+if (flutterVersionName == null) {
+    flutterVersionName = '1.0'
+}
+
+// 从 key.properties 读取签名信息(本地不提交;CI 由 secret 还原)
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
+android {
+    namespace "com.senal.xplayer"
+    compileSdkVersion flutter.compileSdkVersion
+    ndkVersion flutter.ndkVersion
+    compileSdkVersion 36
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+
+    defaultConfig {
+        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+        applicationId "com.senal.xplayer"
+        // You can update the following values to match your application needs.
+        // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
+        minSdkVersion flutter.minSdkVersion
+        targetSdkVersion flutter.targetSdkVersion
+        versionCode flutterVersionCode.toInteger()
+        versionName flutterVersionName
+    }
+
+    signingConfigs {
+        release {
+            if (keystoreProperties['storeFile']) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
+
+    // 按 ABI 拆分 APK(仅 APK;AAB 不能开 splits.abi,与 R8 shrink 冲突)。
+    // 用 -PabiSplit 开启:flutter build apk 传,bundleRelease(AAB) 不传。
+    splits {
+        abi {
+            enable project.hasProperty('abiSplit')
+            reset()
+            include 'arm64-v8a', 'armeabi-v7a', 'x86_64'
+            universalApk true
+        }
+    }
+
+    buildTypes {
+        release {
+            // 有 key.properties 用 release 签名,否则回退 debug(保证源码/PR 构建可跑)
+            signingConfig keystoreProperties['storeFile'] ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+}
+
+flutter {
+    source '../..'
+}
+
+dependencies {
+    // media3-common:在 MainActivity 调用 Media3 全局日志开关 setLogLevel(诊断用)。
+    // media3-exoplayer:原生引擎(NativeVideoEngine)直接构建 ExoPlayer 播放,需显式依赖。
+    // 版本对齐到 AndroidXMedia3/1.9.2。
+    implementation 'androidx.media3:media3-common:1.9.2'
+    implementation 'androidx.media3:media3-exoplayer:1.9.2'
+    // media3-ui:用 AspectRatioFrameLayout 让原生 SurfaceView 按视频比例 letterbox(防变形)。
+    implementation 'androidx.media3:media3-ui:1.9.2'
+    // FFmpeg 音频软解扩展(预编译 aar,见 libs/README.md)。原生引擎对 AC-3/MP2/DTS 等回退软解。
+    implementation files('libs/media3-decoder-ffmpeg-1.9.2.aar')
+}

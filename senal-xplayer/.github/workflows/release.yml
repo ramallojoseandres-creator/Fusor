@@ -1,0 +1,946 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+      - "[0-9]*"
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Release tag (手动运行可自定义，留空则使用 manual-<short_sha>)"
+        required: false
+        type: string
+      release_name:
+        description: "Release 名称（可选，默认与 tag 相同）"
+        required: false
+        type: string
+      prerelease:
+        description: "是否标记为 Pre-release（手动运行默认 true）"
+        required: false
+        default: false
+        type: boolean
+      create_release:
+        description: "是否创建 GitHub Release（手动运行可设为 false，仅构建与产出 Actions Artifacts）"
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+env:
+  FLUTTER_VERSION: "3.41.9"
+
+jobs:
+  android:
+    name: Android (APK + AAB)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare release metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          IS_TAG="false"
+          TAG_NAME=""
+          if [[ "${GITHUB_REF:-}" == refs/tags/* ]]; then
+            IS_TAG="true"
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+          fi
+          if [[ -z "$TAG_NAME" ]]; then
+            INPUT_TAG="${{ github.event.inputs.tag_name || '' }}"
+            if [[ -n "$INPUT_TAG" ]]; then
+              TAG_NAME="$INPUT_TAG"
+            else
+              SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
+              TAG_NAME="manual-${SHORT_SHA}"
+            fi
+          fi
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: "zulu"
+          java-version: "17"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android build-tools and platforms
+        run: |
+          sdkmanager --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+          cache: true
+
+      - name: Update pubspec.yaml version
+        run: |
+          VERSION='${{ steps.meta.outputs.tag_name }}'
+          echo "Updating pubspec.yaml version to: $VERSION"
+          # 去掉 v 前缀
+          CLEAN_VERSION=${VERSION#v}
+          # 使用 GitHub run number 作为构建号
+          BUILD_NUMBER=${{ github.run_number }}
+          # 更新 pubspec.yaml
+          sed -i "s/^version: .*/version: ${CLEAN_VERSION}+${BUILD_NUMBER}/" pubspec.yaml
+          echo "Updated version in pubspec.yaml:"
+          grep "^version:" pubspec.yaml
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Setup Android signing from secrets (optional)
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          if [ -n "${ANDROID_KEYSTORE_BASE64:-}" ]; then
+            echo "Writing Android keystore from secret..."
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/ci-release.keystore
+            {
+              echo "storeFile=ci-release.keystore"
+              echo "storePassword=${ANDROID_KEYSTORE_PASSWORD}"
+              echo "keyAlias=${ANDROID_KEY_ALIAS:-xplayer}"
+              echo "keyPassword=${ANDROID_KEY_PASSWORD}"
+            } > android/key.properties
+            echo "key.properties created (release signing enabled)."
+          else
+            echo "No ANDROID_KEYSTORE_BASE64 secret; release will fall back to debug signing."
+          fi
+
+      - name: Build split APKs (release)
+        run: flutter build apk --release -PabiSplit
+
+      - name: Build App Bundle (AAB)
+        run: flutter build appbundle --release
+
+      - name: Rename Android artifacts
+        run: |
+          set -euo pipefail
+          TAG='${{ steps.meta.outputs.tag_name }}'
+          VERSION="${TAG#v}"
+          APKDIR=build/app/outputs/flutter-apk
+          OUT=dist-android
+          mkdir -p "$OUT"
+          # 按 ABI 拆分的瘦包:arm64-v8a 作主包(不带后缀),其余带后缀
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            f="$APKDIR/app-${abi}-release.apk"
+            [ -f "$f" ] || continue
+            if [ "$abi" = "arm64-v8a" ]; then
+              cp "$f" "$OUT/xplayer-${VERSION}.apk"
+            else
+              cp "$f" "$OUT/xplayer-${VERSION}-${abi}.apk"
+            fi
+          done
+          # 通用兜底包:universalApk 经 Flutter 输出为 flutter-apk/app-release.apk(含全部 ABI)
+          [ -f "$APKDIR/app-release.apk" ] && cp "$APKDIR/app-release.apk" "$OUT/xplayer-${VERSION}-universal.apk"
+          AAB=build/app/outputs/bundle/release/app-release.aab
+          [ -f "$AAB" ] && cp "$AAB" "$OUT/xplayer-${VERSION}.aab"
+          echo "== renamed artifacts ==" && ls -la "$OUT"
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android
+          if-no-files-found: error
+          path: dist-android/*
+
+  windows:
+    name: Windows (installer + portable)
+    # 钉到 windows-2022:windows-latest 已滚到更新镜像,Flutter 3.27.3 在其上会误选
+    # VS2019 生成器导致构建失败(2025-10 旧镜像上还是好的)。保留 continue-on-error 兜底。
+    runs-on: windows-2022
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare release metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          IS_TAG="false"
+          TAG_NAME=""
+          if [[ "${GITHUB_REF:-}" == refs/tags/* ]]; then
+            IS_TAG="true"
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+          fi
+          if [[ -z "$TAG_NAME" ]]; then
+            INPUT_TAG="${{ github.event.inputs.tag_name || '' }}"
+            if [[ -n "$INPUT_TAG" ]]; then
+              TAG_NAME="$INPUT_TAG"
+            else
+              SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
+              TAG_NAME="manual-${SHORT_SHA}"
+            fi
+          fi
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+          cache: true
+
+      - name: Enable Windows desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: Update pubspec.yaml version
+        shell: bash
+        run: |
+          VERSION='${{ steps.meta.outputs.tag_name }}'
+          echo "Updating pubspec.yaml version to: $VERSION"
+          CLEAN_VERSION=${VERSION#v}
+          BUILD_NUMBER=${{ github.run_number }}
+          sed -i "s/^version: .*/version: ${CLEAN_VERSION}+${BUILD_NUMBER}/" pubspec.yaml
+          echo "Updated version in pubspec.yaml:"
+          grep "^version:" pubspec.yaml
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Build Windows (release)
+        run: flutter build windows --release
+
+      - name: Resolve installer version
+        id: winver
+        shell: bash
+        run: |
+          set -euo pipefail
+          V='${{ steps.meta.outputs.tag_name }}'
+          V=${V#v}
+          # Inno Setup AppVersion / file name need a clean x.y.z; fall back for manual-* tags.
+          if [[ ! "$V" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then V="1.0.0"; fi
+          echo "version=$V" >> $GITHUB_OUTPUT
+
+      - name: Package portable zip (with app-local VC++ runtime)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $rel = "build/windows/x64/runner/Release"
+          if (!(Test-Path $rel)) { Get-ChildItem -Recurse build/windows | Write-Output; exit 1 }
+          # App-local deployment of the MSVC runtime so the portable build runs
+          # on clean machines without the VC++ Redistributable installed.
+          foreach ($d in @("vcruntime140.dll","vcruntime140_1.dll","msvcp140.dll")) {
+            $s = Join-Path $env:SystemRoot "System32\$d"
+            if (Test-Path $s) { Copy-Item $s (Join-Path $rel $d) -Force }
+          }
+          $zip = "xplayer-${{ steps.winver.outputs.version }}-windows-x64-portable.zip"
+          if (Test-Path $zip) { Remove-Item $zip }
+          Compress-Archive -Path "$rel/*" -DestinationPath $zip
+
+      - name: Download VC++ redistributable (for installer)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          Invoke-WebRequest -Uri "https://aka.ms/vs/17/release/vc_redist.x64.exe" `
+            -OutFile "windows/installer/vc_redist.x64.exe"
+
+      - name: Build installer (Inno Setup)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $iscc)) {
+            choco install innosetup -y --no-progress | Out-Null
+          }
+          if (!(Test-Path $iscc)) { $iscc = "ISCC.exe" }
+          & $iscc `
+            "/DAppVersion=${{ steps.winver.outputs.version }}" `
+            "/DSourceDir=$((Resolve-Path 'build/windows/x64/runner/Release').Path)" `
+            "/DOutputDir=$((Resolve-Path '.').Path)" `
+            "windows/installer/xplayer.iss"
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          if-no-files-found: error
+          path: |
+            xplayer-*-windows-x64-setup.exe
+            xplayer-*-windows-x64-portable.zip
+
+  macos:
+    name: macOS (app.zip)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare release metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          IS_TAG="false"
+          TAG_NAME=""
+          if [[ "${GITHUB_REF:-}" == refs/tags/* ]]; then
+            IS_TAG="true"
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+          fi
+          if [[ -z "$TAG_NAME" ]]; then
+            INPUT_TAG="${{ github.event.inputs.tag_name || '' }}"
+            if [[ -n "$INPUT_TAG" ]]; then
+              TAG_NAME="$INPUT_TAG"
+            else
+              SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
+              TAG_NAME="manual-${SHORT_SHA}"
+            fi
+          fi
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+          cache: true
+
+      - name: Enable macOS desktop
+        run: flutter config --enable-macos-desktop
+
+      - name: Update pubspec.yaml version
+        run: |
+          VERSION='${{ steps.meta.outputs.tag_name }}'
+          echo "Updating pubspec.yaml version to: $VERSION"
+          CLEAN_VERSION=${VERSION#v}
+          BUILD_NUMBER=${{ github.run_number }}
+          sed -i "" "s/^version: .*/version: ${CLEAN_VERSION}+${BUILD_NUMBER}/" pubspec.yaml
+          echo "Updated version in pubspec.yaml:"
+          grep "^version:" pubspec.yaml
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Build macOS (release)
+        run: flutter build macos --release
+
+      - name: Package macOS .app to zip (unsigned)
+        run: |
+          set -euo pipefail
+          APP_PATH=$(ls -d build/macos/Build/Products/Release/*.app | head -n 1)
+          echo "Found app: $APP_PATH"
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" xplayer-macos.zip
+
+      - name: Package macOS .app to DMG (unsigned)
+        run: |
+          set -euo pipefail
+          APP_PATH=$(ls -d build/macos/Build/Products/Release/*.app | head -n 1)
+          VOLUME_NAME="xplayer"
+          DMG_PATH="xplayer-macos.dmg"
+          [ -f "$DMG_PATH" ] && rm -f "$DMG_PATH"
+          # 创建临时目录以生成 DMG 内容
+          TMPDIR=$(mktemp -d)
+          cp -R "$APP_PATH" "$TMPDIR/"
+          hdiutil create -volname "$VOLUME_NAME" -srcfolder "$TMPDIR" -ov -format UDZO "$DMG_PATH"
+          rm -rf "$TMPDIR"
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          if-no-files-found: error
+          path: |
+            xplayer-macos.zip
+            xplayer-macos.dmg
+
+  # macOS App Store(签名 .pkg → TestFlight/ASC)。和 iOS 的区别:
+  #  - 两张证书:App 签名(Apple Distribution)+ 安装包(Mac Installer Distribution)
+  #  - 产物是 productbuild 出的签名 .pkg(不是 .ipa)
+  #  - 需要单独的 macOS 描述文件,嵌进 .app 再签
+  # 无 MACOS_* secrets 时整段跳过,不阻塞其它平台。参考 BeeTiny。
+  macos_appstore:
+    name: macOS → App Store
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare release metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG_NAME=""
+          if [[ "${GITHUB_REF:-}" == refs/tags/* ]]; then
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+          fi
+          if [[ -z "$TAG_NAME" ]]; then
+            INPUT_TAG="${{ github.event.inputs.tag_name || '' }}"
+            if [[ -n "$INPUT_TAG" ]]; then TAG_NAME="$INPUT_TAG"; else TAG_NAME="manual-$(echo "${GITHUB_SHA}" | cut -c1-7)"; fi
+          fi
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+      - name: Select latest Xcode
+        run: |
+          LATEST_XCODE=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -1)
+          if [ -n "$LATEST_XCODE" ]; then sudo xcode-select -s "$LATEST_XCODE"; fi
+          xcodebuild -version
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+          cache: true
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Update pubspec.yaml version
+        run: |
+          VERSION='${{ steps.meta.outputs.tag_name }}'
+          CLEAN_VERSION=${VERSION#v}
+          sed -i "" "s/^version: .*/version: ${CLEAN_VERSION}+${{ github.run_number }}/" pubspec.yaml
+          grep "^version:" pubspec.yaml
+
+      - name: Import certificates + provisioning profile
+        env:
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_INSTALLER_CERTIFICATE_P12: ${{ secrets.MACOS_INSTALLER_CERTIFICATE_P12 }}
+          MACOS_INSTALLER_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_INSTALLER_CERTIFICATE_PASSWORD }}
+          MACOS_KEYCHAIN_PASSWORD: ${{ secrets.MACOS_KEYCHAIN_PASSWORD }}
+          MACOS_PROVISIONING_PROFILE: ${{ secrets.MACOS_PROVISIONING_PROFILE }}
+        run: |
+          set -euo pipefail
+          if [ -z "${MACOS_CERTIFICATE_P12:-}" ]; then
+            echo "No MACOS_* signing secrets — skipping macOS App Store upload"
+            echo "MACOS_SIGNING_ENABLED=false" >> $GITHUB_ENV
+            exit 0
+          fi
+          KEYCHAIN_PW="${MACOS_KEYCHAIN_PASSWORD:-$(openssl rand -base64 32)}"
+          CERT=$RUNNER_TEMP/cert.p12
+          echo -n "$MACOS_CERTIFICATE_P12" | base64 --decode -o $CERT
+          PP=$RUNNER_TEMP/xplayer.provisionprofile
+          echo -n "$MACOS_PROVISIONING_PROFILE" | base64 --decode -o $PP
+          KC=$RUNNER_TEMP/app-signing.keychain-db
+          security create-keychain -p "$KEYCHAIN_PW" $KC
+          security set-keychain-settings -lut 21600 $KC
+          security unlock-keychain -p "$KEYCHAIN_PW" $KC
+          security import $CERT -P "$MACOS_CERTIFICATE_PASSWORD" -A -f pkcs12 -k $KC
+          if [ -n "${MACOS_INSTALLER_CERTIFICATE_P12:-}" ]; then
+            ICERT=$RUNNER_TEMP/installer.p12
+            IPW="${MACOS_INSTALLER_CERTIFICATE_PASSWORD:-$MACOS_CERTIFICATE_PASSWORD}"
+            echo -n "$MACOS_INSTALLER_CERTIFICATE_P12" | base64 --decode -o $ICERT
+            security import $ICERT -P "$IPW" -A -f pkcs12 -k $KC
+          fi
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PW" $KC
+          security list-keychain -d user -s $KC
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp "$PP" "$HOME/Library/MobileDevice/Provisioning Profiles/xplayer.provisionprofile"
+          echo "MACOS_SIGNING_ENABLED=true" >> $GITHUB_ENV
+
+      - name: Build macOS (STORE build = 纯播放器无内置源)
+        if: env.MACOS_SIGNING_ENABLED == 'true'
+        run: flutter build macos --release --dart-define=STORE_BUILD=true
+
+      - name: Create signed .pkg for App Store
+        if: env.MACOS_SIGNING_ENABLED == 'true'
+        run: |
+          set -euo pipefail
+          APP_PATH=$(ls -d build/macos/Build/Products/Release/*.app | head -n 1)
+          if [ ! -d "$APP_PATH" ]; then echo "app not found"; exit 1; fi
+          SIGNING_IDENTITY=$(security find-identity -v | grep -Eo '"Apple Distribution[^"]*"|"3rd Party Mac Developer Application[^"]*"' | head -1 | tr -d '"')
+          INSTALLER_IDENTITY=$(security find-identity -v | grep -Eo '"Mac Installer Distribution[^"]*"|"3rd Party Mac Developer Installer[^"]*"' | head -1 | tr -d '"')
+          echo "Signing: $SIGNING_IDENTITY | Installer: $INSTALLER_IDENTITY"
+          if [ -z "$SIGNING_IDENTITY" ] || [ -z "$INSTALLER_IDENTITY" ]; then
+            echo "Missing signing/installer identity"; exit 1
+          fi
+          PP_PATH="$HOME/Library/MobileDevice/Provisioning Profiles/xplayer.provisionprofile"
+          cp "$PP_PATH" "$APP_PATH/Contents/embedded.provisionprofile"
+          PLIST=$RUNNER_TEMP/pp.plist
+          security cms -D -i "$PP_PATH" > "$PLIST"
+          APP_ID_KEY="com.apple.application-identifier"
+          APP_IDENTIFIER=$(/usr/libexec/PlistBuddy -c "Print :Entitlements:com.apple.application-identifier" "$PLIST" 2>/dev/null || true)
+          if [ -z "$APP_IDENTIFIER" ]; then
+            APP_ID_KEY="application-identifier"
+            APP_IDENTIFIER=$(/usr/libexec/PlistBuddy -c "Print :Entitlements:application-identifier" "$PLIST" 2>/dev/null || true)
+          fi
+          TEAM_IDENTIFIER=$(/usr/libexec/PlistBuddy -c "Print :Entitlements:com.apple.developer.team-identifier" "$PLIST" 2>/dev/null || /usr/libexec/PlistBuddy -c "Print :TeamIdentifier:0" "$PLIST" 2>/dev/null || true)
+          ENT=$RUNNER_TEMP/sign.entitlements
+          cp macos/Runner/Release.entitlements "$ENT"
+          /usr/libexec/PlistBuddy -c "Add :$APP_ID_KEY string $APP_IDENTIFIER" "$ENT" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :com.apple.developer.team-identifier string $TEAM_IDENTIFIER" "$ENT" 2>/dev/null || true
+          if [ -d "$APP_PATH/Contents/Frameworks" ]; then
+            find "$APP_PATH/Contents/Frameworks" -depth \( -type d \( -name "*.framework" -o -name "*.xpc" -o -name "*.app" \) -o -type f -name "*.dylib" \) -print0 | while IFS= read -r -d '' N; do
+              codesign --force --verify --sign "$SIGNING_IDENTITY" "$N"
+            done
+          fi
+          codesign --force --verify --sign "$SIGNING_IDENTITY" --entitlements "$ENT" "$APP_PATH"
+          codesign --verify --deep --strict "$APP_PATH"
+          productbuild --component "$APP_PATH" /Applications --sign "$INSTALLER_IDENTITY" xplayer.pkg
+          ls -lh xplayer.pkg
+
+      - name: Upload to App Store Connect
+        if: env.MACOS_SIGNING_ENABLED == 'true'
+        # 不要 continue-on-error:上传失败必须让本 job 变红(此 job 不在 release 的 needs 里,
+        # 所以不会阻塞 GitHub Release 发布)。之前的 continue-on-error 会把失败步骤的 conclusion
+        # 标成 success,导致 90242 上传失败时整个 run 仍显示绿色。
+        env:
+          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.appstoreconnect/private_keys
+          P8="$HOME/.appstoreconnect/private_keys/AuthKey_${APPLE_API_KEY_ID}.p8"
+          printf '%s' "$APPLE_API_KEY_CONTENT" > "$P8"; chmod 600 "$P8"
+          xcrun altool --upload-app --type macos --file xplayer.pkg \
+            --apiKey "$APPLE_API_KEY_ID" --apiIssuer "$APPLE_API_ISSUER_ID" --show-progress
+          rm -f "$P8"
+
+      - name: Cleanup keychain
+        if: always() && env.MACOS_SIGNING_ENABLED == 'true'
+        run: security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
+
+  ios:
+    name: iOS (build signed IPA + unsigned)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare release metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG_NAME=""
+          if [[ "${GITHUB_REF:-}" == refs/tags/* ]]; then
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+          fi
+          if [[ -z "$TAG_NAME" ]]; then
+            INPUT_TAG="${{ github.event.inputs.tag_name || '' }}"
+            if [[ -n "$INPUT_TAG" ]]; then
+              TAG_NAME="$INPUT_TAG"
+            else
+              SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
+              TAG_NAME="manual-${SHORT_SHA}"
+            fi
+          fi
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+      - name: Select latest Xcode
+        run: |
+          LATEST_XCODE=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -1)
+          if [ -n "$LATEST_XCODE" ]; then sudo xcode-select -s "$LATEST_XCODE"; fi
+          xcodebuild -version
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+          cache: true
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Update pubspec.yaml version
+        run: |
+          VERSION='${{ steps.meta.outputs.tag_name }}'
+          CLEAN_VERSION=${VERSION#v}
+          BUILD_NUMBER=${{ github.run_number }}
+          sed -i "" "s/^version: .*/version: ${CLEAN_VERSION}+${BUILD_NUMBER}/" pubspec.yaml
+          grep "^version:" pubspec.yaml
+
+      - name: Setup iOS signing from secrets
+        env:
+          IOS_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+          IOS_P12_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          IOS_PROVISION_PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE }}
+          IOS_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          if [ -n "${IOS_P12_BASE64:-}" ]; then
+            echo "Setting up iOS signing..."
+            KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+            KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+            security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+            security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+            security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+            CERT_PATH=$RUNNER_TEMP/cert.p12
+            echo "$IOS_P12_BASE64" | base64 -d > $CERT_PATH
+            security import $CERT_PATH -P "$IOS_P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+            security list-keychain -d user -s $KEYCHAIN_PATH
+            PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
+            echo "$IOS_PROVISION_PROFILE_BASE64" | base64 -d > $PP_PATH
+            PP_UUID=$(security cms -D -i $PP_PATH | plutil -extract UUID raw -)
+            mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+            cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/${PP_UUID}.mobileprovision
+            security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+            security find-identity -v -p codesigning $KEYCHAIN_PATH
+            printf '%s\n' \
+              '<?xml version="1.0" encoding="UTF-8"?>' \
+              '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
+              '<plist version="1.0">' \
+              '<dict>' \
+              '    <key>method</key>' \
+              '    <string>app-store</string>' \
+              '    <key>teamID</key>' \
+              "    <string>${IOS_TEAM_ID}</string>" \
+              '    <key>uploadBitcode</key>' \
+              '    <false/>' \
+              '    <key>uploadSymbols</key>' \
+              '    <true/>' \
+              '    <key>signingStyle</key>' \
+              '    <string>manual</string>' \
+              '    <key>signingCertificate</key>' \
+              '    <string>Apple Distribution</string>' \
+              '    <key>provisioningProfiles</key>' \
+              '    <dict>' \
+              '        <key>com.tntlikely.xplayer</key>' \
+              '        <string>xplayer_AppStore</string>' \
+              '    </dict>' \
+              '</dict>' \
+              '</plist>' \
+              > ios/ExportOptions.plist
+            echo "IOS_SIGNING_ENABLED=true" >> $GITHUB_ENV
+            echo "iOS signing OK"
+          else
+            echo "No iOS signing secrets — unsigned only"
+            echo "IOS_SIGNING_ENABLED=false" >> $GITHUB_ENV
+          fi
+
+      - name: Build iOS (no codesign, STORE build = 纯播放器无内置源)
+        run: flutter build ios --release --no-codesign --dart-define=STORE_BUILD=true
+
+      - name: Configure Xcode for manual signing
+        if: env.IOS_SIGNING_ENABLED == 'true'
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          PROJECT_FILE="ios/Runner.xcodeproj/project.pbxproj"
+          sed -i '' 's/"CODE_SIGN_IDENTITY\[sdk=iphoneos\*\]" = "iPhone Developer";/"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";/g' "$PROJECT_FILE"
+          sed -i '' '/CODE_SIGN_STYLE = /d' "$PROJECT_FILE"
+          sed -i '' '/DEVELOPMENT_TEAM = /d' "$PROJECT_FILE"
+          sed -i '' '/PROVISIONING_PROFILE_SPECIFIER = /d' "$PROJECT_FILE"
+          perl -i -pe "s/(buildSettings = \{)/\$1\n\t\t\t\tCODE_SIGN_STYLE = Manual;\n\t\t\t\tDEVELOPMENT_TEAM = ${APPLE_TEAM_ID};/g" "$PROJECT_FILE"
+          perl -i -pe '
+            if (/^\s+PRODUCT_BUNDLE_IDENTIFIER = com\.tntlikely\.xplayer;\s*$/) {
+              print "\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = \"xplayer_AppStore\";\n";
+            }
+          ' "$PROJECT_FILE"
+          echo "Xcode signing configured"
+
+      - name: Archive iOS
+        if: env.IOS_SIGNING_ENABLED == 'true'
+        run: |
+          xcodebuild archive \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner -configuration Release \
+            -archivePath build/ios/Runner.xcarchive \
+            -quiet 2>&1 | grep -E "error:|failed|succeeded" || true
+          if [ ! -d build/ios/Runner.xcarchive ]; then echo "Archive failed"; exit 1; fi
+
+      - name: Export IPA
+        if: env.IOS_SIGNING_ENABLED == 'true'
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath build/ios/Runner.xcarchive \
+            -exportPath build/ios/ipa \
+            -exportOptionsPlist ios/ExportOptions.plist \
+            -quiet 2>&1 | grep -E "error:|Exported|succeeded" || true
+          ls -lh build/ios/ipa/ || (echo "Export failed"; exit 1)
+
+      - name: Copy signed IPA
+        if: env.IOS_SIGNING_ENABLED == 'true'
+        run: |
+          VERSION="${{ steps.meta.outputs.tag_name }}"
+          if ls build/ios/ipa/*.ipa >/dev/null 2>&1; then
+            cp build/ios/ipa/*.ipa "xplayer-${VERSION}-signed.ipa"
+            ls -lh "xplayer-${VERSION}-signed.ipa"
+          fi
+
+      - name: Cleanup keychain
+        if: always() && env.IOS_SIGNING_ENABLED == 'true'
+        run: security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
+
+      - name: Package unsigned IPA fallback
+        run: |
+          VERSION="${{ steps.meta.outputs.tag_name }}"
+          APP_PATH="build/ios/iphoneos/Runner.app"
+          if [ -d "$APP_PATH" ]; then
+            ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "xplayer-${VERSION}-iphoneos.app.zip"
+            mkdir -p Payload && cp -R "$APP_PATH" Payload/
+            /usr/bin/zip -qry "xplayer-${VERSION}-unsigned.ipa" Payload
+            rm -rf Payload
+          fi
+          ls -la xplayer-${VERSION}-* || true
+
+      - name: Upload signed IPA artifact (consumed by ios_appstore job)
+        if: env.IOS_SIGNING_ENABLED == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-signed
+          path: xplayer-*-signed.ipa
+          if-no-files-found: error
+
+      - name: Upload iOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios
+          path: |
+            xplayer-*-iphoneos.app.zip
+            xplayer-*-unsigned.ipa
+
+  # TestFlight 上传独立成 job:上传失败时整个 run 会变红(无 continue-on-error),
+  # 但它不在 release 的 needs 里,所以不会阻塞 GitHub Release 发布。复用 ios job 产出的签名 ipa。
+  ios_appstore:
+    name: iOS → TestFlight
+    needs: [ios]
+    runs-on: macos-latest
+    steps:
+      - name: Download signed IPA
+        # 无签名 secrets 时 ios job 不会产出 ios-signed,这里下载失败属正常;
+        # 真正的上传失败由下一步(无 continue-on-error)暴露成红色。
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: ios-signed
+          path: signed
+      - name: Upload to TestFlight
+        env:
+          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          IPA_FILE=$(ls signed/*.ipa 2>/dev/null | head -1 || true)
+          if [ -z "$IPA_FILE" ]; then
+            echo "No signed IPA artifact (iOS signing disabled) — nothing to upload"
+            exit 0
+          fi
+          if [ -z "${APPLE_API_KEY_CONTENT:-}" ] || [ -z "${APPLE_API_KEY_ID:-}" ] || [ -z "${APPLE_API_ISSUER_ID:-}" ]; then
+            echo "No App Store Connect API key secrets — skipped TestFlight upload"
+            exit 0
+          fi
+          echo "Uploading $IPA_FILE to TestFlight..."
+          mkdir -p ~/.appstoreconnect/private_keys
+          P8="$HOME/.appstoreconnect/private_keys/AuthKey_${APPLE_API_KEY_ID}.p8"
+          printf '%s' "$APPLE_API_KEY_CONTENT" > "$P8"; chmod 600 "$P8"
+          xcrun altool --upload-app --type ios --file "$IPA_FILE" \
+            --apiKey "$APPLE_API_KEY_ID" --apiIssuer "$APPLE_API_ISSUER_ID" --verbose
+          rm -f "$P8"
+          echo "Uploaded to TestFlight"
+
+  linux:
+    name: Linux (tar.gz)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare release metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          IS_TAG="false"
+          TAG_NAME=""
+          if [[ "${GITHUB_REF:-}" == refs/tags/* ]]; then
+            IS_TAG="true"
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+          fi
+          if [[ -z "$TAG_NAME" ]]; then
+            INPUT_TAG="${{ github.event.inputs.tag_name || '' }}"
+            if [[ -n "$INPUT_TAG" ]]; then
+              TAG_NAME="$INPUT_TAG"
+            else
+              SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
+              TAG_NAME="manual-${SHORT_SHA}"
+            fi
+          fi
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+      - name: Install Linux build dependencies
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+          cache: true
+
+      - name: Enable Linux desktop
+        run: flutter config --enable-linux-desktop
+
+      - name: Update pubspec.yaml version
+        run: |
+          VERSION='${{ steps.meta.outputs.tag_name }}'
+          echo "Updating pubspec.yaml version to: $VERSION"
+          CLEAN_VERSION=${VERSION#v}
+          BUILD_NUMBER=${{ github.run_number }}
+          sed -i "s/^version: .*/version: ${CLEAN_VERSION}+${BUILD_NUMBER}/" pubspec.yaml
+          echo "Updated version in pubspec.yaml:"
+          grep "^version:" pubspec.yaml
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Build Linux (release)
+        run: flutter build linux --release
+
+      - name: Package Linux tar.gz
+        run: |
+          set -euo pipefail
+          cd build/linux/x64/release/bundle
+          tar -czf ../../../xplayer-linux-x64.tar.gz *
+          cd -
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          if-no-files-found: error
+          path: build/linux/xplayer-linux-x64.tar.gz
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [android, windows, macos, ios, linux]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prepare release metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          IS_TAG="false"
+          TAG_NAME=""
+          if [[ "${GITHUB_REF:-}" == refs/tags/* ]]; then
+            IS_TAG="true"
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+          fi
+          if [[ -z "$TAG_NAME" ]]; then
+            INPUT_TAG="${{ github.event.inputs.tag_name || '' }}"
+            if [[ -n "$INPUT_TAG" ]]; then
+              TAG_NAME="$INPUT_TAG"
+            else
+              SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
+              TAG_NAME="manual-${SHORT_SHA}"
+            fi
+          fi
+          # 手动触发默认 prerelease=true；tag 触发默认 false
+          INPUT_PRERELEASE="${{ github.event.inputs.prerelease || '' }}"
+          if [[ "$IS_TAG" == "true" ]]; then
+            PRERELEASE="false"
+          else
+            PRERELEASE=${INPUT_PRERELEASE:-true}
+          fi
+          # 是否创建 Release
+          INPUT_CREATE="${{ github.event.inputs.create_release || '' }}"
+          if [[ "$IS_TAG" == "true" ]]; then
+            CREATE_RELEASE="true"
+          else
+            CREATE_RELEASE=${INPUT_CREATE:-false}
+          fi
+          RELEASE_NAME_INPUT="${{ github.event.inputs.release_name || '' }}"
+          if [[ -n "$RELEASE_NAME_INPUT" ]]; then
+            RELEASE_NAME="$RELEASE_NAME_INPUT"
+          else
+            RELEASE_NAME="$TAG_NAME"
+          fi
+          echo "is_tag=$IS_TAG" >> $GITHUB_OUTPUT
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "prerelease=$PRERELEASE" >> $GITHUB_OUTPUT
+          echo "create_release=$CREATE_RELEASE" >> $GITHUB_OUTPUT
+          echo "release_name=$RELEASE_NAME" >> $GITHUB_OUTPUT
+      - name: Download Android artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: android
+          path: ./dist/android
+
+      - name: List downloaded artifacts (debug)
+        run: |
+          echo "== dist tree =="
+          ls -R ./dist || true
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        continue-on-error: true  # Windows 失败时无产物,跳过不阻塞发布
+        with:
+          name: windows
+          path: ./dist/windows
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: macos
+          path: ./dist/macos
+
+      - name: Download iOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ios
+          path: ./dist/ios
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: linux
+          path: ./dist/linux
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          TAG="${{ steps.meta.outputs.tag_name }}"
+          # 上一个发布 tag = 历史上最近的祖先「版本」tag(排除 manual-* 等非版本 tag),
+          # 避免 --sort=-version:refname 把 manual-* 排到最前、导致变更记录跨越多个版本。
+          PREV_TAG=$(git describe --tags --abbrev=0 --match '[0-9]*' --match 'v[0-9]*' HEAD^ 2>/dev/null || true)
+          echo "Current tag: $TAG"
+          echo "Previous tag: $PREV_TAG"
+          # 生成 commit 列表（排除 merge commit）
+          if [ -n "$PREV_TAG" ]; then
+            echo "Generating commit log from $PREV_TAG to HEAD"
+            COMMITS=$(git log --no-merges --pretty=format:"- %s ([%h](https://github.com/${GITHUB_REPOSITORY}/commit/%H))" "$PREV_TAG"..HEAD)
+          else
+            echo "No previous tag found, showing all commits"
+            COMMITS=$(git log --no-merges --pretty=format:"- %s ([%h](https://github.com/${GITHUB_REPOSITORY}/commit/%H))")
+          fi
+          cat > RELEASE_NOTES.md <<EOF
+
+          ## 变更记录
+          $COMMITS
+
+          EOF
+          echo "notes_file=RELEASE_NOTES.md" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        if: ${{ steps.meta.outputs.create_release == 'true' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag_name }}
+          name: ${{ steps.meta.outputs.release_name }}
+          prerelease: ${{ steps.meta.outputs.prerelease == 'true' }}
+          body_path: ${{ steps.notes.outputs.notes_file }}
+          files: |
+            dist/android/**/*.apk
+            dist/android/**/*.aab
+            dist/windows/*
+            dist/macos/*
+            dist/ios/*
+            dist/linux/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
