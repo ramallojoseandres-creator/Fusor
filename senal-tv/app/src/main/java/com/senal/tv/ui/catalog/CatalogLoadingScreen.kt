@@ -77,9 +77,8 @@ fun CatalogLoadingScreen(
                 return@LaunchedEffect
             }
             busy = false
-            error = result.error
-                ?: "No hay canales. Revisa el servidor o pulsa Reintentar."
-            message = "No se pudo cargar la lista"
+            error = "Reconectando… ${result.error ?: "Sin respuesta del servidor"}"
+            message = "Reconectando…"
             return@LaunchedEffect
         }
 

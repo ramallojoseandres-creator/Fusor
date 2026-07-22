@@ -13,46 +13,55 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.darkColorScheme
 
 /**
- * SEÑAL ATV v2 — navy void + neon cyan / magenta / gold accents (mockup atv-00 / guía / player).
+ * SEÑAL — identidad Flujo-style en negro profundo + azul + turquesa.
  */
-val Graphite = Color(0xFF060A14)
-val GraphiteElevated = Color(0xFF0C1424)
-val GraphiteCard = Color(0xFF121C30)
-val PanelGlass = Color(0xE60A1220)
+val Graphite = Color(0xFF000000)
+val GraphiteElevated = Color(0xFF121212)
+val GraphiteCard = Color(0xFF1A1A1A)
+val PanelGlass = Color(0xE6121212)
 val PanelBorder = Color(0x33FFFFFF)
 
-/** Primary accent = SEÑAL teal (not Flujo Magis orange). */
-val BrandOrange = Color(0xFF00E5C8)
-val BrandOrangeHot = Color(0xFF5CFFE8)
-val SignalCyan = BrandOrange
-val SignalCyanHot = BrandOrangeHot
-val NeonMagenta = Color(0xFFFF2D95)
-val NeonPurple = Color(0xFF8B5CFF)
-val NeonBlue = Color(0xFF3D9EFF)
+/** Turquesa — foco, CTAs activos, textos clave. */
+val BrandTurquoise = Color(0xFF00E5C8)
+val BrandTurquoiseHot = Color(0xFF5CFFE8)
+
+/** Azul — elementos principales, carga, estados. */
+val BrandBlue = Color(0xFF1E6FFF)
+val BrandBlueDeep = Color(0xFF0A2A6B)
+val BrandBlueSoft = Color(0xFF3D9EFF)
+
+/** Alias legacy (código existente usa BrandOrange = acento principal). */
+val BrandOrange = BrandTurquoise
+val BrandOrangeHot = BrandTurquoiseHot
+val SignalCyan = BrandTurquoise
+val SignalCyanHot = BrandTurquoiseHot
+val NeonMagenta = Color(0xFF3D9EFF)
+val NeonPurple = Color(0xFF1E6FFF)
+val NeonBlue = BrandBlueSoft
 val LiveYellow = Color(0xFFFFC107)
 val LiveGreen = Color(0xFF39E56A)
 val ChannelGold = Color(0xFFFFD54A)
 val LiveRed = Color(0xFFE53935)
-val Violet = NeonPurple
-val Teal = Color(0xFF2AD4C8)
-val TilePurple = NeonPurple
-val TileCyan = BrandOrange
-val TileGreen = LiveGreen
-val TileCoral = NeonMagenta
+val Violet = BrandBlue
+val Teal = BrandTurquoise
+val TilePurple = BrandBlue
+val TileCyan = BrandTurquoise
+val TileGreen = BrandBlueSoft
+val TileCoral = BrandBlueDeep
 val FocusWhite = Color(0xFFEAF6FF)
-val TextPrimary = Color(0xFFEAF2FA)
+val TextPrimary = Color(0xFFF2F7FA)
 val TextMuted = Color(0xFF8A9BB0)
 val Danger = Color(0xFFFF8A80)
 
 val SplashGradient = Brush.radialGradient(
-    colors = listOf(Color(0xFF0A2038), Graphite, Color(0xFF020408))
+    colors = listOf(BrandBlueDeep, Graphite, Color(0xFF000000))
 )
 
 val HomeAtmosphere = Brush.verticalGradient(
     colors = listOf(
-        Color(0xFF0A1228),
-        Color(0xFF060A14),
-        Color(0xFF040810)
+        Color(0xFF121212),
+        Color(0xFF000000),
+        Color(0xFF000000)
     )
 )
 
@@ -101,22 +110,22 @@ data class SenalTypography(
         fontWeight = FontWeight.SemiBold,
         fontSize = 15.sp,
         letterSpacing = 1.5.sp,
-        color = TextPrimary
+        color = BrandTurquoise
     )
 )
 
 val LocalSenalTypography = staticCompositionLocalOf { SenalTypography() }
 
 private val SenalDarkScheme = darkColorScheme(
-    primary = BrandOrange,
+    primary = BrandTurquoise,
     onPrimary = Color.Black,
-    secondary = NeonMagenta,
-    onSecondary = Graphite,
+    secondary = BrandBlue,
+    onSecondary = TextPrimary,
     background = Graphite,
     onBackground = TextPrimary,
     surface = GraphiteElevated,
     onSurface = TextPrimary,
-    border = BrandOrange.copy(alpha = 0.45f)
+    border = BrandTurquoise.copy(alpha = 0.55f)
 )
 
 @Composable

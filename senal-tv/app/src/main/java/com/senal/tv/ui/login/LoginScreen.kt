@@ -117,7 +117,16 @@ fun LoginScreen(
                 delay(700)
                 onLoggedIn()
             }.onFailure {
-                error = it.message ?: "No se pudo iniciar sesión"
+                val raw = it.message.orEmpty()
+                error = when {
+                    raw.contains("Unable to resolve", true) ||
+                        raw.contains("Failed to connect", true) ||
+                        raw.contains("timeout", true) ||
+                        raw.contains("Connection", true) ||
+                        raw.contains("UnknownHost", true) ->
+                        "Reconectando… Comprueba el servidor (${com.senal.tv.ServerConfig.SERVER_IP})"
+                    else -> raw.ifBlank { "No se pudo iniciar sesión" }
+                }
             }
         }
     }

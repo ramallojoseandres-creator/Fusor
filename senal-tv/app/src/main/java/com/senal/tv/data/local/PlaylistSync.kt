@@ -2,6 +2,7 @@ package com.senal.tv.data.local
 
 import android.content.Context
 import com.senal.tv.BuildConfig
+import com.senal.tv.ServerConfig
 import java.io.File
 import java.util.zip.GZIPOutputStream
 import kotlinx.coroutines.Dispatchers
@@ -150,7 +151,7 @@ class PlaylistSync(
     }
 
     private suspend fun downloadAndApply(token: String): SyncResult? {
-        val base = BuildConfig.API_BASE_URL.trimEnd('/')
+        val base = ServerConfig.baseUrl().trimEnd('/')
         val url = "$base/playlist.m3u"
         val req = Request.Builder()
             .url(url)

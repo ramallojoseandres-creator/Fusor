@@ -1,6 +1,7 @@
 package com.senal.tv.data.api
 
 import com.senal.tv.BuildConfig
+import com.senal.tv.ServerConfig
 import com.senal.tv.data.local.TokenStore
 import kotlinx.serialization.json.Json
 import okhttp3.Interceptor
@@ -53,7 +54,7 @@ object NetworkModule {
             .build()
 
         return Retrofit.Builder()
-            .baseUrl(BuildConfig.API_BASE_URL)
+            .baseUrl(ServerConfig.baseUrl())
             .client(client)
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()

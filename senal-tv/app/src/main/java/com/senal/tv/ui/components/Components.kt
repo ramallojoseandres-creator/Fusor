@@ -94,10 +94,17 @@ fun rememberFlujoFocusModifier(focused: Boolean, big: Boolean = true): Modifier 
             if (glow > 0f) {
                 val pad = size.width * 0.015f
                 drawRoundRect(
-                    color = BrandOrange.copy(alpha = 0.22f * glow),
+                    color = BrandOrange.copy(alpha = 0.35f * glow),
                     cornerRadius = androidx.compose.ui.geometry.CornerRadius(10.dp.toPx()),
                     size = androidx.compose.ui.geometry.Size(size.width + pad * 2, size.height + pad * 2),
                     topLeft = Offset(-pad, -pad)
+                )
+                drawRoundRect(
+                    color = BrandOrangeHot.copy(alpha = 0.85f * glow),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(10.dp.toPx()),
+                    size = androidx.compose.ui.geometry.Size(size.width + pad * 2, size.height + pad * 2),
+                    topLeft = Offset(-pad, -pad),
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5.dp.toPx())
                 )
             }
         }

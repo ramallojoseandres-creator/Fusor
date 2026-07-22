@@ -104,7 +104,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** Flujo-style bottom tiles — labels exactos; acentos SEÑAL (teal donde Flujo usaba naranja). */
+/** Flujo-style bottom tiles — estética unificada azul/negro; foco turquesa. */
 private data class NavTile(
     val section: HomeSection,
     val label: String,
@@ -121,28 +121,28 @@ private val flujoTiles = listOf(
         HomeSection.LIVE, "VIVO",
         R.mipmap.bg_main_live_category_item_n,
         R.mipmap.bg_main_live_category_item_f,
-        Color(0xFFE85D55),
+        Color(0xFF1E6FFF),
         TileIcon.LIVE
     ),
     NavTile(
         HomeSection.SERIES, "SERIE",
         R.mipmap.bg_main_special_category_item_n,
         R.mipmap.bg_main_special_category_item_f,
-        Color(0xFF5BA8E8),
+        Color(0xFF0A2A6B),
         TileIcon.SERIES
     ),
     NavTile(
         HomeSection.MOVIES, "PELÍCULA",
         R.mipmap.bg_main_vod_category_item_n,
         R.mipmap.bg_main_vod_category_item_f,
-        Color(0xFF3ECF8E),
+        Color(0xFF3D9EFF),
         TileIcon.MOVIE
     ),
     NavTile(
         HomeSection.SERIES, "ANIME",
         R.mipmap.bg_main_game_category_item_n,
         R.mipmap.bg_main_game_category_item_f,
-        Color(0xFF8B6FE0),
+        Color(0xFF1A3A7A),
         TileIcon.ANIME
     ),
     NavTile(
@@ -268,7 +268,7 @@ fun HomeScreen(
         Box(
             Modifier
                 .fillMaxSize()
-                .background(Color(0xFF0E0E10))
+                .background(Color(0xFF000000))
         ) {
             FlujoHomeHub(
                 container = container,
