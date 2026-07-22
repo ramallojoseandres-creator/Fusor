@@ -42,8 +42,8 @@ android {
         create("tablet") {
             dimension = "device"
             applicationId = "com.senal.tablet"
-            versionCode = 1200
-            versionName = "1.20.0-x200"
+            versionCode = 1201
+            versionName = "1.20.1-x200"
             buildConfigField("boolean", "IS_TABLET", "true")
             buildConfigField("String", "TABLET_MODEL", "\"SM-X200\"")
             ndk {

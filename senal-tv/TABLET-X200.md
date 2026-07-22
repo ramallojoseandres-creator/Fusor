@@ -12,7 +12,7 @@ APK dedicada para **Samsung Galaxy Tab A8 10.5" (SM-X200 / SM-X205)**.
 | Targets táctiles | Enfoque D-pad | Filas/tiles más altos |
 | Orientación | Landscape fijo | `sensorLandscape` |
 | ABI | Todas | `armeabi-v7a` + `arm64-v8a` (Unisoc T618) |
-| Versión | 1.10.x | **1.20.0-x200** |
+| Versión | 1.8.x | **1.20.1-x200** |
 
 ## Compilar
 
