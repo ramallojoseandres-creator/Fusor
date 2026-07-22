@@ -74,7 +74,6 @@ import coil.compose.AsyncImage
 import com.senal.tv.AppContainer
 import com.senal.tv.data.model.CatalogItem
 import com.senal.tv.data.model.Category
-import com.senal.tv.ui.focus.senalFocusable
 import com.senal.tv.ui.theme.BrandOrange
 import com.senal.tv.ui.theme.BrandOrangeHot
 import com.senal.tv.ui.theme.ChannelGold
@@ -215,17 +214,21 @@ fun PlayerScreen(
         }
     }
 
-    // Solo recarga la lista visible de la guía — NO cambia el stream ni zapList.
+    // Debounce: no recargar canales en cada tick del D-pad al pasar categorías.
     LaunchedEffect(selectedCategory, guideVisible) {
         if (!guideVisible) return@LaunchedEffect
+        val cat = selectedCategory
+        delay(140)
+        if (!guideVisible || selectedCategory != cat) return@LaunchedEffect
         val page = runCatching {
             container.catalogRepository.page(
                 type = "live",
-                category = selectedCategory,
+                category = cat,
                 page = 1,
                 limit = 120
             )
         }.getOrNull()
+        if (selectedCategory != cat) return@LaunchedEffect
         val list = page?.resolveItems().orEmpty().ifEmpty { page?.items.orEmpty() }
         if (list.isNotEmpty()) {
             guideChannels = list
@@ -565,7 +568,7 @@ private fun PlayerGuideOverlay(
                         .width(200.dp)
                         .fillMaxHeight(),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
-                    contentPadding = PaddingValues(4.dp)
+                    contentPadding = PaddingValues(4.dp),
                 ) {
                     item {
                         Text(
@@ -576,12 +579,16 @@ private fun PlayerGuideOverlay(
                             modifier = Modifier.padding(8.dp)
                         )
                     }
-                    items(categories, key = { it.label() }) { cat ->
+                    items(categories, key = { it.label() }, contentType = { "cat" }) { cat ->
                         val active = cat.label() == selectedCategory
                         GuideRow(
                             label = cat.label(),
                             selected = active,
                             requestFocus = false,
+                            onFocused = {
+                                onInteract()
+                                onCategory(cat.label())
+                            },
                             onClick = {
                                 onInteract()
                                 onCategory(cat.label())
@@ -596,7 +603,7 @@ private fun PlayerGuideOverlay(
                         .weight(1f)
                         .fillMaxHeight(),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
-                    contentPadding = PaddingValues(4.dp)
+                    contentPadding = PaddingValues(4.dp),
                 ) {
                     item {
                         Text(
@@ -607,7 +614,7 @@ private fun PlayerGuideOverlay(
                             modifier = Modifier.padding(8.dp)
                         )
                     }
-                    items(channels, key = { it.resolveId() }) { ch ->
+                    items(channels, key = { it.resolveId() }, contentType = { "ch" }) { ch ->
                         val isPlaying = ch.resolveId() == currentId
                         GuideRow(
                             label = ch.resolveTitle(),
@@ -636,6 +643,7 @@ private fun GuideRow(
     selected: Boolean,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
+    onFocused: (() -> Unit)? = null,
     focusRequester: FocusRequester? = null,
     requestFocus: Boolean = false
 ) {
@@ -654,8 +662,10 @@ private fun GuideRow(
         modifier = Modifier
             .fillMaxWidth()
             .focusRequester(fr)
-            .senalFocusable(focused = focused, scaleFocused = 1.04f, cornerRadius = 8.dp)
-            .onFocusChanged { focused = it.isFocused },
+            .onFocusChanged {
+                focused = it.isFocused
+                if (it.isFocused) onFocused?.invoke()
+            },
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = when {

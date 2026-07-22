@@ -5,7 +5,6 @@ import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -29,6 +28,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -89,7 +90,6 @@ import com.senal.tv.AppContainer
 import com.senal.tv.R
 import com.senal.tv.data.model.CatalogItem
 import com.senal.tv.data.model.Category
-import com.senal.tv.ui.focus.senalFocusable
 import com.senal.tv.ui.theme.BrandOrange
 import com.senal.tv.ui.theme.BrandOrangeHot
 import com.senal.tv.ui.theme.ChannelGold
@@ -123,6 +123,9 @@ fun LiveTvScreen(
     val scope = rememberCoroutineScope()
 
     var categories by remember { mutableStateOf<List<Category>>(emptyList()) }
+    /** Categoría con foco D-pad (instantánea — no dispara I/O). */
+    var focusedCategory by remember { mutableStateOf<String?>(null) }
+    /** Categoría cuya lista de canales está cargada / en curso (debounce). */
     var selected by remember { mutableStateOf<String?>(null) }
     var channels by remember { mutableStateOf<List<CatalogItem>>(emptyList()) }
     var page by remember { mutableIntStateOf(1) }
@@ -146,7 +149,7 @@ fun LiveTvScreen(
     var allowPlayback by remember { mutableStateOf(false) }
 
     val listState = rememberLazyListState()
-    val catListState = rememberLazyListState()
+    val catScroll = rememberScrollState()
     val pageSize = 60
     val rootFocus = remember { FocusRequester() }
     val playingFocus = remember { FocusRequester() }
@@ -192,12 +195,7 @@ fun LiveTvScreen(
         if (!guideVisible) return@LaunchedEffect
         val id = playing?.resolveId() ?: return@LaunchedEffect
         val cat = playing?.resolveCategory().orEmpty()
-        if (cat.isNotBlank()) {
-            val catIdx = categories.indexOfFirst { it.label() == cat }
-            if (catIdx >= 0) {
-                runCatching { catListState.scrollToItem(catIdx) }
-            }
-        }
+        // Categorías usan Column+scroll (todas focusables); el scroll lo hace bringIntoView del foco.
         val idx = channels.indexOfFirst { it.resolveId() == id }
         if (idx >= 0) {
             runCatching { listState.scrollToItem(idx) }
@@ -265,6 +263,7 @@ fun LiveTvScreen(
         if (ch != null) {
             val cat = ch.resolveCategory()
             if (cat.isNotBlank() && categories.any { it.label() == cat }) {
+                focusedCategory = cat
                 selected = cat
             }
             focusedChannelId = ch.resolveId()
@@ -310,7 +309,9 @@ fun LiveTvScreen(
                 categories = it
                 guideReady = true
                 if (selected == null || categories.none { c -> c.label() == selected }) {
-                    selected = CatalogRules.defaultCategory(it)
+                    val def = CatalogRules.defaultCategory(it)
+                    selected = def
+                    focusedCategory = def
                 }
             }
             .onFailure { error = it.message }
@@ -319,14 +320,21 @@ fun LiveTvScreen(
         allowPlayback = true
     }
 
-    // 2) Lista de canales al cambiar categoría — NO toca el stream en aire.
+    // Foco en categorías: solo actualiza highlight; la carga espera a que el D-pad se detenga.
+    LaunchedEffect(focusedCategory) {
+        val cat = focusedCategory ?: return@LaunchedEffect
+        delay(140)
+        if (focusedCategory != cat) return@LaunchedEffect
+        if (selected != cat) selected = cat
+    }
+
+    // 2) Lista de canales al cambiar categoría — NO vacía la lista (evita trabarse el foco).
     LaunchedEffect(selected) {
         val category = selected ?: return@LaunchedEffect
         loadingChannels = true
         error = null
         page = 1
         hasMore = true
-        channels = emptyList()
         runCatching {
             container.catalogRepository.page(
                 type = "live",
@@ -335,27 +343,29 @@ fun LiveTvScreen(
                 limit = pageSize
             )
         }.onSuccess { response ->
+            // Ignorar respuestas obsoletas si el usuario ya cambió de categoría.
+            if (selected != category) return@onSuccess
             channels = response.resolveItems()
             hasMore = response.resolveHasMore(pageSize)
-            // Primera carga: sintonizar un canal inicial si aún no hay ninguno.
             if (playing == null) {
                 channels.firstOrNull()?.let { tune(it) }
             } else {
-                // Mantener cursor en el canal en aire si está en esta categoría.
                 val keep = channels.firstOrNull { it.resolveId() == playing!!.resolveId() }
                 focusedChannelId = keep?.resolveId() ?: focusedChannelId
             }
         }.onFailure {
-            error = it.message ?: "No se pudieron cargar los canales"
+            if (selected == category) {
+                error = it.message ?: "No se pudieron cargar los canales"
+            }
         }
-        loadingChannels = false
+        if (selected == category) loadingChannels = false
     }
 
-    // Preview al enfocar (estilo Flujo): debounce para no spamear el decoder.
+    // Preview al enfocar canal: debounce más largo para no pelear con el D-pad.
     LaunchedEffect(focusedChannelId, guideVisible, channels) {
         if (!guideVisible) return@LaunchedEffect
         val id = focusedChannelId ?: return@LaunchedEffect
-        delay(280)
+        delay(450)
         if (focusedChannelId != id) return@LaunchedEffect
         val channel = channels.firstOrNull { it.resolveId() == id } ?: return@LaunchedEffect
         if (playing?.resolveId() != id) {
@@ -615,28 +625,33 @@ fun LiveTvScreen(
                                 .height(22.dp)
                                 .widthIn(max = 110.dp)
                         )
-                        LazyColumn(
-                            state = catListState,
-                            verticalArrangement = Arrangement.spacedBy(0.dp)
+                        // Column (no Lazy): todas las categorías son focusables → no se traba en Bolivia.
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(catScroll),
                         ) {
                             if (loadingCats && categories.isEmpty()) {
-                                item {
-                                    Text(
-                                        "Cargando…",
-                                        color = TextMuted,
-                                        modifier = Modifier.padding(8.dp)
-                                    )
-                                }
+                                Text(
+                                    "Cargando…",
+                                    color = TextMuted,
+                                    modifier = Modifier.padding(8.dp)
+                                )
                             }
-                            items(categories, key = { it.label() }) { category ->
-                                val active = category.label() == selected
-                                var catFocused by remember(category.label()) { mutableStateOf(false) }
+                            categories.forEach { category ->
+                                val label = category.label()
+                                val active = label == (focusedCategory ?: selected)
+                                var catFocused by remember(label) { mutableStateOf(false) }
+                                val highlighted = active || catFocused
                                 Surface(
-                                    onClick = { selected = category.label() },
+                                    onClick = {
+                                        focusedCategory = label
+                                        selected = label
+                                    },
                                     shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(0.dp)),
                                     colors = ClickableSurfaceDefaults.colors(
                                         containerColor = when {
-                                            active || catFocused -> BrandOrange.copy(alpha = 0.92f)
+                                            highlighted -> BrandOrange.copy(alpha = 0.92f)
                                             else -> Color.Transparent
                                         },
                                         focusedContainerColor = BrandOrange.copy(alpha = 0.95f)
@@ -644,39 +659,32 @@ fun LiveTvScreen(
                                     scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .senalFocusable(
-                                            focused = catFocused,
-                                            scaleFocused = 1.03f,
-                                            cornerRadius = 4.dp,
-                                            drawGlow = catFocused,
-                                        )
                                         .onFocusChanged { state ->
                                             catFocused = state.isFocused
-                                            // Flujo: al enfocar categoría se selecciona y carga canales
                                             if (state.isFocused) {
-                                                selected = category.label()
+                                                focusedCategory = label
                                             }
                                         }
                                 ) {
                                     Row(
                                         Modifier
                                             .fillMaxWidth()
-                                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                                            .padding(horizontal = 10.dp, vertical = 7.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Box(
                                             Modifier
-                                                .size(if (active || catFocused) 7.dp else 5.dp)
+                                                .size(if (highlighted) 7.dp else 5.dp)
                                                 .clip(CircleShape)
                                                 .background(
-                                                    if (active || catFocused) Color.White else Color.White.copy(0.7f)
+                                                    if (highlighted) Color.White else Color.White.copy(0.7f)
                                                 )
                                         )
                                         Spacer(Modifier.width(8.dp))
                                         Text(
-                                            text = category.label(),
-                                            color = if (active || catFocused) Color.White else TextPrimary,
-                                            fontWeight = if (active || catFocused) FontWeight.Bold else FontWeight.Medium,
+                                            text = label,
+                                            color = if (highlighted) Color.White else TextPrimary,
+                                            fontWeight = if (highlighted) FontWeight.Bold else FontWeight.Medium,
                                             fontSize = 13.sp,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
@@ -712,9 +720,13 @@ fun LiveTvScreen(
                             else -> LazyColumn(
                                 state = listState,
                                 verticalArrangement = Arrangement.spacedBy(2.dp),
-                                contentPadding = PaddingValues(bottom = 12.dp)
+                                contentPadding = PaddingValues(bottom = 12.dp),
                             ) {
-                                items(channels, key = { it.resolveId() }) { channel ->
+                                items(
+                                    channels,
+                                    key = { it.resolveId() },
+                                    contentType = { "ch" },
+                                ) { channel ->
                                     val isOnAir = channel.resolveId() == playing?.resolveId()
                                     GuideChannelRow(
                                         item = channel,
@@ -942,16 +954,11 @@ private fun GuideChannelRow(
             },
             focusedContainerColor = BrandOrange
         ),
+        // Foco plano (sin graphicsLayer/glow): navegación D-pad más rápida.
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
         modifier = Modifier
             .fillMaxWidth()
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
-            .senalFocusable(
-                focused = focused,
-                scaleFocused = 1.04f,
-                cornerRadius = 4.dp,
-                drawGlow = focused,
-            )
             .onFocusChanged {
                 focused = it.isFocused
                 if (it.isFocused) onFocused()
