@@ -88,6 +88,7 @@ import com.senal.tv.ui.components.FocusableButton
 import com.senal.tv.ui.components.SenalBackground
 import com.senal.tv.ui.favorites.FavoritesScreen
 import com.senal.tv.ui.focus.FocusTurquoise
+import com.senal.tv.ui.focus.senalFocusable
 import com.senal.tv.ui.live.LiveTvScreen
 import com.senal.tv.ui.movies.MoviesScreen
 import com.senal.tv.ui.search.SearchScreen
@@ -525,16 +526,18 @@ private fun FlujoFeatureCard(
 
     Surface(
         onClick = onClick,
-        modifier = modifier.onFocusChanged { focused = it.isFocused },
+        modifier = modifier
+            .senalFocusable(focused = focused, scaleFocused = 1.06f, cornerRadius = 10.dp)
+            .onFocusChanged { focused = it.isFocused },
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Black,
             focusedContainerColor = Color.Black
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.06f),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
         border = ClickableSurfaceDefaults.border(
             focusedBorder = androidx.tv.material3.Border(
-                border = androidx.compose.foundation.BorderStroke(3.dp, FocusTurquoise),
+                border = androidx.compose.foundation.BorderStroke(0.dp, Color.Transparent),
                 shape = RoundedCornerShape(10.dp)
             ),
             border = androidx.tv.material3.Border(
@@ -637,16 +640,18 @@ private fun FlujoPosterCard(
 
     Surface(
         onClick = onClick,
-        modifier = modifier.onFocusChanged { focused = it.isFocused },
+        modifier = modifier
+            .senalFocusable(focused = focused, scaleFocused = 1.06f, cornerRadius = 10.dp)
+            .onFocusChanged { focused = it.isFocused },
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color(0xFF1A1A1E),
             focusedContainerColor = Color(0xFF1A1A1E)
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
         border = ClickableSurfaceDefaults.border(
             focusedBorder = androidx.tv.material3.Border(
-                border = androidx.compose.foundation.BorderStroke(3.dp, BrandOrange),
+                border = androidx.compose.foundation.BorderStroke(0.dp, Color.Transparent),
                 shape = RoundedCornerShape(10.dp)
             ),
             border = androidx.tv.material3.Border(
@@ -705,12 +710,11 @@ private fun FlujoNavTile(
     modifier: Modifier = Modifier
 ) {
     var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (focused) 1.06f else 1f, tween(140), label = "tile")
 
     Surface(
         onClick = onClick,
         modifier = modifier
-            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .senalFocusable(focused = focused, scaleFocused = 1.06f, cornerRadius = 16.dp)
             .onFocusChanged { focused = it.isFocused },
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
         colors = ClickableSurfaceDefaults.colors(
@@ -882,15 +886,13 @@ private fun RoundIconBtn(
         onClick = onClick,
         modifier = Modifier
             .size(size)
-            .graphicsLayer {
-                val s = if (isFocused) 1.1f else 1f
-                scaleX = s
-                scaleY = s
-            }
-            .onFocusChanged { isFocused = it.isFocused }
-            .then(
-                if (isFocused) Modifier.border(2.dp, BrandOrange, CircleShape) else Modifier
-            ),
+            .senalFocusable(
+                focused = isFocused,
+                scaleFocused = 1.1f,
+                cornerRadius = size / 2,
+                drawGlow = true,
+            )
+            .onFocusChanged { isFocused = it.isFocused },
         shape = ClickableSurfaceDefaults.shape(CircleShape),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Transparent,

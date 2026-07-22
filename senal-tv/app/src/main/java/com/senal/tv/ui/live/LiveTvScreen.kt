@@ -89,6 +89,7 @@ import com.senal.tv.AppContainer
 import com.senal.tv.R
 import com.senal.tv.data.model.CatalogItem
 import com.senal.tv.data.model.Category
+import com.senal.tv.ui.focus.senalFocusable
 import com.senal.tv.ui.theme.BrandOrange
 import com.senal.tv.ui.theme.BrandOrangeHot
 import com.senal.tv.ui.theme.ChannelGold
@@ -289,6 +290,18 @@ fun LiveTvScreen(
         }
     }
 
+    /** Zapping instantáneo ▲/▼ a pantalla completa (guía cerrada). */
+    fun zapChannel(delta: Int) {
+        if (channels.isEmpty()) return
+        val currentId = playing?.resolveId()
+        val idx = channels.indexOfFirst { it.resolveId() == currentId }.let { if (it < 0) 0 else it }
+        val nextIdx = (idx + delta + channels.size) % channels.size
+        val next = channels[nextIdx]
+        if (next.resolveId() == currentId && channels.size == 1) return
+        tune(next)
+        scope.launch { container.libraryRepository.markHistory(next) }
+    }
+
     // 1) Categorías primero.
     LaunchedEffect(hideAdults) {
         loadingCats = true
@@ -454,6 +467,14 @@ fun LiveTvScreen(
                 }
 
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                val isUp =
+                    event.key == Key.DirectionUp ||
+                        code == android.view.KeyEvent.KEYCODE_DPAD_UP ||
+                        code == android.view.KeyEvent.KEYCODE_CHANNEL_UP
+                val isDown =
+                    event.key == Key.DirectionDown ||
+                        code == android.view.KeyEvent.KEYCODE_DPAD_DOWN ||
+                        code == android.view.KeyEvent.KEYCODE_CHANNEL_DOWN
                 when {
                     isBack && guiding -> {
                         guideVisible = false
@@ -473,6 +494,15 @@ fun LiveTvScreen(
                     }
                     isMenu && !guiding -> {
                         showGuide()
+                        true
+                    }
+                    // Pantalla completa: zapping instantáneo con DPAD ▲/▼
+                    isUp && !guiding -> {
+                        zapChannel(-1)
+                        true
+                    }
+                    isDown && !guiding -> {
+                        zapChannel(1)
                         true
                     }
                     else -> false
@@ -614,6 +644,12 @@ fun LiveTvScreen(
                                     scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
                                     modifier = Modifier
                                         .fillMaxWidth()
+                                        .senalFocusable(
+                                            focused = catFocused,
+                                            scaleFocused = 1.03f,
+                                            cornerRadius = 4.dp,
+                                            drawGlow = catFocused,
+                                        )
                                         .onFocusChanged { state ->
                                             catFocused = state.isFocused
                                             // Flujo: al enfocar categoría se selecciona y carga canales
@@ -892,11 +928,6 @@ private fun GuideChannelRow(
     focusRequester: FocusRequester? = null
 ) {
     var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (focused) 1.01f else 1f,
-        animationSpec = tween(120),
-        label = "chScale"
-    )
     val epg = item.resolveNow().ifBlank { "No información" }
 
     Surface(
@@ -915,10 +946,12 @@ private fun GuideChannelRow(
         modifier = Modifier
             .fillMaxWidth()
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
+            .senalFocusable(
+                focused = focused,
+                scaleFocused = 1.04f,
+                cornerRadius = 4.dp,
+                drawGlow = focused,
+            )
             .onFocusChanged {
                 focused = it.isFocused
                 if (it.isFocused) onFocused()

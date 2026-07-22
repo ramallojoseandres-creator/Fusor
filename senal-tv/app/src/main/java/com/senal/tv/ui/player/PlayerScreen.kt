@@ -77,6 +77,7 @@ import coil.compose.AsyncImage
 import com.senal.tv.AppContainer
 import com.senal.tv.data.model.CatalogItem
 import com.senal.tv.data.model.Category
+import com.senal.tv.ui.focus.senalFocusable
 import com.senal.tv.ui.theme.BrandOrange
 import com.senal.tv.ui.theme.BrandOrangeHot
 import com.senal.tv.ui.theme.ChannelGold
@@ -348,17 +349,26 @@ fun PlayerScreen(
                 val guiding = guideVisibleRef.get()
                 // key.keyCode is Long in Compose; Android KeyEvent codes are Int
                 val code = event.key.keyCode.toInt()
+                val isUp =
+                    event.key == Key.DirectionUp ||
+                        code == android.view.KeyEvent.KEYCODE_DPAD_UP ||
+                        code == android.view.KeyEvent.KEYCODE_CHANNEL_UP
+                val isDown =
+                    event.key == Key.DirectionDown ||
+                        code == android.view.KeyEvent.KEYCODE_DPAD_DOWN ||
+                        code == android.view.KeyEvent.KEYCODE_CHANNEL_DOWN
                 when {
-                    event.key == Key.DirectionUp || code == android.view.KeyEvent.KEYCODE_CHANNEL_UP -> {
+                    isUp -> {
                         if (guiding) {
                             bumpGuideTimer()
                             false
                         } else {
+                            // Zapping instantáneo a pantalla completa
                             playNeighbor(-1)
                             true
                         }
                     }
-                    event.key == Key.DirectionDown || code == android.view.KeyEvent.KEYCODE_CHANNEL_DOWN -> {
+                    isDown -> {
                         if (guiding) {
                             bumpGuideTimer()
                             false
@@ -619,6 +629,7 @@ private fun GuideRow(
         modifier = Modifier
             .fillMaxWidth()
             .focusRequester(fr)
+            .senalFocusable(focused = focused, scaleFocused = 1.04f, cornerRadius = 8.dp)
             .onFocusChanged { focused = it.isFocused },
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
         colors = ClickableSurfaceDefaults.colors(
@@ -629,7 +640,7 @@ private fun GuideRow(
             },
             focusedContainerColor = BrandOrangeHot
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f)
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f)
     ) {
         Text(
             text = label,

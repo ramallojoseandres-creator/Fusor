@@ -50,6 +50,7 @@ import com.senal.tv.AppContainer
 import com.senal.tv.BuildConfig
 import com.senal.tv.data.local.AppSettings
 import com.senal.tv.ui.components.FocusableButton
+import com.senal.tv.ui.focus.senalFocusable
 import com.senal.tv.ui.theme.BrandOrange
 import com.senal.tv.ui.theme.BrandOrangeHot
 import com.senal.tv.ui.theme.GraphiteCard
@@ -288,11 +289,7 @@ private fun SettingsGridTile(
         onClick = onClick,
         modifier = modifier
             .height(110.dp)
-            .graphicsLayer {
-                val s = if (focused) 1.04f else 1f
-                scaleX = s
-                scaleY = s
-            }
+            .senalFocusable(focused = focused, scaleFocused = 1.06f, cornerRadius = 14.dp)
             .onFocusChanged { focused = it.isFocused },
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
         colors = ClickableSurfaceDefaults.colors(
@@ -515,7 +512,7 @@ private fun SettingsField(
     number: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier.fillMaxWidth()) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         Text(label, style = LocalSenalTypography.current.caption, color = BrandOrange)
         Spacer(Modifier.height(6.dp))
         BasicTextField(

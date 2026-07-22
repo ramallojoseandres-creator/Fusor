@@ -4,7 +4,7 @@
 
 | Módulo | Ruta |
 |--------|------|
-| Foco D-pad | `ui/focus/AppFocusableModifier.kt` → `appFocusableModifier()` |
+| Foco D-pad | `ui/focus/AppFocusableModifier.kt` → `senalFocusable()` (graphicsLayer) |
 | ExoPlayer | `player/ExoPlayerManager.kt` |
 | Red | `network/NetworkMonitor.kt` + `ui/components/ReconnectBanner.kt` |
 | Home hub | `ui/home/HomeScreen.kt` |

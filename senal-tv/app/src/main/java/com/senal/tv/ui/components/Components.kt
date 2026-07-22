@@ -53,7 +53,7 @@ import com.senal.tv.R
 import com.senal.tv.data.model.CatalogItem
 import com.senal.tv.ui.focus.FocusTurquoise
 import com.senal.tv.ui.focus.FocusTurquoiseSoft
-import com.senal.tv.ui.focus.appFocusableModifier
+import com.senal.tv.ui.focus.senalFocusable
 import com.senal.tv.ui.theme.BrandOrange
 import com.senal.tv.ui.theme.BrandOrangeHot
 import com.senal.tv.ui.theme.FocusWhite
@@ -72,8 +72,7 @@ const val FOCUS_SCALE_SOFT = 1.03f
 
 @Composable
 fun rememberFlujoFocusModifier(focused: Boolean, big: Boolean = true): Modifier {
-    // Delega al modificador de producción (turquesa #00E5FF + escala).
-    return Modifier.appFocusableModifier(
+    return Modifier.senalFocusable(
         focused = focused,
         scaleFocused = if (big) FOCUS_SCALE else FOCUS_SCALE_SOFT,
         cornerRadius = 10.dp,
@@ -151,7 +150,7 @@ fun FocusableButton(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier
-            .then(rememberFlujoFocusModifier(focused, big = false))
+            .senalFocusable(focused = focused, scaleFocused = FOCUS_SCALE_SOFT, cornerRadius = radius)
             .onFocusChanged { focused = it.isFocused },
         shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(radius)),
         colors = ClickableSurfaceDefaults.colors(
@@ -200,7 +199,7 @@ fun FocusColumnTile(
     Surface(
         onClick = onClick,
         modifier = modifier
-            .then(rememberFlujoFocusModifier(focused, big = true))
+            .senalFocusable(focused = focused, scaleFocused = FOCUS_SCALE, cornerRadius = 12.dp)
             .onFocusChanged { focused = it.isFocused },
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
         colors = ClickableSurfaceDefaults.colors(
@@ -209,7 +208,7 @@ fun FocusColumnTile(
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
         content = {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 AsyncImage(
                     model = if (focused) focusedRes else normalRes,
                     contentDescription = label,
@@ -241,7 +240,7 @@ fun ColorTile(
         modifier = modifier
             .fillMaxWidth()
             .height(height)
-            .then(rememberFlujoFocusModifier(focused, big = true))
+            .senalFocusable(focused = focused, scaleFocused = FOCUS_SCALE, cornerRadius = 10.dp)
             .onFocusChanged { focused = it.isFocused },
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
         colors = ClickableSurfaceDefaults.colors(
@@ -304,7 +303,7 @@ fun PosterCard(
         onLongClick = onLongClick,
         modifier = modifier
             .width(170.dp)
-            .then(rememberFlujoFocusModifier(focused, big = true))
+            .senalFocusable(focused = focused, scaleFocused = FOCUS_SCALE, cornerRadius = 16.dp)
             .onFocusChanged { focused = it.isFocused },
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
         colors = ClickableSurfaceDefaults.colors(
@@ -372,7 +371,7 @@ fun ChannelCard(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .then(rememberFlujoFocusModifier(focused, big = false))
+            .senalFocusable(focused = focused, scaleFocused = FOCUS_SCALE_SOFT, cornerRadius = 10.dp)
             .onFocusChanged { focused = it.isFocused },
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
         colors = ClickableSurfaceDefaults.colors(
@@ -463,7 +462,7 @@ fun PulseBorder(active: Boolean, modifier: Modifier = Modifier, content: @Compos
         }
     }
     Box(
-        modifier = modifier.border(
+        modifier = Modifier.border(
             width = 2.dp,
             color = BrandOrange.copy(alpha = if (active) pulse.value else 0f),
             shape = RoundedCornerShape(14.dp)

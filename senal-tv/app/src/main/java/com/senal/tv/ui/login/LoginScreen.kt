@@ -59,6 +59,7 @@ import com.senal.tv.BuildConfig
 import com.senal.tv.R
 import com.senal.tv.data.repository.AuthRepository
 import com.senal.tv.ui.components.ErrorMessage
+import com.senal.tv.ui.focus.senalFocusable
 import com.senal.tv.ui.theme.BrandOrange
 import com.senal.tv.ui.theme.BrandOrangeHot
 import com.senal.tv.ui.theme.LiveGreen
@@ -334,6 +335,7 @@ private fun FlujoLoginButton(
         enabled = enabled,
         modifier = Modifier
             .fillMaxWidth()
+            .senalFocusable(focused = focused, scaleFocused = 1.04f, cornerRadius = 50.dp)
             .onFocusChanged { focused = it.isFocused },
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(50)),
         colors = ClickableSurfaceDefaults.colors(
@@ -341,10 +343,10 @@ private fun FlujoLoginButton(
             focusedContainerColor = BrandOrange.copy(alpha = 0.85f),
             disabledContainerColor = Color(0x882A2A2A)
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
         border = ClickableSurfaceDefaults.border(
             focusedBorder = androidx.tv.material3.Border(
-                border = androidx.compose.foundation.BorderStroke(2.dp, BrandOrangeHot),
+                border = androidx.compose.foundation.BorderStroke(0.dp, Color.Transparent),
                 shape = RoundedCornerShape(50)
             )
         )
