@@ -5,7 +5,8 @@ import com.senal.tv.data.model.Category
 
 /**
  * Live category order from the user's FLUJO reference screenshots.
- * Preferred groups only; Adultos is included last.
+ * Anything outside [preferredLiveOrder] is dropped (category + channels).
+ * Adultos is included last.
  */
 object CatalogRules {
 
