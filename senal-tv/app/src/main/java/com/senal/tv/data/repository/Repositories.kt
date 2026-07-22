@@ -83,8 +83,8 @@ class CatalogRepository(
     suspend fun categories(type: String): List<Category> = withContext(Dispatchers.IO) {
         categoryMutex.withLock {
             memoryCategories[type]?.let { return@withContext it }
-            // v5: preferred order + Adultos last
-            val cacheKey = "cat-v5-$type"
+            // v6: hard-delete non-preferred categories (only user screenshot list + Adultos)
+            val cacheKey = "cat-v6-$type"
             cacheDao.getCategory(cacheKey)?.let { cached ->
                 runCatching {
                     NetworkModule.json.decodeFromString<List<Category>>(cached.json)
@@ -110,6 +110,7 @@ class CatalogRepository(
     /**
      * Prefer server `categories` when present; otherwise page through the catalog
      * until exhaustion so the sidebar is complete (not only the first 100 rows).
+     * Non-preferred groups are discarded later by [CatalogRules.sortCategories].
      */
     private suspend fun discoverCategories(type: String): List<Category> {
         val first = fetchCatalog(type = type, page = 1, limit = 200)
@@ -123,13 +124,14 @@ class CatalogRepository(
         fun absorb(response: CatalogResponse) {
             response.resolveItems().forEach { item ->
                 val label = item.resolveCategory().trim()
-                if (label.isNotBlank()) labels += label
+                if (label.isNotBlank() && CatalogRules.isPreferredLabel(label)) {
+                    labels += CatalogRules.canonicalLabel(label)
+                }
             }
         }
         absorb(first)
         var page = 1
         var hasMore = first.resolveHasMore(200)
-        // Safety cap: enough pages for large IPTV catalogs without hanging cold start.
         while (hasMore && page < 40) {
             page += 1
             val next = runCatching {
@@ -144,10 +146,7 @@ class CatalogRepository(
         return labels
             .map { Category(id = it, name = it) }
             .ifEmpty {
-                listOf(
-                    "Deportes", "Noticias", "Infantil", "USA", "España",
-                    "Latinos", "Música", "4K", "Documentales", "General"
-                ).map { Category(id = it, name = it) }
+                CatalogRules.preferredLiveOrder.map { Category(id = it, name = it) }
             }
     }
 
@@ -160,7 +159,21 @@ class CatalogRepository(
         val key = "$type|${category.orEmpty()}|$page|$limit"
         memoryPages[key]?.let { return@withContext it }
         val response = fetchCatalog(type, category, page, limit)
-        response.resolveItems().forEach { item ->
+        val filtered = if (type.equals("live", ignoreCase = true)) {
+            val preferredOnly = response.resolveItems().filter { item ->
+                val label = category?.takeIf { it.isNotBlank() } ?: item.resolveCategory()
+                CatalogRules.isPreferredLabel(label)
+            }
+            response.copy(
+                items = preferredOnly,
+                channels = preferredOnly,
+                data = preferredOnly,
+                results = preferredOnly
+            )
+        } else {
+            response
+        }
+        filtered.resolveItems().forEach { item ->
             cacheDao.putEpg(
                 EpgCacheEntity(
                     channelId = item.resolveId(),
@@ -170,12 +183,11 @@ class CatalogRepository(
                 )
             )
         }
-        memoryPages[key] = response
-        // keep memory bounded
+        memoryPages[key] = filtered
         if (memoryPages.size > 80) {
             memoryPages.keys.take(20).forEach { memoryPages.remove(it) }
         }
-        response
+        filtered
     }
 
     suspend fun search(query: String): List<CatalogItem> = withContext(Dispatchers.IO) {
