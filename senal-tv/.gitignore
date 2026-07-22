@@ -9,3 +9,4 @@ app/build
 *.apk
 *.ap_
 *.dex
+local.properties
