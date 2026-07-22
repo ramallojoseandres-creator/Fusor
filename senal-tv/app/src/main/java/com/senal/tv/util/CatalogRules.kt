@@ -5,7 +5,7 @@ import com.senal.tv.data.model.Category
 
 /**
  * Live category order from the user's FLUJO reference screenshots.
- * Only these groups are shown in the sidebar (Adultos and the rest are hidden).
+ * Preferred groups only; Adultos is included last.
  */
 object CatalogRules {
 
@@ -15,7 +15,7 @@ object CatalogRules {
 
     /**
      * Exact sidebar order the user wants (screenshot scroll top → bottom).
-     * Aliases map server/playlist names onto the preferred label.
+     * Adultos stays at the end so it never opens first.
      */
     val preferredLiveOrder: List<String> = listOf(
         "Copa Mundial",
@@ -57,6 +57,7 @@ object CatalogRules {
         "US Channels",
         "Venezuela",
         "Italia",
+        "Adultos",
     )
 
     /** Playlist / API aliases → preferred display name. */
@@ -68,6 +69,7 @@ object CatalogRules {
         "cinema channels" to "Cinema Channels",
         "republica dominicana" to "República Dominicana",
         "república dominicana" to "República Dominicana",
+        "rep. dominicana" to "República Dominicana",
         "canada" to "Canadá",
         "canadá" to "Canadá",
         "mexico" to "México",
@@ -86,6 +88,12 @@ object CatalogRules {
         "hd+ (265)" to "HD+(265)",
         "full hd" to "Full HD",
         "copa mundial" to "Copa Mundial",
+        "adulto" to "Adultos",
+        "adultos" to "Adultos",
+        "adultos +18" to "Adultos",
+        "adultos+18" to "Adultos",
+        "adult" to "Adultos",
+        "xxx" to "Adultos",
     )
 
     private val preferredIndex: Map<String, Int> =
@@ -107,7 +115,6 @@ object CatalogRules {
         val raw = label.trim()
         if (raw.isEmpty()) return raw
         aliases[normalize(raw)]?.let { return it }
-        // Exact preferred match ignoring accents/case already via normalize keys
         preferredLiveOrder.firstOrNull { normalize(it) == normalize(raw) }?.let { return it }
         return raw
     }
@@ -123,7 +130,6 @@ object CatalogRules {
         for (cat in categories) {
             val canon = canonicalLabel(cat.label())
             if (canon.isBlank()) continue
-            if (isAdultLabel(canon)) continue
             if (!isPreferredLabel(canon)) continue
             byCanon.putIfAbsent(normalize(canon), Category(id = canon, name = canon, title = canon))
         }
@@ -132,12 +138,13 @@ object CatalogRules {
         }
     }
 
+    /** Open first non-adult preferred category (Adultos stays last). */
     fun defaultCategory(categories: List<Category>): String? =
-        sortCategories(categories).firstOrNull()?.label()
+        sortCategories(categories).firstOrNull { !isAdultLabel(it.label()) }?.label()
+            ?: sortCategories(categories).firstOrNull()?.label()
 
     fun preferredLiveItems(items: List<CatalogItem>): List<CatalogItem> =
-        items.filterNot { isAdultItem(it) }
-            .filter { isPreferredLabel(it.resolveCategory()) }
+        items.filter { isPreferredLabel(it.resolveCategory()) && !isAdultItem(it) }
             .ifEmpty { items.filterNot { isAdultItem(it) }.ifEmpty { items } }
 
     private fun normalize(value: String): String =
