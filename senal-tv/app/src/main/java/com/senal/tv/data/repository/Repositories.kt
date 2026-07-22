@@ -83,8 +83,8 @@ class CatalogRepository(
     suspend fun categories(type: String): List<Category> = withContext(Dispatchers.IO) {
         categoryMutex.withLock {
             memoryCategories[type]?.let { return@withContext it }
-            // v3: full discovery + adult demotion (invalidate older incomplete A–Z caches)
-            val cacheKey = "cat-v3-$type"
+            // v4: fixed sidebar order from user FLUJO screenshots (no Adultos)
+            val cacheKey = "cat-v4-$type"
             cacheDao.getCategory(cacheKey)?.let { cached ->
                 runCatching {
                     NetworkModule.json.decodeFromString<List<Category>>(cached.json)
