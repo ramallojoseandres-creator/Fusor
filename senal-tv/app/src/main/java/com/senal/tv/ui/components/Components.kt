@@ -51,6 +51,9 @@ import androidx.tv.material3.Surface
 import coil.compose.AsyncImage
 import com.senal.tv.R
 import com.senal.tv.data.model.CatalogItem
+import com.senal.tv.ui.focus.FocusTurquoise
+import com.senal.tv.ui.focus.FocusTurquoiseSoft
+import com.senal.tv.ui.focus.appFocusableModifier
 import com.senal.tv.ui.theme.BrandOrange
 import com.senal.tv.ui.theme.BrandOrangeHot
 import com.senal.tv.ui.theme.FocusWhite
@@ -63,51 +66,18 @@ import com.senal.tv.ui.theme.TextPrimary
 import com.senal.tv.util.formatDurationMinutes
 import com.senal.tv.util.formatRating
 
-/** Focus scale — subtle, modern TV (not cartoon zoom). */
-const val FOCUS_SCALE = 1.08f
+/** Focus scale — Ultra Wow TV (1.06) + soft variant. */
+const val FOCUS_SCALE = 1.06f
 const val FOCUS_SCALE_SOFT = 1.03f
 
 @Composable
 fun rememberFlujoFocusModifier(focused: Boolean, big: Boolean = true): Modifier {
-    val target = if (focused) {
-        if (big) FOCUS_SCALE else FOCUS_SCALE_SOFT
-    } else {
-        1f
-    }
-    val scale by animateFloatAsState(
-        targetValue = target,
-        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
-        label = "flujoFocus"
+    // Delega al modificador de producción (turquesa #00E5FF + escala).
+    return Modifier.appFocusableModifier(
+        focused = focused,
+        scaleFocused = if (big) FOCUS_SCALE else FOCUS_SCALE_SOFT,
+        cornerRadius = 10.dp,
     )
-    val glow by animateFloatAsState(
-        targetValue = if (focused) 1f else 0f,
-        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
-        label = "flujoGlow"
-    )
-    return Modifier
-        .graphicsLayer {
-            scaleX = scale
-            scaleY = scale
-            shadowElevation = if (focused) 12f else 0f
-        }
-        .drawBehind {
-            if (glow > 0f) {
-                val pad = size.width * 0.015f
-                drawRoundRect(
-                    color = BrandOrange.copy(alpha = 0.35f * glow),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(10.dp.toPx()),
-                    size = androidx.compose.ui.geometry.Size(size.width + pad * 2, size.height + pad * 2),
-                    topLeft = Offset(-pad, -pad)
-                )
-                drawRoundRect(
-                    color = BrandOrangeHot.copy(alpha = 0.85f * glow),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(10.dp.toPx()),
-                    size = androidx.compose.ui.geometry.Size(size.width + pad * 2, size.height + pad * 2),
-                    topLeft = Offset(-pad, -pad),
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5.dp.toPx())
-                )
-            }
-        }
 }
 
 @Composable

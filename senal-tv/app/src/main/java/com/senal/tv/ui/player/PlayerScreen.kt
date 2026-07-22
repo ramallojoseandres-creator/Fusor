@@ -157,26 +157,12 @@ fun PlayerScreen(
         runCatching { rootFocus.requestFocus() }
     }
 
-    val trackSelector = remember {
-        DefaultTrackSelector(context).apply {
-            setParameters(buildUponParameters().setPreferredAudioLanguage("es"))
-        }
-    }
-    // Buffers moderados: Fire Stick / boxes con poca RAM no aguantan 50s de buffer.
-    val loadControl = remember {
-        DefaultLoadControl.Builder()
-            .setBufferDurationsMs(1_500, 22_000, 1_000, 1_500)
-            .setPrioritizeTimeOverSizeThresholds(true)
-            .build()
-    }
     val player = remember {
-        ExoPlayer.Builder(context)
-            .setTrackSelector(trackSelector)
-            .setLoadControl(loadControl)
-            .build().apply {
-                playWhenReady = true
-                videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT
-            }
+        // LIVE profile: HW prefer + buffers vivos + reintentos silenciosos.
+        com.senal.tv.player.ExoPlayerManager.create(
+            context,
+            com.senal.tv.player.ExoPlayerManager.Profile.LIVE,
+        )
     }
 
     fun bumpGuideTimer() {
@@ -271,24 +257,12 @@ fun PlayerScreen(
             current.userAgent?.takeIf { it.isNotBlank() }?.let {
                 headers.putIfAbsent("User-Agent", it)
             }
-            val mediaItem = MediaItem.fromUri(url)
-            if (headers.isNotEmpty()) {
-                val httpFactory = DefaultHttpDataSource.Factory()
-                    .setAllowCrossProtocolRedirects(true)
-                    .setConnectTimeoutMs(12_000)
-                    .setReadTimeoutMs(20_000)
-                    .setDefaultRequestProperties(headers)
-                val source = if (url.contains(".m3u8", ignoreCase = true)) {
-                    HlsMediaSource.Factory(httpFactory).createMediaSource(mediaItem)
-                } else {
-                    DefaultMediaSourceFactory(httpFactory).createMediaSource(mediaItem)
-                }
-                player.setMediaSource(source, start)
-            } else {
-                player.setMediaItem(mediaItem, start)
-            }
-            player.prepare()
-            player.play()
+            com.senal.tv.player.ExoPlayerManager.playUrl(
+                player = player,
+                url = url,
+                headers = headers,
+                startPositionMs = start,
+            )
             scope.launch { container.libraryRepository.markHistory(current) }
         }
         runCatching { container.catalogRepository.playback(current.resolveId()) }

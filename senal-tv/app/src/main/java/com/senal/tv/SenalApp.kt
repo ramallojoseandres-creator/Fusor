@@ -84,6 +84,7 @@ class AppContainer(app: Application) {
         continueDao = db.continueWatching(),
         settingsStore = settingsStore
     )
+    val networkMonitor = com.senal.tv.network.NetworkMonitor().also { it.start() }
 
     /** Session unlock for parental PIN (resets on process death). */
     val adultsUnlockedSession = kotlinx.coroutines.flow.MutableStateFlow(false)

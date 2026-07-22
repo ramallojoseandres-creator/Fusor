@@ -82,10 +82,12 @@ import com.senal.tv.R
 import com.senal.tv.data.model.CatalogItem
 import com.senal.tv.data.model.ContentType
 import com.senal.tv.data.model.HomeSection
+import com.senal.tv.player.ExoPlayerManager
 import com.senal.tv.ui.common.ContinueRecentsScreen
 import com.senal.tv.ui.components.FocusableButton
 import com.senal.tv.ui.components.SenalBackground
 import com.senal.tv.ui.favorites.FavoritesScreen
+import com.senal.tv.ui.focus.FocusTurquoise
 import com.senal.tv.ui.live.LiveTvScreen
 import com.senal.tv.ui.movies.MoviesScreen
 import com.senal.tv.ui.search.SearchScreen
@@ -485,18 +487,7 @@ private fun FlujoFeatureCard(
     val context = LocalContext.current
 
     val player = remember {
-        ExoPlayer.Builder(context)
-            .setLoadControl(
-                DefaultLoadControl.Builder()
-                    .setBufferDurationsMs(1_200, 20_000, 800, 1_200)
-                    .build()
-            )
-            .build()
-            .apply {
-                volume = 0f
-                playWhenReady = true
-                repeatMode = Player.REPEAT_MODE_ONE
-            }
+        ExoPlayerManager.create(context, ExoPlayerManager.Profile.PREVIEW)
     }
 
     DisposableEffect(player) {
@@ -505,10 +496,8 @@ private fun FlujoFeatureCard(
                 if (playbackState == Player.STATE_READY) {
                     ready = true
                     val br = player.videoFormat?.bitrate ?: player.audioFormat?.bitrate ?: 0
-                    bitrate = if (br > 0) {
-                        val mb = br / 1_000_000f
-                        if (mb >= 1f) String.format("%.0f Mb/s", mb) else String.format("%.0f Kb/s", br / 1000f)
-                    } else "1 Mb/s"
+                    bitrate = ExoPlayerManager.formatBitrate(if (br > 0) br else null)
+                        .let { if (it == "—") "1 Mb/s" else it }
                 }
             }
         }
@@ -530,24 +519,7 @@ private fun FlujoFeatureCard(
                 channel.userAgent?.takeIf { it.isNotBlank() }?.let {
                     headers.putIfAbsent("User-Agent", it)
                 }
-                val mediaItem = MediaItem.fromUri(url)
-                if (headers.isNotEmpty()) {
-                    val http = DefaultHttpDataSource.Factory()
-                        .setAllowCrossProtocolRedirects(true)
-                        .setConnectTimeoutMs(8_000)
-                        .setReadTimeoutMs(12_000)
-                        .setDefaultRequestProperties(headers)
-                    val source = if (url.contains(".m3u8", ignoreCase = true)) {
-                        HlsMediaSource.Factory(http).createMediaSource(mediaItem)
-                    } else {
-                        DefaultMediaSourceFactory(http).createMediaSource(mediaItem)
-                    }
-                    player.setMediaSource(source)
-                } else {
-                    player.setMediaItem(mediaItem)
-                }
-                player.prepare()
-                player.play()
+                ExoPlayerManager.playUrl(player, url, headers)
             }
     }
 
@@ -559,10 +531,10 @@ private fun FlujoFeatureCard(
             containerColor = Color.Black,
             focusedContainerColor = Color.Black
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.01f),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.06f),
         border = ClickableSurfaceDefaults.border(
             focusedBorder = androidx.tv.material3.Border(
-                border = androidx.compose.foundation.BorderStroke(3.dp, BrandOrange),
+                border = androidx.compose.foundation.BorderStroke(3.dp, FocusTurquoise),
                 shape = RoundedCornerShape(10.dp)
             ),
             border = androidx.tv.material3.Border(
