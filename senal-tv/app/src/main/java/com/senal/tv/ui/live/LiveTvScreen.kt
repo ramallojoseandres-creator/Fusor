@@ -337,10 +337,10 @@ fun LiveTvScreen(
         allowPlayback = true
     }
 
-    // Foco en categorías: solo carga tras soltar el D-pad (evita saltos al pasar rápido).
+    // Foco en categorías: debounce corto — D-pad fluido sin cargar en cada tick.
     LaunchedEffect(focusedCategory) {
         val cat = focusedCategory ?: return@LaunchedEffect
-        delay(220)
+        delay(70)
         if (focusedCategory != cat) return@LaunchedEffect
         if (selected != cat) selected = cat
     }
@@ -701,23 +701,26 @@ fun LiveTvScreen(
                                     Row(
                                         Modifier
                                             .fillMaxWidth()
-                                            .padding(horizontal = 10.dp, vertical = 7.dp),
+                                            .padding(
+                                                horizontal = 12.dp,
+                                                vertical = if (DeviceUi.isTouchBuild) 10.dp else 12.dp
+                                            ),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Box(
                                             Modifier
-                                                .size(if (highlighted) 7.dp else 5.dp)
+                                                .size(if (highlighted) 8.dp else 6.dp)
                                                 .clip(CircleShape)
                                                 .background(
                                                     if (highlighted) Color.White else Color.White.copy(0.7f)
                                                 )
                                         )
-                                        Spacer(Modifier.width(8.dp))
+                                        Spacer(Modifier.width(10.dp))
                                         Text(
                                             text = label,
                                             color = if (highlighted) Color.White else TextPrimary,
                                             fontWeight = if (highlighted) FontWeight.Bold else FontWeight.Medium,
-                                            fontSize = 13.sp,
+                                            fontSize = if (DeviceUi.isTouchBuild) 13.sp else 15.sp,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
                                         )

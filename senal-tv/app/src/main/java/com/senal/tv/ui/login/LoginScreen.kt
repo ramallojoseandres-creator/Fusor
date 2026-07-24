@@ -7,6 +7,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -63,6 +64,7 @@ import java.util.Locale
 /**
  * Login mockup SEÑAL:
  * fondo bokeh · wordmark top-left · reloj · panel cristal · campos · ENTRAR cyan.
+ * En TV el panel es grande (10-ft UI); en móvil/tablet más compacto.
  */
 @Composable
 fun LoginScreen(
@@ -80,9 +82,10 @@ fun LoginScreen(
     var clock by remember {
         mutableStateOf(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()))
     }
+    val tv = !DeviceUi.isTouchBuild
 
     LaunchedEffect(Unit) {
-        if (!DeviceUi.isTouchBuild) {
+        if (tv) {
             runCatching { userFocus.requestFocus() }
         }
         while (true) {
@@ -121,7 +124,26 @@ fun LoginScreen(
         }
     }
 
-    Box(Modifier.fillMaxSize()) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val wide = maxWidth >= 900.dp
+        val panelMax = when {
+            tv && wide -> 760.dp
+            tv -> 640.dp
+            else -> 520.dp
+        }
+        val panelFraction = when {
+            tv && wide -> 0.52f
+            tv -> 0.62f
+            else -> 0.88f
+        }
+        val brandSize = if (tv) 48.sp else 34.sp
+        val clockSize = if (tv) 32.sp else 22.sp
+        val edgePad = if (tv) 56.dp else 40.dp
+        val panelPadH = if (tv) 52.dp else 36.dp
+        val panelPadV = if (tv) 48.dp else 34.dp
+        val fieldGap = if (tv) 28.dp else 22.dp
+        val hintSize = if (tv) 18.sp else 13.sp
+
         Image(
             painter = painterResource(R.mipmap.main_bg),
             contentDescription = null,
@@ -143,31 +165,30 @@ fun LoginScreen(
         )
 
         SenalBrandText(
-            size = 34.sp,
-            letterSpacing = 3.sp,
+            size = brandSize,
+            letterSpacing = if (tv) 4.sp else 3.sp,
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(start = 40.dp, top = 28.dp)
+                .padding(start = edgePad, top = if (tv) 36.dp else 28.dp)
         )
 
         Text(
             text = clock,
             color = Color.White.copy(0.92f),
-            fontSize = 22.sp,
+            fontSize = clockSize,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(top = 30.dp, end = 40.dp)
+                .padding(top = if (tv) 40.dp else 30.dp, end = edgePad)
         )
 
-        // Panel cristal central
         Column(
             modifier = Modifier
                 .align(Alignment.Center)
-                .widthIn(max = if (DeviceUi.isTouchBuild) 520.dp else 460.dp)
-                .fillMaxWidth(if (DeviceUi.isTouchBuild) 0.88f else 0.4f)
-                .background(Color.Black.copy(alpha = 0.58f), RoundedCornerShape(18.dp))
-                .padding(horizontal = 36.dp, vertical = 34.dp),
+                .widthIn(min = if (tv) 520.dp else 280.dp, max = panelMax)
+                .fillMaxWidth(panelFraction)
+                .background(Color.Black.copy(alpha = 0.62f), RoundedCornerShape(if (tv) 22.dp else 18.dp))
+                .padding(horizontal = panelPadH, vertical = panelPadV),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             LoginField(
@@ -175,9 +196,10 @@ fun LoginScreen(
                 onValueChange = { username = it; error = null },
                 label = "Usuario",
                 modifier = Modifier.focusRequester(userFocus),
-                imeAction = ImeAction.Next
+                imeAction = ImeAction.Next,
+                large = tv
             )
-            Spacer(Modifier.height(22.dp))
+            Spacer(Modifier.height(fieldGap))
             LoginField(
                 value = password,
                 onValueChange = { password = it; error = null },
@@ -186,7 +208,8 @@ fun LoginScreen(
                 showPassword = showPassword,
                 onTogglePassword = { showPassword = !showPassword },
                 imeAction = ImeAction.Done,
-                onDone = { submit() }
+                onDone = { submit() },
+                large = tv
             )
 
             AnimatedVisibility(visible = error != null, enter = fadeIn(), exit = fadeOut()) {
@@ -194,15 +217,15 @@ fun LoginScreen(
                     Text(
                         text = it,
                         color = Color(0xFFFF8A80),
-                        fontSize = 13.sp,
+                        fontSize = if (tv) 18.sp else 13.sp,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 14.dp)
+                            .padding(top = if (tv) 18.dp else 14.dp)
                     )
                 }
             }
 
-            Spacer(Modifier.height(26.dp))
+            Spacer(Modifier.height(if (tv) 34.dp else 26.dp))
             EnterButton(
                 label = when {
                     success -> "LISTO"
@@ -211,14 +234,15 @@ fun LoginScreen(
                 },
                 enabled = !loading && !success,
                 success = success,
+                large = tv,
                 onClick = { submit() }
             )
 
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(if (tv) 22.dp else 18.dp))
             Text(
                 text = "Inicia sesión para ver en vivo",
                 color = Color.White.copy(0.72f),
-                fontSize = 13.sp,
+                fontSize = hintSize,
                 fontWeight = FontWeight.Normal
             )
         }
@@ -230,7 +254,12 @@ fun LoginScreen(
                     .background(Color.Black.copy(0.4f)),
                 contentAlignment = Alignment.Center
             ) {
-                Text("✓", color = LiveGreen, fontSize = 52.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    "✓",
+                    color = LiveGreen,
+                    fontSize = if (tv) 72.sp else 52.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
@@ -246,26 +275,32 @@ private fun LoginField(
     showPassword: Boolean = false,
     onTogglePassword: (() -> Unit)? = null,
     imeAction: ImeAction = ImeAction.Next,
-    onDone: (() -> Unit)? = null
+    onDone: (() -> Unit)? = null,
+    large: Boolean = false
 ) {
     var focused by remember { mutableStateOf(false) }
+    val labelSize = if (large) 20.sp else 14.sp
+    val inputSize = if (large) 24.sp else 17.sp
     Column(modifier.fillMaxWidth()) {
         Text(
             text = label,
             color = if (focused) SignalCyan else Color.White.copy(0.9f),
-            fontSize = 14.sp,
+            fontSize = labelSize,
             fontWeight = FontWeight.SemiBold
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(if (large) 12.dp else 8.dp))
         Box(
             Modifier
                 .fillMaxWidth()
                 .border(
-                    width = if (focused) 1.5.dp else 0.dp,
+                    width = if (focused) 2.dp else 0.dp,
                     color = if (focused) SignalCyan else Color.Transparent,
                     shape = RoundedCornerShape(8.dp)
                 )
-                .padding(horizontal = if (focused) 12.dp else 0.dp, vertical = if (focused) 8.dp else 0.dp)
+                .padding(
+                    horizontal = if (focused) 14.dp else 0.dp,
+                    vertical = if (focused) (if (large) 12.dp else 8.dp) else 0.dp
+                )
         ) {
             BasicTextField(
                 value = value,
@@ -273,7 +308,7 @@ private fun LoginField(
                 singleLine = true,
                 textStyle = TextStyle(
                     color = Color.White,
-                    fontSize = 17.sp,
+                    fontSize = inputSize,
                     fontWeight = FontWeight.Medium
                 ),
                 cursorBrush = SolidColor(SignalCyan),
@@ -288,16 +323,20 @@ private fun LoginField(
                 keyboardActions = KeyboardActions(onDone = { onDone?.invoke() }),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(end = if (isPassword) 36.dp else 0.dp)
+                    .padding(end = if (isPassword) 44.dp else 0.dp)
                     .onFocusChanged { focused = it.isFocused },
                 decorationBox = { inner ->
                     Column {
-                        Box(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = if (large) 10.dp else 6.dp)
+                        ) {
                             if (value.isEmpty() && !focused) {
                                 Text(
                                     text = " ",
                                     color = Color.Transparent,
-                                    fontSize = 17.sp
+                                    fontSize = inputSize
                                 )
                             }
                             inner()
@@ -305,7 +344,7 @@ private fun LoginField(
                         Box(
                             Modifier
                                 .fillMaxWidth()
-                                .height(if (focused) 2.dp else 1.dp)
+                                .height(if (focused) 2.5.dp else 1.5.dp)
                                 .background(
                                     if (focused) SignalCyan else Color.White.copy(0.55f)
                                 )
@@ -318,7 +357,7 @@ private fun LoginField(
                     onClick = onTogglePassword,
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
-                        .size(40.dp),
+                        .size(if (large) 48.dp else 40.dp),
                     shape = RoundedCornerShape(4.dp),
                     containerColor = Color.Transparent,
                     focusedContainerColor = SignalCyan.copy(0.2f),
@@ -328,7 +367,7 @@ private fun LoginField(
                         Text(
                             text = if (showPassword) "◉" else "◎",
                             color = Color.White.copy(0.75f),
-                            fontSize = 14.sp
+                            fontSize = if (large) 18.sp else 14.sp
                         )
                     }
                 }
@@ -342,7 +381,8 @@ private fun EnterButton(
     label: String,
     enabled: Boolean,
     success: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    large: Boolean = false
 ) {
     var focused by remember { mutableStateOf(false) }
     val fill = when {
@@ -356,7 +396,7 @@ private fun EnterButton(
         modifier = Modifier
             .fillMaxWidth()
             .onFocusChanged { focused = it.isFocused },
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(if (large) 14.dp else 12.dp),
         containerColor = fill,
         focusedContainerColor = SignalCyanHot,
         pressedContainerColor = SignalCyanHot,
@@ -366,15 +406,15 @@ private fun EnterButton(
         Box(
             Modifier
                 .fillMaxWidth()
-                .padding(vertical = 16.dp),
+                .padding(vertical = if (large) 22.dp else 16.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 label,
                 color = Color.White,
                 fontWeight = FontWeight.Black,
-                fontSize = 16.sp,
-                letterSpacing = 2.sp
+                fontSize = if (large) 22.sp else 16.sp,
+                letterSpacing = if (large) 3.sp else 2.sp
             )
         }
     }

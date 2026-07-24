@@ -14,8 +14,8 @@ android {
         applicationId = "com.senal.tv"
         minSdk = 24
         targetSdk = 34
-        versionCode = 193
-        versionName = "1.8.13"
+        versionCode = 194
+        versionName = "1.8.14"
         // ─── SEÑAL server (cambiar IP/puerto aquí) ───
         buildConfigField("String", "SERVER_IP", "\"185.192.20.245\"")
         buildConfigField("int", "SERVER_PORT", "3000")
@@ -31,8 +31,8 @@ android {
         create("tv") {
             dimension = "device"
             applicationId = "com.senal.tv"
-            versionCode = 193
-            versionName = "1.8.13"
+            versionCode = 194
+            versionName = "1.8.14"
             buildConfigField("boolean", "IS_TABLET", "false")
             buildConfigField("boolean", "IS_TOUCH", "false")
             ndk {
