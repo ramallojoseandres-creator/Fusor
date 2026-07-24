@@ -34,7 +34,7 @@ enum CatalogRules {
         pattern: #"(?i)(\+| )?18\+?|adult|adulto|adultos|xxx|porn|porno|erotic|erotica|nsfw|onlyfans|playboy"#
     )
 
-    /// Orden pedido: Deportes NO entre las primeras (antes de Adultos).
+    /// Orden exacto de las capturas FLUJO (Deportes después de HD+(265)).
     static let preferredLiveOrder: [String] = [
         "Copa Mundial",
         "MLB PASS",
@@ -43,6 +43,7 @@ enum CatalogRules {
         "Eventos PPV",
         "Full HD",
         "HD+(265)",
+        "Deportes",
         "Cine y Series",
         "Cultura",
         "Infantil",
@@ -74,7 +75,6 @@ enum CatalogRules {
         "US Channels",
         "Venezuela",
         "Italia",
-        "Deportes",
         "Adultos",
     ]
 

@@ -4,9 +4,11 @@ import com.senal.tv.data.model.CatalogItem
 import com.senal.tv.data.model.Category
 
 /**
- * Categorías live pedidas por el usuario.
- * Todo lo que no esté en [preferredLiveOrder] se elimina (categoría + canales).
- * **Deportes no va entre las primeras** (va al final, antes de Adultos).
+ * Orden exacto del sidebar según capturas FLUJO del usuario.
+ * Solo estas categorías; el resto se elimina con sus canales.
+ * Adultos al final.
+ *
+ * Deportes va DESPUÉS de HD+(265), no al inicio ni al final.
  */
 object CatalogRules {
 
@@ -15,8 +17,8 @@ object CatalogRules {
     )
 
     /**
-     * Orden del sidebar (arriba → abajo).
-     * Paquetes premium primero; Deportes al final (antes de Adultos).
+     * Orden exacto (arriba → abajo) de las capturas:
+     * Copa Mundial…HD+(265) → Deportes → Cine… → países → Italia → Adultos
      */
     val preferredLiveOrder: List<String> = listOf(
         "Copa Mundial",
@@ -26,6 +28,7 @@ object CatalogRules {
         "Eventos PPV",
         "Full HD",
         "HD+(265)",
+        "Deportes",
         "Cine y Series",
         "Cultura",
         "Infantil",
@@ -57,7 +60,6 @@ object CatalogRules {
         "US Channels",
         "Venezuela",
         "Italia",
-        "Deportes",
         "Adultos",
     )
 
@@ -142,7 +144,7 @@ object CatalogRules {
         return preferredLiveOrder.mapNotNull { name -> byCanon[normalize(name)] }
     }
 
-    /** Primera categoría no-adulta (Adultos y Deportes no abren primero). */
+    /** Primera categoría no-adulta (Adultos nunca abre primero). */
     fun defaultCategory(categories: List<Category>): String? =
         sortCategories(categories).firstOrNull { !isAdultLabel(it.label()) }?.label()
             ?: sortCategories(categories).firstOrNull()?.label()

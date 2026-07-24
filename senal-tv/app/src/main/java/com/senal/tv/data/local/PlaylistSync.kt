@@ -60,7 +60,7 @@ class PlaylistSync(
         if (hasLocalCache()) {
             val ok = runCatching { playlistStore.loadFromGzipFile(cacheFile) }
             if (ok.isSuccess && playlistStore.size() > 0) {
-                if (hasUsefulCategories() && !deportesIsTooEarly()) {
+                if (hasUsefulCategories()) {
                     return@withContext SyncResult("cache", playlistStore.size(), updated = false)
                 }
                 cacheFile.delete()
@@ -173,7 +173,7 @@ class PlaylistSync(
             "https://raw.githubusercontent.com/Duartegame/listas/main/canalesgratistvpro"
 
         /** Sube esto al cambiar el orden/filtro de categorías para invalidar caché vieja. */
-        const val CATEGORY_ORDER_VERSION = "order:v7"
+        const val CATEGORY_ORDER_VERSION = "order:v8"
 
         private val genericGroups = setOf("general", "variados", "otros", "other", "uncategorized")
     }
@@ -189,13 +189,6 @@ class PlaylistSync(
         if (labels.size >= 3) return true
         val real = labels.filterNot { genericGroups.contains(it.lowercase()) }
         return real.size >= 2
-    }
-
-    /** true si Deportes está entre las 8 primeras del sidebar (orden viejo). */
-    private fun deportesIsTooEarly(): Boolean {
-        val labels = playlistStore.liveCategoryLabels()
-        val idx = labels.indexOfFirst { it.equals("Deportes", ignoreCase = true) }
-        return idx in 0..7
     }
 
     private suspend fun applyAssetAsCache(): SyncResult {
