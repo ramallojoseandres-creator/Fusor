@@ -104,8 +104,8 @@ import kotlinx.coroutines.launch
 /**
  * Guía EN VIVO estilo Flujo (SEÑAL):
  * vídeo a pantalla completa + categorías | canales a la izquierda.
- * Al navegar con el mando, el foco previsualiza el canal (~280 ms).
- * SELECT confirma y oculta la guía; SELECT otra vez la vuelve a mostrar.
+ * Navegación D-pad: solo mueve el foco; OK confirma y oculta la guía.
+ * (Sin preview-on-focus: retunear ExoPlayer en cada flecha era el mayor lag.)
  */
 @OptIn(UnstableApi::class)
 @Composable
@@ -145,7 +145,7 @@ fun LiveTvScreen(
 
     val listState = rememberLazyListState()
     val catScroll = rememberScrollState()
-    val pageSize = 60
+    val pageSize = 120
     val rootFocus = remember { FocusRequester() }
     val playingFocus = remember { FocusRequester() }
     val categoryFocusRequesters = remember(categories) {
@@ -160,6 +160,8 @@ fun LiveTvScreen(
      * NO sigue al canal en aire durante el preview (eso laggea y mueve el foco).
      */
     var restoreChannelId by remember { mutableStateOf<String?>(null) }
+    /** Caché página-1 por categoría → cambio de categoría casi instantáneo. */
+    val channelCache = remember { LinkedHashMap<String, CachedCatPage>(48) }
 
     fun focusSelectedCategory() {
         val cat = focusedCategory ?: selected ?: return
@@ -211,12 +213,12 @@ fun LiveTvScreen(
         val idx = channels.indexOfFirst { it.resolveId() == id }
         if (idx >= 0) {
             runCatching { listState.scrollToItem(idx) }
-            delay(90)
+            delay(40)
             focusInChannels = true
             runCatching { playingFocus.requestFocus() }
         }
         // Liberar el requester fijado para que el D-pad no pelee con el preview.
-        delay(120)
+        delay(50)
         if (restoreChannelId == id) restoreChannelId = null
     }
 
@@ -333,62 +335,95 @@ fun LiveTvScreen(
             }
             .onFailure { error = it.message }
         loadingCats = false
-        delay(48)
+        delay(16)
         allowPlayback = true
     }
 
-    // Foco en categorías: debounce corto — D-pad fluido sin cargar en cada tick.
+    // Foco en categorías: debounce mínimo (solo agrupa ticks del D-pad).
     LaunchedEffect(focusedCategory) {
         val cat = focusedCategory ?: return@LaunchedEffect
-        delay(70)
+        delay(28)
         if (focusedCategory != cat) return@LaunchedEffect
         if (selected != cat) selected = cat
     }
 
-    // 2) Lista de canales al cambiar categoría — NO vacía la lista (evita trabarse el foco).
+    // 2) Lista de canales al cambiar categoría — caché + prefetch vecinos.
     LaunchedEffect(selected) {
         val category = selected ?: return@LaunchedEffect
-        loadingChannels = true
         error = null
         page = 1
-        hasMore = true
-        runCatching {
-            container.catalogRepository.page(
-                type = "live",
-                category = category,
-                page = 1,
-                limit = pageSize
-            )
-        }.onSuccess { response ->
-            // Ignorar respuestas obsoletas si el usuario ya cambió de categoría.
-            if (selected != category) return@onSuccess
-            channels = response.resolveItems()
-            hasMore = response.resolveHasMore(pageSize)
+        val cached = channelCache[category]
+        if (cached != null) {
+            channels = cached.items
+            hasMore = cached.hasMore
+            loadingChannels = false
             if (playing == null) {
                 channels.firstOrNull()?.let { tune(it) }
-            } else {
-                val keep = channels.firstOrNull { it.resolveId() == playing!!.resolveId() }
-                focusedChannelId = keep?.resolveId() ?: focusedChannelId
             }
-        }.onFailure {
-            if (selected == category) {
-                error = it.message ?: "No se pudieron cargar los canales"
+        } else {
+            loadingChannels = true
+            hasMore = true
+            runCatching {
+                container.catalogRepository.page(
+                    type = "live",
+                    category = category,
+                    page = 1,
+                    limit = pageSize
+                )
+            }.onSuccess { response ->
+                if (selected != category) return@onSuccess
+                val items = response.resolveItems()
+                val more = response.resolveHasMore(pageSize)
+                channelCache[category] = CachedCatPage(items, more)
+                trimCache(channelCache)
+                channels = items
+                hasMore = more
+                if (playing == null) {
+                    channels.firstOrNull()?.let { tune(it) }
+                } else {
+                    val keep = channels.firstOrNull { it.resolveId() == playing!!.resolveId() }
+                    focusedChannelId = keep?.resolveId() ?: focusedChannelId
+                }
+            }.onFailure {
+                if (selected == category) {
+                    error = it.message ?: "No se pudieron cargar los canales"
+                }
+            }
+            if (selected == category) loadingChannels = false
+        }
+
+        // Prefetch categorías vecinas (arriba/abajo) en idle — cambio instantáneo al volver.
+        val labels = categories.map { it.label() }
+        val idx = labels.indexOf(category)
+        if (idx >= 0) {
+            val neighbors = listOfNotNull(
+                labels.getOrNull(idx - 1),
+                labels.getOrNull(idx + 1),
+                labels.getOrNull(idx + 2)
+            )
+            for (n in neighbors) {
+                if (channelCache.containsKey(n)) continue
+                runCatching {
+                    container.catalogRepository.page(
+                        type = "live",
+                        category = n,
+                        page = 1,
+                        limit = pageSize
+                    )
+                }.onSuccess { response ->
+                    channelCache[n] = CachedCatPage(
+                        items = response.resolveItems(),
+                        hasMore = response.resolveHasMore(pageSize)
+                    )
+                    trimCache(channelCache)
+                }
             }
         }
-        if (selected == category) loadingChannels = false
     }
 
-    // Preview al enfocar canal: debounce largo — retunear ExoPlayer por cada flecha laggea la lista.
-    LaunchedEffect(focusedChannelId, guideVisible) {
-        if (!guideVisible) return@LaunchedEffect
-        val id = focusedChannelId ?: return@LaunchedEffect
-        delay(700)
-        if (focusedChannelId != id) return@LaunchedEffect
-        val channel = channels.firstOrNull { it.resolveId() == id } ?: return@LaunchedEffect
-        if (playing?.resolveId() != id) {
-            tune(channel)
-        }
-    }
+    // Navegación rápida: NO retunear ExoPlayer al pasar el foco por canales.
+    // Solo se sintoniza al confirmar (OK) o zapping con guía cerrada.
+    // (El preview-on-focus era el mayor lag del D-pad.)
 
     // 3) Reproducir cuando cambia el canal en aire.
     LaunchedEffect(playing?.resolveId(), allowPlayback) {
@@ -455,9 +490,14 @@ fun LiveTvScreen(
                     )
                 }.onSuccess { response ->
                     val newItems = response.resolveItems()
-                    channels = (channels + newItems).distinctBy { it.resolveId() }
+                    val merged = (channels + newItems).distinctBy { it.resolveId() }
+                    channels = merged
                     page = next
                     hasMore = response.resolveHasMore(pageSize) && newItems.isNotEmpty()
+                    val cat = selected
+                    if (cat != null) {
+                        channelCache[cat] = CachedCatPage(merged, hasMore)
+                    }
                 }
                 loadingMore = false
             }
@@ -1067,7 +1107,8 @@ private fun GuideChannelRow(
                     .background(Color.White),
                 contentAlignment = Alignment.Center
             ) {
-                if (!logo.isNullOrBlank()) {
+                // Logos solo en fila enfocada/seleccionada → menos trabajo al pasar D-pad.
+                if ((focused || selected) && !logo.isNullOrBlank()) {
                     AsyncImage(
                         model = logo,
                         contentDescription = null,
@@ -1131,5 +1172,17 @@ private fun channelInitials(channel: CatalogItem?): String {
     return when {
         parts.size >= 2 -> "${parts[0].first().uppercaseChar()}${parts[1].first().uppercaseChar()}"
         else -> title.take(2).uppercase()
+    }
+}
+
+private data class CachedCatPage(
+    val items: List<CatalogItem>,
+    val hasMore: Boolean
+)
+
+private fun trimCache(cache: LinkedHashMap<String, CachedCatPage>, max: Int = 24) {
+    while (cache.size > max) {
+        val oldest = cache.keys.firstOrNull() ?: break
+        cache.remove(oldest)
     }
 }
