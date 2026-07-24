@@ -1,0 +1,81 @@
+name: SenalTV
+options:
+  bundleIdPrefix: com.senal
+  deploymentTarget:
+    iOS: "16.0"
+  xcodeVersion: "15.4"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    IPHONEOS_DEPLOYMENT_TARGET: "16.0"
+    MARKETING_VERSION: "1.8.8"
+    CURRENT_PROJECT_VERSION: "188"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+    GENERATE_INFOPLIST_FILE: YES
+    INFOPLIST_FILE: SenalTV/Info.plist
+    INFOPLIST_KEY_CFBundleDisplayName: SEÑAL
+    INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+    INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+targets:
+  SenalTV:
+    type: application
+    platform: iOS
+    sources:
+      - path: SenalTV
+        excludes:
+          - "Resources/**"
+          - "Catalog/**"
+          - "**/*.m3u"
+          - "**/*.m3u.gz"
+          - "**/*.dat"
+          - "**/*.mp4"
+          - "**/.DS_Store"
+          - "Info.plist"
+    resources:
+      - path: SenalTV/Assets.xcassets
+    postCompileScripts:
+      - name: Embed playlist into app bundle
+        basedOnDependencyAnalysis: false
+        script: |
+          set -euo pipefail
+          DEST="${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}"
+          mkdir -p "$DEST"
+          SRC="${SRCROOT}/SenalTV/Catalog/playlist.dat"
+          if [ ! -f "$SRC" ]; then
+            SRC="${SRCROOT}/SenalTV/Resources/lista_fusionada.m3u.gz"
+          fi
+          if [ ! -f "$SRC" ]; then
+            echo "error: missing playlist at Catalog/playlist.dat" >&2
+            exit 1
+          fi
+          cp -f "$SRC" "$DEST/playlist.dat"
+          # Plain m3u fallback if present
+          if [ -f "${SRCROOT}/SenalTV/Catalog/playlist.m3u" ]; then
+            cp -f "${SRCROOT}/SenalTV/Catalog/playlist.m3u" "$DEST/playlist.m3u"
+          fi
+          # Official splash motion (TU VENTANA AL MUNDO)
+          if [ -f "${SRCROOT}/SenalTV/Resources/splash.mp4" ]; then
+            cp -f "${SRCROOT}/SenalTV/Resources/splash.mp4" "$DEST/splash.mp4"
+            ls -lh "$DEST/splash.mp4"
+          fi
+          ls -lh "$DEST/playlist.dat"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.senal.tv
+        PRODUCT_NAME: SenalTV
+        INFOPLIST_FILE: SenalTV/Info.plist
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: SEÑAL
+schemes:
+  SenalTV:
+    build:
+      targets:
+        SenalTV: all
+    run:
+      config: Debug
+    archive:
+      config: Release
