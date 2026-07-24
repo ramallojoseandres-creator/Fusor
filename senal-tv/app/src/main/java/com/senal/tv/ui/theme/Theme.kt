@@ -21,9 +21,11 @@ val GraphiteCard = Color(0xFF1A1A1A)
 val PanelGlass = Color(0xE6121212)
 val PanelBorder = Color(0x33FFFFFF)
 
-/** Turquesa — foco, CTAs activos, textos clave. */
-val BrandTurquoise = Color(0xFF00E5C8)
-val BrandTurquoiseHot = Color(0xFF5CFFE8)
+/** Cyan de marca (mockups SEÑAL IPTV). */
+val BrandTurquoise = Color(0xFF00D7D7)
+val BrandTurquoiseHot = Color(0xFF5CFFF8)
+val SignalCyan = BrandTurquoise
+val SignalCyanHot = BrandTurquoiseHot
 
 /** Azul — elementos principales, carga, estados. */
 val BrandBlue = Color(0xFF1E6FFF)
@@ -33,8 +35,6 @@ val BrandBlueSoft = Color(0xFF3D9EFF)
 /** Alias legacy (código existente usa BrandOrange = acento principal). */
 val BrandOrange = BrandTurquoise
 val BrandOrangeHot = BrandTurquoiseHot
-val SignalCyan = BrandTurquoise
-val SignalCyanHot = BrandTurquoiseHot
 val NeonMagenta = Color(0xFF3D9EFF)
 val NeonPurple = Color(0xFF1E6FFF)
 val NeonBlue = BrandBlueSoft

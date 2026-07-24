@@ -1,6 +1,6 @@
 {
-  "versionCode": 191,
-  "versionName": "1.8.11",
+  "versionCode": 192,
+  "versionName": "1.8.12",
   "apk": "SenalTV.apk",
-  "changelog": "Icono nuevo + actualización in-app"
+  "changelog": "Diseño splash/login/home de los mockups"
 }

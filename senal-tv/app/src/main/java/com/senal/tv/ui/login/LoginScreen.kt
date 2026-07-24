@@ -6,15 +6,14 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -36,6 +35,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -48,13 +48,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface
-import com.senal.tv.BuildConfig
 import com.senal.tv.R
 import com.senal.tv.data.repository.AuthRepository
-import com.senal.tv.ui.theme.BrandTurquoise
-import com.senal.tv.ui.theme.BrandTurquoiseHot
+import com.senal.tv.ui.components.SenalBrandText
 import com.senal.tv.ui.theme.LiveGreen
-import com.senal.tv.ui.theme.TextMuted
+import com.senal.tv.ui.theme.SignalCyan
+import com.senal.tv.ui.theme.SignalCyanHot
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -62,7 +61,8 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Login SEÑAL: fondo a sangre, marca héroe, campos finos, CTA turquesa.
+ * Login mockup SEÑAL:
+ * fondo bokeh · wordmark top-left · reloj · panel cristal · campos · ENTRAR cyan.
  */
 @Composable
 fun LoginScreen(
@@ -71,6 +71,7 @@ fun LoginScreen(
 ) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var showPassword by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
     var success by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -84,7 +85,7 @@ fun LoginScreen(
         userFocus.requestFocus()
         while (true) {
             clock = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
-            delay(20_000)
+            delay(15_000)
         }
     }
 
@@ -101,7 +102,7 @@ fun LoginScreen(
             loading = false
             result.onSuccess {
                 success = true
-                delay(600)
+                delay(550)
                 onLoggedIn()
             }.onFailure {
                 val raw = it.message.orEmpty()
@@ -123,57 +124,51 @@ fun LoginScreen(
             painter = painterResource(R.mipmap.main_bg),
             contentDescription = null,
             contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer { alpha = 0.85f; scaleX = 1.08f; scaleY = 1.08f }
         )
         Box(
             Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        0f to Color.Black.copy(0.55f),
-                        0.35f to Color.Black.copy(0.78f),
-                        0.7f to Color.Black.copy(0.88f),
-                        1f to Color.Black.copy(0.94f),
+                        0f to Color.Black.copy(0.45f),
+                        0.4f to Color.Black.copy(0.62f),
+                        1f to Color.Black.copy(0.88f)
                     )
                 )
         )
 
-        // Top bar: clock only (brand lives in the hero stack).
+        SenalBrandText(
+            size = 34.sp,
+            letterSpacing = 3.sp,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(start = 40.dp, top = 28.dp)
+        )
+
         Text(
             text = clock,
-            color = Color.White.copy(0.9f),
+            color = Color.White.copy(0.92f),
             fontSize = 22.sp,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(top = 28.dp, end = 40.dp)
+                .padding(top = 30.dp, end = 40.dp)
         )
 
+        // Panel cristal central
         Column(
             modifier = Modifier
                 .align(Alignment.Center)
-                .widthIn(max = 420.dp)
-                .fillMaxWidth(0.42f)
-                .padding(horizontal = 24.dp),
+                .widthIn(max = 460.dp)
+                .fillMaxWidth(0.4f)
+                .background(Color.Black.copy(alpha = 0.58f), RoundedCornerShape(18.dp))
+                .padding(horizontal = 36.dp, vertical = 34.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "SEÑAL",
-                color = Color.White,
-                fontSize = 56.sp,
-                fontWeight = FontWeight.Black,
-                letterSpacing = 10.sp
-            )
-            Spacer(Modifier.height(10.dp))
-            Text(
-                text = "Inicia sesión para ver en vivo",
-                color = TextMuted,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium
-            )
-            Spacer(Modifier.height(36.dp))
-
-            UnderlineField(
+            LoginField(
                 value = username,
                 onValueChange = { username = it; error = null },
                 label = "Usuario",
@@ -181,16 +176,17 @@ fun LoginScreen(
                 imeAction = ImeAction.Next
             )
             Spacer(Modifier.height(22.dp))
-            UnderlineField(
+            LoginField(
                 value = password,
                 onValueChange = { password = it; error = null },
                 label = "Contraseña",
                 isPassword = true,
+                showPassword = showPassword,
+                onTogglePassword = { showPassword = !showPassword },
                 imeAction = ImeAction.Done,
                 onDone = { submit() }
             )
 
-            Spacer(Modifier.height(18.dp))
             AnimatedVisibility(visible = error != null, enter = fadeIn(), exit = fadeOut()) {
                 error?.let {
                     Text(
@@ -199,16 +195,16 @@ fun LoginScreen(
                         fontSize = 13.sp,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 8.dp)
+                            .padding(top = 14.dp)
                     )
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(26.dp))
             EnterButton(
                 label = when {
-                    success -> "Listo"
-                    loading -> "Conectando…"
+                    success -> "LISTO"
+                    loading -> "CONECTANDO…"
                     else -> "ENTRAR"
                 },
                 enabled = !loading && !success,
@@ -216,11 +212,12 @@ fun LoginScreen(
                 onClick = { submit() }
             )
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(18.dp))
             Text(
-                text = "v${BuildConfig.VERSION_NAME}",
-                color = Color.White.copy(0.35f),
-                fontSize = 11.sp
+                text = "Inicia sesión para ver en vivo",
+                color = Color.White.copy(0.72f),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Normal
             )
         }
 
@@ -228,27 +225,24 @@ fun LoginScreen(
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(0.45f)),
+                    .background(Color.Black.copy(0.4f)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    "✓",
-                    color = LiveGreen,
-                    fontSize = 48.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Text("✓", color = LiveGreen, fontSize = 52.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
 }
 
 @Composable
-private fun UnderlineField(
+private fun LoginField(
     value: String,
     onValueChange: (String) -> Unit,
     label: String,
     modifier: Modifier = Modifier,
     isPassword: Boolean = false,
+    showPassword: Boolean = false,
+    onTogglePassword: (() -> Unit)? = null,
     imeAction: ImeAction = ImeAction.Next,
     onDone: (() -> Unit)? = null
 ) {
@@ -256,62 +250,90 @@ private fun UnderlineField(
     Column(modifier.fillMaxWidth()) {
         Text(
             text = label,
-            color = if (focused) BrandTurquoise else Color.White.copy(0.55f),
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = 1.sp
+            color = if (focused) SignalCyan else Color.White.copy(0.9f),
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold
         )
-        Spacer(Modifier.height(6.dp))
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            singleLine = true,
-            textStyle = TextStyle(
-                color = Color.White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium
-            ),
-            cursorBrush = SolidColor(BrandTurquoise),
-            visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = if (isPassword) KeyboardType.Password else KeyboardType.Text,
-                imeAction = imeAction
-            ),
-            keyboardActions = KeyboardActions(onDone = { onDone?.invoke() }),
-            modifier = Modifier
+        Spacer(Modifier.height(8.dp))
+        Box(
+            Modifier
                 .fillMaxWidth()
-                .onFocusChanged { focused = it.isFocused }
                 .border(
-                    width = 0.dp,
-                    color = Color.Transparent,
-                    shape = RoundedCornerShape(0.dp)
+                    width = if (focused) 1.5.dp else 0.dp,
+                    color = if (focused) SignalCyan else Color.Transparent,
+                    shape = RoundedCornerShape(8.dp)
                 )
-                .background(Color.Transparent)
-                .padding(vertical = 10.dp),
-            decorationBox = { inner ->
-                Column {
-                    Box(Modifier.fillMaxWidth()) {
-                        if (value.isEmpty()) {
-                            Text(
-                                label.lowercase().replaceFirstChar { it.uppercase() },
-                                color = Color.White.copy(0.28f),
-                                fontSize = 17.sp
-                            )
+                .padding(horizontal = if (focused) 12.dp else 0.dp, vertical = if (focused) 8.dp else 0.dp)
+        ) {
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                singleLine = true,
+                textStyle = TextStyle(
+                    color = Color.White,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Medium
+                ),
+                cursorBrush = SolidColor(SignalCyan),
+                visualTransformation = when {
+                    isPassword && !showPassword -> PasswordVisualTransformation()
+                    else -> VisualTransformation.None
+                },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = if (isPassword) KeyboardType.Password else KeyboardType.Text,
+                    imeAction = imeAction
+                ),
+                keyboardActions = KeyboardActions(onDone = { onDone?.invoke() }),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(end = if (isPassword) 36.dp else 0.dp)
+                    .onFocusChanged { focused = it.isFocused },
+                decorationBox = { inner ->
+                    Column {
+                        Box(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+                            if (value.isEmpty() && !focused) {
+                                Text(
+                                    text = " ",
+                                    color = Color.Transparent,
+                                    fontSize = 17.sp
+                                )
+                            }
+                            inner()
                         }
-                        inner()
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(if (focused) 2.dp else 1.dp)
+                                .background(
+                                    if (focused) SignalCyan else Color.White.copy(0.55f)
+                                )
+                        )
                     }
-                    Spacer(Modifier.height(8.dp))
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(if (focused) 2.dp else 1.dp)
-                            .background(
-                                if (focused) BrandTurquoise else Color.White.copy(0.35f)
-                            )
-                    )
+                }
+            )
+            if (isPassword && onTogglePassword != null) {
+                Surface(
+                    onClick = onTogglePassword,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .size(32.dp),
+                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(4.dp)),
+                    colors = ClickableSurfaceDefaults.colors(
+                        containerColor = Color.Transparent,
+                        focusedContainerColor = SignalCyan.copy(0.2f)
+                    ),
+                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1f)
+                ) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            text = if (showPassword) "◉" else "◎",
+                            color = Color.White.copy(0.75f),
+                            fontSize = 14.sp
+                        )
+                    }
                 }
             }
-        )
+        }
     }
 }
 
@@ -325,8 +347,8 @@ private fun EnterButton(
     var focused by remember { mutableStateOf(false) }
     val fill = when {
         success -> LiveGreen
-        focused -> BrandTurquoiseHot
-        else -> BrandTurquoise
+        focused -> SignalCyanHot
+        else -> SignalCyan
     }
     Surface(
         onClick = onClick,
@@ -334,13 +356,13 @@ private fun EnterButton(
         modifier = Modifier
             .fillMaxWidth()
             .onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(4.dp)),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = fill.copy(alpha = 0.92f),
-            focusedContainerColor = BrandTurquoiseHot,
-            disabledContainerColor = BrandTurquoise.copy(alpha = 0.45f)
+            containerColor = fill,
+            focusedContainerColor = SignalCyanHot,
+            disabledContainerColor = SignalCyan.copy(alpha = 0.45f)
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f)
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f)
     ) {
         Box(
             Modifier
@@ -350,7 +372,7 @@ private fun EnterButton(
         ) {
             Text(
                 label,
-                color = Color.Black,
+                color = Color.White,
                 fontWeight = FontWeight.Black,
                 fontSize = 16.sp,
                 letterSpacing = 2.sp

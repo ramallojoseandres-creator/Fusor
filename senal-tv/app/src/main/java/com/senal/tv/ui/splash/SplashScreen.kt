@@ -11,6 +11,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,7 +19,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -26,6 +26,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -33,24 +34,24 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.senal.tv.R
-import com.senal.tv.ui.theme.BrandTurquoise
-import com.senal.tv.ui.theme.Graphite
+import com.senal.tv.ui.components.SenalBrandText
+import com.senal.tv.ui.theme.SignalCyan
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.min
 
 /**
- * Splash SEÑAL: marca héroe + un eslogan + onda de señal.
- * Corto (~3.8 s) con sonic logo; sin UI extra.
+ * Splash cinematográfico (mockup):
+ * mosaico difuminado · arco cyan · SEÑAL itálica · «Tu ventana al mundo».
  */
 @Composable
 fun SplashScreen(onFinished: () -> Unit) {
@@ -69,153 +70,185 @@ fun SplashScreen(onFinished: () -> Unit) {
             setMediaItem(
                 MediaItem.fromUri("android.resource://${context.packageName}/${R.raw.splash_intro}"),
             )
-            volume = 0.8f
+            volume = 0.82f
             prepare()
             playWhenReady = true
             repeatMode = Player.REPEAT_MODE_OFF
         }
     }
+    DisposableEffect(Unit) { onDispose { musicPlayer.release() } }
 
-    DisposableEffect(Unit) {
-        onDispose { musicPlayer.release() }
-    }
-
-    val ringProgress = remember { Animatable(0f) }
     val brandAlpha = remember { Animatable(0f) }
-    val brandScale = remember { Animatable(0.88f) }
+    val brandScale = remember { Animatable(0.9f) }
     val sloganAlpha = remember { Animatable(0f) }
+    val arcProgress = remember { Animatable(0f) }
 
     val infinite = rememberInfiniteTransition(label = "splash")
     val pulse by infinite.animateFloat(
-        initialValue = 0.55f,
+        initialValue = 0.65f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1400, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
+            animation = tween(1600, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
         ),
-        label = "pulse",
-    )
-    val spin by infinite.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(10_000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "spin",
+        label = "pulse"
     )
 
     LaunchedEffect(Unit) {
-        launch { ringProgress.animateTo(1f, tween(1600, easing = FastOutSlowInEasing)) }
+        launch { arcProgress.animateTo(1f, tween(1400, easing = FastOutSlowInEasing)) }
         launch {
-            delay(180)
+            delay(200)
             brandAlpha.animateTo(1f, tween(700, easing = FastOutSlowInEasing))
         }
         launch {
-            delay(180)
+            delay(200)
             brandScale.animateTo(1f, tween(900, easing = FastOutSlowInEasing))
         }
         launch {
-            delay(700)
-            sloganAlpha.animateTo(1f, tween(650, easing = FastOutSlowInEasing))
+            delay(750)
+            sloganAlpha.animateTo(1f, tween(700, easing = FastOutSlowInEasing))
         }
-        delay(3800)
+        delay(3600)
         musicPlayer.stop()
         onFinished()
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(
-                        Color(0xFF0B1E2E),
-                        Graphite,
-                        Color(0xFF010305),
-                    ),
-                ),
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val cx = size.width / 2f
-            val cy = size.height / 2f
-            val maxR = min(size.width, size.height) * 0.38f
-            val teal = BrandTurquoise
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
+        // Ambiente: fondo + mosaico de “pantallas” difuminado a los lados.
+        Image(
+            painter = painterResource(R.mipmap.main_bg),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer { alpha = 0.38f }
+        )
+        Canvas(Modifier.fillMaxSize()) {
+            val cardW = size.width * 0.16f
+            val cardH = size.height * 0.22f
+            val gap = 14.dp.toPx()
+            fun drawColumn(x: Float, alphaMul: Float) {
+                var y = size.height * 0.08f
+                repeat(4) { i ->
+                    val a = (0.18f - i * 0.02f) * alphaMul
+                    drawRoundRect(
+                        color = Color.White.copy(alpha = a.coerceAtLeast(0.04f)),
+                        topLeft = Offset(x, y),
+                        size = Size(cardW, cardH),
+                        cornerRadius = CornerRadius(8.dp.toPx())
+                    )
+                    // fake content bar
+                    drawRoundRect(
+                        brush = Brush.horizontalGradient(
+                            listOf(
+                                SignalCyan.copy(alpha = a * 0.35f),
+                                Color.Transparent
+                            )
+                        ),
+                        topLeft = Offset(x + 10.dp.toPx(), y + cardH * 0.7f),
+                        size = Size(cardW * 0.55f, 6.dp.toPx()),
+                        cornerRadius = CornerRadius(3.dp.toPx())
+                    )
+                    y += cardH + gap
+                }
+            }
+            drawColumn(size.width * 0.04f, 0.9f)
+            drawColumn(size.width * 0.04f + cardW + gap, 0.55f)
+            drawColumn(size.width * 0.8f, 0.55f)
+            drawColumn(size.width * 0.8f + cardW * 0.15f, 0.9f)
+        }
 
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            Color.Black.copy(0.55f),
+                            Color.Black.copy(0.92f)
+                        )
+                    )
+                )
+        )
+
+        // Arco cyan a la izquierda del wordmark.
+        Canvas(Modifier.fillMaxSize()) {
+            val cx = size.width * 0.42f
+            val cy = size.height * 0.48f
+            val r = min(size.width, size.height) * 0.28f * (0.85f + 0.15f * arcProgress.value)
+            drawArc(
+                brush = Brush.sweepGradient(
+                    colors = listOf(
+                        SignalCyan.copy(alpha = 0f),
+                        SignalCyan.copy(alpha = 0.95f * pulse),
+                        SignalCyan.copy(alpha = 0.35f),
+                        SignalCyan.copy(alpha = 0f)
+                    ),
+                    center = Offset(cx, cy)
+                ),
+                startAngle = 200f,
+                sweepAngle = 150f * arcProgress.value,
+                useCenter = false,
+                topLeft = Offset(cx - r, cy - r),
+                size = Size(r * 2, r * 2),
+                style = Stroke(width = 3.5.dp.toPx(), cap = StrokeCap.Round)
+            )
+            // Soft glow disc
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        teal.copy(alpha = 0.14f * pulse),
-                        Color.Transparent,
+                        SignalCyan.copy(alpha = 0.12f * pulse),
+                        Color.Transparent
                     ),
                     center = Offset(cx, cy),
-                    radius = maxR * 1.35f,
+                    radius = r * 1.4f
                 ),
-                radius = maxR * 1.35f,
-                center = Offset(cx, cy),
+                radius = r * 1.4f,
+                center = Offset(cx, cy)
             )
+        }
 
-            val t = ringProgress.value
-            for (i in 0 until 3) {
-                val radius = maxR * (0.48f + i * 0.22f) * (0.7f + 0.3f * t)
-                drawCircle(
-                    color = teal.copy(alpha = (0.28f - i * 0.06f) * t * pulse),
-                    radius = radius,
-                    center = Offset(cx, cy),
-                    style = Stroke(width = (2.4f - i * 0.4f).dp.toPx()),
+        // Scanlines sutiles
+        Canvas(Modifier.fillMaxSize().graphicsLayer { alpha = 0.06f }) {
+            var y = 0f
+            val step = 3.dp.toPx()
+            while (y < size.height) {
+                drawLine(
+                    color = Color.White,
+                    start = Offset(0f, y),
+                    end = Offset(size.width, y),
+                    strokeWidth = 1f
                 )
+                y += step
             }
-
-            val arcR = maxR * 0.86f
-            drawArc(
-                color = teal.copy(alpha = 0.7f * t),
-                startAngle = spin,
-                sweepAngle = 64f,
-                useCenter = false,
-                topLeft = Offset(cx - arcR, cy - arcR),
-                size = Size(arcR * 2, arcR * 2),
-                style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round),
-            )
-            drawArc(
-                color = teal.copy(alpha = 0.35f * t),
-                startAngle = spin + 190f,
-                sweepAngle = 42f,
-                useCenter = false,
-                topLeft = Offset(cx - arcR * 0.9f, cy - arcR * 0.9f),
-                size = Size(arcR * 1.8f, arcR * 1.8f),
-                style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round),
-            )
         }
 
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
+                .align(Alignment.Center)
                 .padding(horizontal = 48.dp)
                 .graphicsLayer {
                     alpha = brandAlpha.value
                     scaleX = brandScale.value
                     scaleY = brandScale.value
-                },
+                }
         ) {
-            Text(
-                text = "SEÑAL",
-                color = Color.White,
-                fontSize = 72.sp,
-                fontWeight = FontWeight.Black,
-                letterSpacing = 14.sp,
-                textAlign = TextAlign.Center,
+            SenalBrandText(
+                size = 78.sp,
+                letterSpacing = 8.sp,
+                italic = true,
+                glow = true,
+                center = true
             )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
+            Spacer(Modifier.height(18.dp))
+            androidx.compose.material3.Text(
                 text = "Tu ventana al mundo",
-                color = BrandTurquoise.copy(alpha = 0.92f),
+                color = Color.White.copy(alpha = 0.92f),
                 fontSize = 18.sp,
-                fontWeight = FontWeight.Medium,
-                letterSpacing = 2.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.graphicsLayer { alpha = sloganAlpha.value },
+                letterSpacing = 3.sp,
+                modifier = Modifier.graphicsLayer { alpha = sloganAlpha.value }
             )
         }
     }

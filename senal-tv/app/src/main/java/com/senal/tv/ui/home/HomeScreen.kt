@@ -72,6 +72,7 @@ import com.senal.tv.player.ExoPlayerManager
 import com.senal.tv.ui.common.ContinueRecentsScreen
 import com.senal.tv.ui.components.FocusableButton
 import com.senal.tv.ui.components.SenalBackground
+import com.senal.tv.ui.components.SenalBrandText
 import com.senal.tv.ui.favorites.FavoritesScreen
 import com.senal.tv.ui.live.LiveTvScreen
 import com.senal.tv.ui.movies.MoviesScreen
@@ -80,6 +81,8 @@ import com.senal.tv.ui.series.SeriesScreen
 import com.senal.tv.ui.settings.SettingsScreen
 import com.senal.tv.ui.theme.BrandOrange
 import com.senal.tv.ui.theme.BrandOrangeHot
+import com.senal.tv.ui.theme.SignalCyan
+import com.senal.tv.ui.theme.SignalCyanHot
 import com.senal.tv.util.CatalogRules
 import com.senal.tv.util.DeviceUi
 import kotlinx.coroutines.delay
@@ -88,6 +91,9 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 
 /** Hub SEÑAL — 4 entradas, vídeo a sangre. */
 private data class NavTile(
@@ -291,14 +297,13 @@ private fun SenalHomeHub(
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
-                Text(
-                    text = "SEÑAL",
-                    color = Color.White,
-                    fontSize = if (compact) 28.sp else 34.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 6.sp
+                SenalBrandText(
+                    size = if (compact) 30.sp else 36.sp,
+                    letterSpacing = 3.sp,
+                    subtitle = "IPTV",
+                    subtitleSize = 13.sp
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val available = updateAvailable
@@ -321,10 +326,10 @@ private fun SenalHomeHub(
                                 }
                             },
                             modifier = Modifier.onFocusChanged { updFocused = it.isFocused },
-                            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(4.dp)),
+                            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(6.dp)),
                             colors = ClickableSurfaceDefaults.colors(
-                                containerColor = if (updFocused) BrandOrangeHot else BrandOrange,
-                                focusedContainerColor = BrandOrangeHot
+                                containerColor = if (updFocused) SignalCyanHot else SignalCyan,
+                                focusedContainerColor = SignalCyanHot
                             ),
                             scale = ClickableSurfaceDefaults.scale(focusedScale = 1f)
                         ) {
@@ -349,7 +354,7 @@ private fun SenalHomeHub(
             updateMsg?.let { msg ->
                 Text(
                     text = msg,
-                    color = BrandOrangeHot,
+                    color = SignalCyanHot,
                     fontSize = 12.sp,
                     modifier = Modifier.padding(top = 6.dp)
                 )
@@ -357,16 +362,16 @@ private fun SenalHomeHub(
 
             Spacer(Modifier.weight(1f))
 
-            Column(Modifier.fillMaxWidth(0.62f)) {
+            Column(Modifier.fillMaxWidth(0.65f)) {
                 Text(
-                    text = livePreview?.resolveTitle() ?: "SEÑAL · En vivo",
+                    text = livePreview?.resolveTitle() ?: "ESPN Deportes",
                     color = Color.White,
-                    fontSize = if (compact) 26.sp else 32.sp,
+                    fontSize = if (compact) 28.sp else 34.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(10.dp))
                 var continueFocused by remember { mutableStateOf(false) }
                 Surface(
                     onClick = { onOpen(HomeSection.LIVE) },
@@ -379,23 +384,38 @@ private fun SenalHomeHub(
                     scale = ClickableSurfaceDefaults.scale(focusedScale = 1f)
                 ) {
                     Text(
-                        text = "Continuar viendo · OK",
-                        color = if (continueFocused) BrandOrangeHot else BrandOrange,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 0.5.sp
+                        text = buildAnnotatedString {
+                            withStyle(
+                                SpanStyle(
+                                    color = Color.White.copy(if (continueFocused) 1f else 0.88f),
+                                    fontWeight = FontWeight.Medium
+                                )
+                            ) {
+                                append("Continuar viendo • ")
+                            }
+                            withStyle(
+                                SpanStyle(
+                                    color = SignalCyan,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            ) {
+                                append("OK")
+                            }
+                        },
+                        fontSize = 16.sp,
+                        letterSpacing = 0.3.sp
                     )
                 }
             }
 
-            Spacer(Modifier.height(if (compact) 28.dp else 36.dp))
+            Spacer(Modifier.height(if (compact) 30.dp else 40.dp))
 
-            val tileH = if (DeviceUi.isTabletBuild) 96.dp else if (compact) 88.dp else 100.dp
+            val tileH = if (DeviceUi.isTabletBuild) 108.dp else if (compact) 96.dp else 110.dp
             Row(
                 Modifier
                     .fillMaxWidth()
                     .height(tileH),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 hubTiles.forEachIndexed { index, tile ->
                     HubNavTile(
@@ -499,12 +519,12 @@ private fun HubNavTile(
     Surface(
         onClick = onClick,
         modifier = modifier.onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(6.dp)),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (focused) BrandOrange.copy(0.92f) else Color.White.copy(0.08f),
-            focusedContainerColor = BrandOrange.copy(0.95f)
+            containerColor = if (focused) SignalCyan else Color.White.copy(0.10f),
+            focusedContainerColor = SignalCyan
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f)
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f)
     ) {
         Column(
             Modifier
@@ -514,13 +534,13 @@ private fun HubNavTile(
             verticalArrangement = Arrangement.Center
         ) {
             TileGlyph(kind = tile.iconKind, focused = focused)
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(8.dp))
             Text(
                 text = tile.label,
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
-                fontSize = if (focused) 14.sp else 13.sp,
-                letterSpacing = 1.sp,
+                fontSize = if (focused) 15.sp else 14.sp,
+                letterSpacing = 1.2.sp,
                 maxLines = 1
             )
         }
@@ -529,26 +549,52 @@ private fun HubNavTile(
 
 @Composable
 private fun TileGlyph(kind: TileIcon, focused: Boolean) {
-    val glyph = if (focused) 30.dp else 26.dp
+    val glyph = if (focused) 34.dp else 30.dp
     Canvas(Modifier.size(glyph)) {
         val c = Color.White
-        val stroke = Stroke(width = 2.2.dp.toPx())
+        val stroke = Stroke(width = 2.4.dp.toPx())
         val w = this.size.width
         val h = this.size.height
         val minD = this.size.minDimension
         when (kind) {
             TileIcon.LIVE -> {
+                // TV body
                 drawRoundRect(
                     color = c,
-                    topLeft = Offset(w * 0.1f, h * 0.28f),
-                    size = androidx.compose.ui.geometry.Size(w * 0.52f, h * 0.44f),
+                    topLeft = Offset(w * 0.12f, h * 0.22f),
+                    size = androidx.compose.ui.geometry.Size(w * 0.76f, h * 0.48f),
+                    style = stroke,
                     cornerRadius = androidx.compose.ui.geometry.CornerRadius(3.dp.toPx())
                 )
+                // Stand
+                drawLine(c, Offset(w * 0.35f, h * 0.72f), Offset(w * 0.65f, h * 0.72f), 2.4.dp.toPx())
+                drawLine(c, Offset(w * 0.5f, h * 0.70f), Offset(w * 0.5f, h * 0.78f), 2.4.dp.toPx())
+                // Signal waves
+                drawArc(
+                    color = c,
+                    startAngle = -50f,
+                    sweepAngle = 100f,
+                    useCenter = false,
+                    topLeft = Offset(w * 0.72f, h * 0.08f),
+                    size = androidx.compose.ui.geometry.Size(w * 0.28f, h * 0.28f),
+                    style = stroke
+                )
+            }
+            TileIcon.MOVIE -> {
+                // Clapper
+                drawRoundRect(
+                    color = c,
+                    topLeft = Offset(w * 0.18f, h * 0.32f),
+                    size = androidx.compose.ui.geometry.Size(w * 0.64f, h * 0.48f),
+                    style = stroke,
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(3.dp.toPx())
+                )
+                drawLine(c, Offset(w * 0.22f, h * 0.32f), Offset(w * 0.78f, h * 0.18f), 2.4.dp.toPx())
+                // Play triangle
                 val path = Path().apply {
-                    moveTo(w * 0.64f, h * 0.35f)
-                    lineTo(w * 0.92f, h * 0.22f)
-                    lineTo(w * 0.92f, h * 0.78f)
-                    lineTo(w * 0.64f, h * 0.65f)
+                    moveTo(w * 0.42f, h * 0.42f)
+                    lineTo(w * 0.68f, h * 0.55f)
+                    lineTo(w * 0.42f, h * 0.68f)
                     close()
                 }
                 drawPath(path, c)
@@ -556,21 +602,19 @@ private fun TileGlyph(kind: TileIcon, focused: Boolean) {
             TileIcon.SERIES -> {
                 drawRoundRect(
                     color = c,
-                    topLeft = Offset(w * 0.18f, h * 0.2f),
-                    size = androidx.compose.ui.geometry.Size(w * 0.64f, h * 0.5f),
+                    topLeft = Offset(w * 0.16f, h * 0.2f),
+                    size = androidx.compose.ui.geometry.Size(w * 0.68f, h * 0.52f),
                     style = stroke,
                     cornerRadius = androidx.compose.ui.geometry.CornerRadius(3.dp.toPx())
                 )
-                drawLine(
-                    c,
-                    Offset(w * 0.3f, h * 0.8f),
-                    Offset(w * 0.7f, h * 0.8f),
-                    strokeWidth = 2.2.dp.toPx()
-                )
-            }
-            TileIcon.MOVIE -> {
-                drawCircle(c, radius = minD * 0.32f, style = stroke)
-                drawCircle(c, radius = minD * 0.12f)
+                val path = Path().apply {
+                    moveTo(w * 0.42f, h * 0.34f)
+                    lineTo(w * 0.66f, h * 0.46f)
+                    lineTo(w * 0.42f, h * 0.58f)
+                    close()
+                }
+                drawPath(path, c)
+                drawLine(c, Offset(w * 0.28f, h * 0.82f), Offset(w * 0.72f, h * 0.82f), 2.4.dp.toPx())
             }
             TileIcon.SETTINGS -> {
                 drawCircle(c, radius = minD * 0.34f, style = stroke)
