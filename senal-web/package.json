@@ -1,12 +1,13 @@
 {
   "name": "senal-web",
   "private": true,
-  "version": "1.9.1",
+  "version": "1.9.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "publish:web": "bash ./publish-web.sh"
   },
   "dependencies": {
     "fflate": "^0.8.2",
