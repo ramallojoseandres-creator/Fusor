@@ -1,7 +1,9 @@
 package com.senal.tv.data.api
 
+import android.os.Build
 import com.senal.tv.BuildConfig
 import com.senal.tv.data.local.TokenStore
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
@@ -21,18 +23,25 @@ object NetworkModule {
 
     fun createApi(tokenStore: TokenStore): SenalApi {
         val authInterceptor = Interceptor { chain ->
+            val original = chain.request()
+            val deviceId = tokenStore.peekDeviceId()
+                ?: runBlocking { tokenStore.deviceId() }
+            val builder = original.newBuilder()
+                .header("Accept", "application/json")
+                .header("X-Device-Id", deviceId)
+                .header("X-Device-Name", "SEÑAL TV")
+                .header("X-Device-Platform", "android-tv")
+                .header(
+                    "X-Device-Fingerprint",
+                    "${Build.MANUFACTURER}-${Build.MODEL}".take(80)
+                )
+
             val token = tokenStore.cachedToken
-            val req = if (!token.isNullOrBlank()) {
-                chain.request().newBuilder()
-                    .header("Authorization", "Bearer $token")
-                    .header("Accept", "application/json")
-                    .build()
-            } else {
-                chain.request().newBuilder()
-                    .header("Accept", "application/json")
-                    .build()
+            if (!token.isNullOrBlank()) {
+                builder.header("Authorization", "Bearer $token")
             }
-            chain.proceed(req)
+
+            chain.proceed(builder.build())
         }
 
         val logging = HttpLoggingInterceptor().apply {
@@ -45,7 +54,7 @@ object NetworkModule {
 
         val client = OkHttpClient.Builder()
             .connectTimeout(20, TimeUnit.SECONDS)
-            .readTimeout(45, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
             .writeTimeout(20, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
             .addInterceptor(authInterceptor)

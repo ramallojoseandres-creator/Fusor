@@ -5,31 +5,43 @@ Aplicación IPTV premium para **Android TV**, **Google TV**, **Fire TV Stick**, 
 ## Características
 
 - Navegación 100% D-Pad (Leanback / Compose TV)
-- Login JWT contra API REST SEÑAL
-- TV en vivo con categorías + paginación infinita
+- Login JWT contra API REST SEÑAL (`X-Device-Id` en todas las peticiones)
+- Validación de sesión con `GET /api/me`
+- Catálogo remoto autenticado (`GET /api/catalog`)
+- TV en vivo con categorías + paginación
 - Películas y series con lazy loading
-- Búsqueda instantánea
-- Favoritos, historial y continuar viendo (locales, sin duplicados)
-- Reproductor Media3/ExoPlayer con overlay moderno, CH+/CH−, audio, subtítulos, aspecto, velocidad y reconexión automática
+- Búsqueda, favoritos, historial y continuar viendo (locales)
+- Reproductor Media3/ExoPlayer (URL de catálogo o `/api/playback`)
 - Solo landscape · Android 7+ (API 24)
-- Cache de logos/posters (Coil) y de categorías/EPG
 
 ## Seguridad
 
-No almacena usuario/contraseña Xtream. Solo JWT, preferencias, favoritos e historial.
+No almacena usuario/contraseña Xtream. Solo JWT de sesión, `deviceId`, preferencias, favoritos e historial.
 
-## API
+## API (VPS)
 
-Base URL configurable en `BuildConfig.API_BASE_URL` (por defecto `http://185.192.20.245:3000/`).
+Base: `http://185.192.20.245:3000/` (`BuildConfig.API_BASE_URL`)
 
-La app consume:
+| Uso | Método | Endpoint |
+|-----|--------|----------|
+| Health | GET | `/api/health` |
+| Login TV | POST | `/api/auth/login` |
+| Sesión | GET | `/api/me` |
+| Contenido | GET | `/api/catalog` |
 
-- `POST /api/auth/login`
-- `GET /api/catalog?type=live|movie|series` (compatible con el servidor actual)
-- `GET /api/search`
-- `POST /api/playback/{id}`
+Headers TV: `Authorization: Bearer <token>` + `X-Device-Id: <id>`
 
-Favoritos / historial / continuar se sincronizan localmente si el backend aún no expone esas rutas.
+Login body:
+
+```json
+{
+  "username": "usuario",
+  "password": "clave",
+  "deviceId": "<id>",
+  "deviceName": "SEÑAL TV",
+  "platform": "android-tv"
+}
+```
 
 ## Build (GitHub Actions)
 

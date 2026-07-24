@@ -20,15 +20,21 @@ class TokenStore(private val context: Context) {
     var cachedToken: String? = null
         private set
 
+    @Volatile
+    private var cachedDeviceId: String? = null
+
     val tokenFlow: Flow<String?> = context.tokenDataStore.data.map { it[keyToken] }
 
     init {
-        cachedToken = runBlocking {
-            context.tokenDataStore.data.first()[keyToken]
+        runBlocking {
+            val prefs = context.tokenDataStore.data.first()
+            cachedToken = prefs[keyToken]
+            cachedDeviceId = prefs[keyDeviceId]
         }
     }
 
     suspend fun saveSession(token: String, username: String) {
+        if (token.isBlank()) return
         context.tokenDataStore.edit {
             it[keyToken] = token
             it[keyUsername] = username
@@ -47,11 +53,18 @@ class TokenStore(private val context: Context) {
     suspend fun username(): String? =
         context.tokenDataStore.data.first()[keyUsername]
 
+    fun peekDeviceId(): String? = cachedDeviceId
+
     suspend fun deviceId(): String {
+        cachedDeviceId?.takeIf { it.isNotBlank() }?.let { return it }
         val existing = context.tokenDataStore.data.first()[keyDeviceId]
-        if (!existing.isNullOrBlank()) return existing
+        if (!existing.isNullOrBlank()) {
+            cachedDeviceId = existing
+            return existing
+        }
         val created = "senal-tv-" + java.util.UUID.randomUUID().toString()
         context.tokenDataStore.edit { it[keyDeviceId] = created }
+        cachedDeviceId = created
         return created
     }
 }

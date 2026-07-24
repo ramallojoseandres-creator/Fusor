@@ -17,8 +17,10 @@ import com.senal.tv.data.model.CatalogResponse
 import com.senal.tv.data.model.Category
 import com.senal.tv.data.model.ContentType
 import com.senal.tv.data.model.FavoriteRequest
+import com.senal.tv.data.model.HealthResponse
 import com.senal.tv.data.model.LoginRequest
 import com.senal.tv.data.model.PlaybackResponse
+import com.senal.tv.data.model.UserInfo
 import com.senal.tv.util.CatalogRules
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -34,6 +36,12 @@ class AuthRepository(
 ) {
     val tokenFlow = tokenStore.tokenFlow
 
+    suspend fun health(): Result<HealthResponse> = withContext(Dispatchers.IO) {
+        runCatching { api.health() }.recoverCatching { err ->
+            throw friendlyHttp(err, fallback = "Servidor SEÑAL no disponible")
+        }
+    }
+
     suspend fun login(username: String, password: String): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             val deviceId = tokenStore.deviceId()
@@ -42,14 +50,47 @@ class AuthRepository(
                     username = username.trim(),
                     password = password,
                     deviceId = deviceId,
-                    deviceName = "SEÑAL Android TV"
+                    deviceName = "SEÑAL TV",
+                    platform = "android-tv"
                 )
             )
             val token = response.resolveToken()
-                ?: throw IllegalStateException(response.error ?: "No se recibió token JWT")
-            tokenStore.saveSession(token, username.trim())
+                ?: throw IllegalStateException(
+                    response.resolveError() ?: "El servidor no devolvió token JWT"
+                )
+            val display = response.user?.displayName()?.ifBlank { null } ?: username.trim()
+            tokenStore.saveSession(token, display)
+            // Confirma sesión con /api/me (no bloquea el login si falla por red).
+            runCatching { api.me().resolveUser() }.getOrNull()?.let { user ->
+                tokenStore.saveSession(token, user.displayName().ifBlank { display })
+            }
         }.recoverCatching { err ->
-            throw friendlyHttp(err)
+            throw friendlyHttp(err, fallback = "No se pudo iniciar sesión")
+        }
+    }
+
+    /**
+     * Valida JWT + dispositivo con GET /api/me.
+     * Si el token es inválido/expirado limpia la sesión local.
+     */
+    suspend fun validateSession(): Result<UserInfo> = withContext(Dispatchers.IO) {
+        runCatching {
+            if (tokenStore.cachedToken.isNullOrBlank()) {
+                error("Sin sesión")
+            }
+            val me = api.me()
+            val user = me.resolveUser()
+                ?: error(me.resolveError() ?: "Sesión inválida")
+            tokenStore.saveSession(
+                token = tokenStore.cachedToken.orEmpty(),
+                username = user.displayName()
+            )
+            user
+        }.recoverCatching { err ->
+            if (err is HttpException && err.code() in listOf(401, 403)) {
+                tokenStore.clear()
+            }
+            throw friendlyHttp(err, fallback = "Sesión expirada")
         }
     }
 
@@ -57,18 +98,20 @@ class AuthRepository(
 
     suspend fun hasSession(): Boolean = !tokenStore.cachedToken.isNullOrBlank()
 
-    private fun friendlyHttp(err: Throwable): Throwable {
+    suspend fun username(): String? = tokenStore.username()
+
+    private fun friendlyHttp(err: Throwable, fallback: String): Throwable {
         if (err is HttpException) {
             val body = err.response()?.errorBody()?.string().orEmpty()
             val msg = runCatching {
                 NetworkModule.json.decodeFromString(
                     com.senal.tv.data.model.ApiError.serializer(),
                     body
-                ).error
+                ).resolveMessage()
             }.getOrNull()
-            return IllegalStateException(msg ?: "Error de acceso (${err.code()})")
+            return IllegalStateException(msg ?: "$fallback (${err.code()})")
         }
-        return IllegalStateException(err.message ?: "No se pudo conectar con SEÑAL")
+        return IllegalStateException(err.message ?: fallback)
     }
 }
 
@@ -159,8 +202,28 @@ class CatalogRepository(
         val key = "$type|${category.orEmpty()}|$page|$limit"
         memoryPages[key]?.let { return@withContext it }
         val response = fetchCatalog(type, category, page, limit)
+        val typed = response.resolveItems().filter { item ->
+            when (type.lowercase()) {
+                "live", "tv", "channel" -> item.contentType() == ContentType.LIVE ||
+                    item.type.isNullOrBlank()
+                "movie", "vod", "film" -> item.contentType() == ContentType.MOVIE ||
+                    item.type.equals("movie", true) || item.type.equals("vod", true)
+                "series", "show" -> item.contentType() == ContentType.SERIES ||
+                    item.type.equals("series", true)
+                else -> true
+            }
+        }.let { list ->
+            // Si el servidor ya filtró por type, no descartar por heurística vacía.
+            if (list.isEmpty() && response.resolveItems().isNotEmpty() &&
+                response.resolveItems().none { !it.type.isNullOrBlank() }
+            ) {
+                response.resolveItems()
+            } else {
+                list.ifEmpty { response.resolveItems() }
+            }
+        }
         val filtered = if (type.equals("live", ignoreCase = true)) {
-            val preferredOnly = response.resolveItems().filter { item ->
+            val preferredOnly = typed.filter { item ->
                 val label = category?.takeIf { it.isNotBlank() } ?: item.resolveCategory()
                 CatalogRules.isPreferredLabel(label)
             }
@@ -171,7 +234,13 @@ class CatalogRepository(
                 results = preferredOnly
             )
         } else {
-            response
+            response.copy(
+                items = typed,
+                movies = if (type.equals("movie", true)) typed else response.movies,
+                series = if (type.equals("series", true)) typed else response.series,
+                data = typed,
+                results = typed
+            )
         }
         filtered.resolveItems().forEach { item ->
             cacheDao.putEpg(
@@ -202,9 +271,30 @@ class CatalogRepository(
             .distinctBy { it.resolveId() }
     }
 
-    suspend fun playback(id: String): PlaybackResponse = withContext(Dispatchers.IO) {
-        api.playback(id)
-    }
+    suspend fun playback(id: String, fallbackItem: CatalogItem? = null): PlaybackResponse =
+        withContext(Dispatchers.IO) {
+            val remote = runCatching { api.playback(id) }.getOrNull()
+            val remoteUrl = remote?.resolveUrl()
+            if (!remoteUrl.isNullOrBlank()) return@withContext remote!!
+
+            val direct = fallbackItem?.resolveStreamUrl()
+                ?: memoryPages.values
+                    .asSequence()
+                    .flatMap { it.resolveItems().asSequence() }
+                    .firstOrNull { it.resolveId() == id }
+                    ?.resolveStreamUrl()
+
+            if (!direct.isNullOrBlank()) {
+                PlaybackResponse(
+                    url = direct,
+                    title = fallbackItem?.resolveTitle() ?: remote?.title,
+                    logo = fallbackItem?.resolveLogo() ?: remote?.logo,
+                    error = remote?.error
+                )
+            } else {
+                remote ?: error("Sin URL de reproducción")
+            }
+        }
 
     fun clearMemory() {
         memoryCategories.clear()
@@ -228,14 +318,18 @@ class CatalogRepository(
                 q = q
             )
         } catch (pathMissing: HttpException) {
-            if (pathMissing.code() == 404) {
-                api.catalogByPath(type = type, category = category, page = page, limit = limit)
-            } else {
-                throw pathMissing
+            when (pathMissing.code()) {
+                404 -> api.catalogByPath(type = type, category = category, page = page, limit = limit)
+                // Algunos paneles 2.x exponen solo GET /api/catalog sin query type.
+                400, 422 -> api.catalog(category = category, page = page, limit = limit, q = q)
+                else -> throw pathMissing
             }
         } catch (_: Exception) {
-            // try documented path style as secondary
-            api.catalogByPath(type = type, category = category, page = page, limit = limit)
+            runCatching {
+                api.catalogByPath(type = type, category = category, page = page, limit = limit)
+            }.getOrElse {
+                api.catalog(category = category, page = page, limit = limit, q = q)
+            }
         }
     }
 }

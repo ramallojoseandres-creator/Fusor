@@ -175,7 +175,12 @@ fun PlayerScreen(
         loading = true
         error = null
         overlayVisible = true
-        runCatching { container.catalogRepository.playback(current.resolveId()) }
+        runCatching {
+            container.catalogRepository.playback(
+                id = current.resolveId(),
+                fallbackItem = current
+            )
+        }
             .onSuccess { playback ->
                 val url = playback.resolveUrl()
                 if (url.isNullOrBlank()) {

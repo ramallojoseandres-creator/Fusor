@@ -14,6 +14,7 @@ import com.senal.tv.data.local.TokenStore
 import com.senal.tv.data.repository.AuthRepository
 import com.senal.tv.data.repository.CatalogRepository
 import com.senal.tv.data.repository.LibraryRepository
+import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
@@ -53,7 +54,9 @@ class SenalApp : Application(), ImageLoaderFactory {
 }
 
 class AppContainer(app: Application) {
-    val tokenStore = TokenStore(app)
+    val tokenStore = TokenStore(app).also { store ->
+        runBlocking { store.deviceId() }
+    }
     val settingsStore = SettingsStore(app)
     val db: SenalDatabase = Room.databaseBuilder(app, SenalDatabase::class.java, "senal.db")
         .fallbackToDestructiveMigration()

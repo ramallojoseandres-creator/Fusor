@@ -7,12 +7,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -35,6 +38,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.Text
+import com.senal.tv.BuildConfig
 import com.senal.tv.data.repository.AuthRepository
 import com.senal.tv.ui.components.BrandMark
 import com.senal.tv.ui.components.ErrorMessage
@@ -47,7 +51,6 @@ import com.senal.tv.ui.theme.LocalSenalTypography
 import com.senal.tv.ui.theme.Teal
 import com.senal.tv.ui.theme.TextMuted
 import com.senal.tv.ui.theme.TextPrimary
-import com.senal.tv.ui.theme.Violet
 import kotlinx.coroutines.launch
 
 @Composable
@@ -59,11 +62,27 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var serverStatus by remember { mutableStateOf("Comprobando servidor…") }
+    var serverOk by remember { mutableStateOf<Boolean?>(null) }
     val scope = rememberCoroutineScope()
     val userFocus = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
         userFocus.requestFocus()
+        authRepository.health()
+            .onSuccess { health ->
+                serverOk = health.isHealthy()
+                val version = health.version?.takeIf { it.isNotBlank() }?.let { " v$it" }.orEmpty()
+                serverStatus = if (health.isHealthy()) {
+                    "Servidor SEÑAL listo$version"
+                } else {
+                    health.message ?: health.error ?: "Servidor con avisos$version"
+                }
+            }
+            .onFailure {
+                serverOk = false
+                serverStatus = it.message ?: "Sin conexión con el VPS"
+            }
     }
 
     fun submit() {
@@ -75,6 +94,13 @@ fun LoginScreen(
         scope.launch {
             loading = true
             error = null
+            if (serverOk == false) {
+                authRepository.health().onSuccess {
+                    serverOk = it.isHealthy()
+                    serverStatus = "Servidor SEÑAL listo" +
+                        (it.version?.let { v -> " v$v" }.orEmpty())
+                }
+            }
             val result = authRepository.login(username, password)
             loading = false
             result.onSuccess { onLoggedIn() }
@@ -86,25 +112,28 @@ fun LoginScreen(
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(
                 modifier = Modifier
-                    .width(520.dp)
-                    .background(GraphiteCard.copy(alpha = 0.92f), RoundedCornerShape(28.dp))
-                    .padding(36.dp),
+                    .width(540.dp)
+                    .background(GraphiteCard.copy(alpha = 0.94f), RoundedCornerShape(28.dp))
+                    .padding(horizontal = 36.dp, vertical = 34.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 BrandMark()
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(10.dp))
                 Text(
-                    text = "Acceso exclusivo para Smart TV",
+                    text = "Acceso TV · panel SEÑAL",
                     style = LocalSenalTypography.current.subtitle
                 )
-                Spacer(Modifier.height(28.dp))
+                Spacer(Modifier.height(14.dp))
+                ServerStatusRow(label = serverStatus, ok = serverOk)
+                Spacer(Modifier.height(22.dp))
 
                 TvTextField(
                     value = username,
                     onValueChange = { username = it; error = null },
                     label = "Usuario",
                     modifier = Modifier.focusRequester(userFocus),
-                    imeAction = ImeAction.Next
+                    imeAction = ImeAction.Next,
+                    enabled = !loading
                 )
                 Spacer(Modifier.height(14.dp))
                 TvTextField(
@@ -113,7 +142,8 @@ fun LoginScreen(
                     label = "Contraseña",
                     isPassword = true,
                     imeAction = ImeAction.Done,
-                    onDone = { submit() }
+                    onDone = { submit() },
+                    enabled = !loading
                 )
                 Spacer(Modifier.height(18.dp))
 
@@ -128,7 +158,7 @@ fun LoginScreen(
 
                 AnimatedVisibility(visible = loading, enter = fadeIn(), exit = fadeOut()) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        LoadingPulse("Iniciando sesión…")
+                        LoadingPulse("Conectando con SEÑAL…")
                         Spacer(Modifier.height(18.dp))
                     }
                 }
@@ -139,8 +169,44 @@ fun LoginScreen(
                     enabled = !loading,
                     modifier = Modifier.fillMaxWidth()
                 )
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    text = "JWT + X-Device-Id · ${BuildConfig.VERSION_NAME}",
+                    style = LocalSenalTypography.current.caption,
+                    color = TextMuted.copy(alpha = 0.75f)
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun ServerStatusRow(label: String, ok: Boolean?) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(ColorField, RoundedCornerShape(14.dp))
+            .padding(horizontal = 14.dp, vertical = 10.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(10.dp)
+                .background(
+                    color = when (ok) {
+                        true -> Teal
+                        false -> BrandOrange
+                        null -> TextMuted
+                    },
+                    shape = CircleShape
+                )
+        )
+        Text(
+            text = label,
+            style = LocalSenalTypography.current.caption,
+            color = TextPrimary
+        )
     }
 }
 
@@ -152,7 +218,8 @@ private fun TvTextField(
     modifier: Modifier = Modifier,
     isPassword: Boolean = false,
     imeAction: ImeAction = ImeAction.Next,
-    onDone: (() -> Unit)? = null
+    onDone: (() -> Unit)? = null,
+    enabled: Boolean = true
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         Text(text = label, style = LocalSenalTypography.current.caption, color = BrandOrange)
@@ -160,6 +227,7 @@ private fun TvTextField(
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
+            enabled = enabled,
             singleLine = true,
             textStyle = LocalSenalTypography.current.body.copy(color = TextPrimary),
             cursorBrush = SolidColor(Teal),

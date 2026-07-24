@@ -55,13 +55,27 @@ private fun SenalRoot() {
     val token by container.authRepository.tokenFlow.collectAsState(initial = container.tokenStore.cachedToken)
     var route by remember { mutableStateOf<AppRoute>(AppRoute.Splash) }
     var splashDone by remember { mutableStateOf(false) }
+    var sessionChecked by remember { mutableStateOf(false) }
 
-    LaunchedEffect(token, splashDone) {
-        if (!splashDone) return@LaunchedEffect
+    LaunchedEffect(splashDone) {
+        if (!splashDone || sessionChecked) return@LaunchedEffect
+        if (!token.isNullOrBlank()) {
+            container.authRepository.validateSession()
+        }
+        sessionChecked = true
+        route = when {
+            container.tokenStore.cachedToken.isNullOrBlank() -> AppRoute.Login
+            else -> AppRoute.Home
+        }
+    }
+
+    LaunchedEffect(token, splashDone, sessionChecked) {
+        if (!splashDone || !sessionChecked) return@LaunchedEffect
         route = when {
             token.isNullOrBlank() -> AppRoute.Login
             route is AppRoute.Player -> route
-            else -> AppRoute.Home
+            route is AppRoute.Login && !token.isNullOrBlank() -> AppRoute.Home
+            else -> route
         }
     }
 
@@ -69,7 +83,6 @@ private fun SenalRoot() {
         AppRoute.Splash -> SplashScreen(
             onFinished = {
                 splashDone = true
-                route = if (token.isNullOrBlank()) AppRoute.Login else AppRoute.Home
             }
         )
         AppRoute.Login -> LoginScreen(
