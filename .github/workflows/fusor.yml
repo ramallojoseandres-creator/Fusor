@@ -7,10 +7,25 @@ permissions:
 jobs:
   fusionar:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
-      - name: Fusionar y verificar
-        run: rm -f lista_fusionada.m3u && bash fusor.sh *.m3u
+      - name: Publicar solo la lista SEÑAL curada
+        run: |
+          # No fusionar *.m3u crudos: eso reintroducía países/adultos no pedidos.
+          # lista_senal_orden.m3u ya tiene SOLO las categorías del usuario + vivos.
+          if [ ! -f lista_senal_orden.m3u ]; then
+            echo "Falta lista_senal_orden.m3u" >&2
+            exit 1
+          fi
+          cp -f lista_senal_orden.m3u lista_fusionada.m3u
+          echo "Canales: $(grep -c '^#EXTINF' lista_fusionada.m3u)"
+          echo "Categorías:"
+          grep -o 'group-title="[^"]*"' lista_fusionada.m3u | sed 's/group-title="//;s/"$//' | awk '!s[$0]++'
       - name: Guardar resultado
-        run: git config user.name "bot" && git config user.email "bot@users.noreply.github.com" && git add lista_fusionada.m3u && (git diff --cached --quiet || git commit -m "Lista actualizada") && git push
+        run: |
+          git config user.name "bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add lista_fusionada.m3u
+          (git diff --cached --quiet || git commit -m "Lista SEÑAL curada (solo categorías pedidas)")
+          git push

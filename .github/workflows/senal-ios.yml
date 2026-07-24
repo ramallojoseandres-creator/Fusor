@@ -1,0 +1,164 @@
+name: Build SEÑAL iOS IPA (LiveContainer)
+
+on:
+  push:
+    paths:
+      - "senal-ios/**"
+      - "lista_fusionada.m3u"
+      - ".github/workflows/senal-ios.yml"
+  pull_request:
+    paths:
+      - "senal-ios/**"
+      - ".github/workflows/senal-ios.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: senal-ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build IPA for LiveContainer
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Sync playlist into iOS Resources
+        run: |
+          mkdir -p senal-ios/SenalTV/Resources
+          if [ -f lista_fusionada.m3u ]; then
+            cp lista_fusionada.m3u senal-ios/SenalTV/Resources/lista_fusionada.m3u
+            gzip -c -9 lista_fusionada.m3u > senal-ios/SenalTV/Resources/lista_fusionada.m3u.gz
+          fi
+          ls -lh senal-ios/SenalTV/Resources/
+
+      - name: Select latest Xcode
+        run: |
+          ls /Applications | grep -i xcode || true
+          # Prefer Xcode 16+ (objectVersion 77 from recent XcodeGen)
+          if [ -d /Applications/Xcode_16.4.app ]; then
+            sudo xcode-select -s /Applications/Xcode_16.4.app
+          elif [ -d /Applications/Xcode_16.3.app ]; then
+            sudo xcode-select -s /Applications/Xcode_16.3.app
+          elif [ -d /Applications/Xcode_16.2.app ]; then
+            sudo xcode-select -s /Applications/Xcode_16.2.app
+          elif [ -d /Applications/Xcode_16.1.app ]; then
+            sudo xcode-select -s /Applications/Xcode_16.1.app
+          elif [ -d /Applications/Xcode_16.0.app ]; then
+            sudo xcode-select -s /Applications/Xcode_16.0.app
+          else
+            sudo xcode-select -s /Applications/Xcode.app
+          fi
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: senal-ios
+        run: |
+          xcodegen generate
+          # Show project format for debugging
+          plutil -p SenalTV.xcodeproj/project.pbxproj | head -5 || true
+          grep -E 'objectVersion|compatibilityVersion' SenalTV.xcodeproj/project.pbxproj | head -5 || true
+
+      - name: Build device .app (no Apple signing — LiveContainer re-signs)
+        working-directory: senal-ios
+        run: |
+          set -euo pipefail
+          mkdir -p dist/DerivedData
+          xcodebuild \
+            -scheme SenalTV \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$PWD/dist/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            ONLY_ACTIVE_ARCH=NO \
+            build
+
+      - name: Package LiveContainer IPA
+        working-directory: senal-ios
+        run: |
+          set -euo pipefail
+          # Verify ATS is in the built Info.plist
+          APP=$(find dist/DerivedData/Build/Products -name 'SenalTV.app' -type d | head -1)
+          test -n "$APP"
+          echo "Using app: $APP"
+          echo "=== App bundle contents ==="
+          ls -lah "$APP"
+          # Belt-and-suspenders: inject playlist if build phase missed it
+          if ! find "$APP" \( -iname 'playlist.dat' -o -iname 'playlist.m3u' -o -iname 'lista_fusionada.m3u*' \) | grep -q .; then
+            echo "WARNING: build phase missed playlist — copying manually"
+            cp -f SenalTV/Catalog/playlist.dat "$APP/playlist.dat"
+            cp -f SenalTV/Catalog/playlist.m3u "$APP/playlist.m3u" || true
+          fi
+          # Splash video must ship for opening motion
+          if [ ! -f "$APP/splash.mp4" ] && [ -f SenalTV/Resources/splash.mp4 ]; then
+            echo "Injecting splash.mp4"
+            cp -f SenalTV/Resources/splash.mp4 "$APP/splash.mp4"
+          fi
+          if ! find "$APP" \( -iname 'playlist.dat' -o -iname 'playlist.m3u' -o -iname 'lista_fusionada.m3u*' \) | grep -q .; then
+            echo "ERROR: playlist missing from .app"
+            find "$APP" -type f
+            exit 1
+          fi
+          find "$APP" \( -iname 'playlist.*' -o -iname 'lista_*' -o -iname 'splash.mp4' \) -ls
+          plutil -p "$APP/Info.plist" | grep -A20 AppTransport || plutil -p "$APP/Info.plist" | head -40
+          rm -rf dist/Payload
+          mkdir -p dist/Payload
+          cp -R "$APP" dist/Payload/
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' dist/Payload/SenalTV.app/Info.plist
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' dist/Payload/SenalTV.app/Info.plist || true
+          (
+            cd dist
+            rm -f SenalTV-LiveContainer.ipa
+            zip -qry SenalTV-LiveContainer.ipa Payload
+          )
+          ls -lh dist/SenalTV-LiveContainer.ipa
+          # IPA itself must be larger than empty app (~1MB+)
+          SIZE=$(stat -f%z dist/SenalTV-LiveContainer.ipa 2>/dev/null || stat -c%s dist/SenalTV-LiveContainer.ipa)
+          echo "IPA bytes: $SIZE"
+          if [ "$SIZE" -lt 500000 ]; then
+            echo "ERROR: IPA too small ($SIZE) — playlist likely missing"
+            unzip -l dist/SenalTV-LiveContainer.ipa
+            exit 1
+          fi
+          unzip -l dist/SenalTV-LiveContainer.ipa | head -60
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SenalTV-LiveContainer-ipa
+          path: senal-ios/dist/SenalTV-LiveContainer.ipa
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Publish Release IPA (main / workflow_dispatch only)
+        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: senal-ios-${{ github.run_number }}
+          name: SEÑAL iOS ${{ github.run_number }} (LiveContainer)
+          body: |
+            IPA para **LiveContainer** (sin firma App Store).
+
+            1. En LiveContainer: Settings → Import Certificate from AltStore/SideStore (JIT-Less)
+            2. My Apps → **+** → elige `SenalTV-LiveContainer.ipa`
+            3. Ábrela desde LiveContainer
+
+            SEÑAL iOS 1.8.5 (LiveContainer): mismas rutas que el APK — login + GET /api/catalog (caché local).
+          files: senal-ios/dist/SenalTV-LiveContainer.ipa
+          draft: false
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

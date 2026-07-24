@@ -1,0 +1,227 @@
+package com.senal.tv.util
+
+import com.senal.tv.data.model.CatalogItem
+import com.senal.tv.data.model.Category
+
+/**
+ * Orden exacto del sidebar según capturas FLUJO del usuario.
+ * Solo estas categorías; el resto se elimina con sus canales.
+ * Adultos al final.
+ *
+ * Deportes va DESPUÉS de HD+(265), no al inicio ni al final.
+ */
+object CatalogRules {
+
+    private val adultRegex = Regex(
+        pattern = """(?i)(\+| )?18\+?|adult|adulto|adultos|xxx|porn|porno|erotic|erotica|nsfw|hot\s*xxx|onlyfans|playboy""",
+    )
+
+    /**
+     * Orden exacto (arriba → abajo) de las capturas:
+     * Copa Mundial…HD+(265) → Deportes → Cine… → países → Italia → Adultos
+     */
+    val preferredLiveOrder: List<String> = listOf(
+        "Copa Mundial",
+        "MLB PASS",
+        "NBA PASS",
+        "NFL PASS",
+        "Eventos PPV",
+        "Full HD",
+        "HD+(265)",
+        "Deportes",
+        "Cine y Series",
+        "Cultura",
+        "Infantil",
+        "Noticias",
+        "Religioso",
+        "Música",
+        "Premium Español",
+        "Canales 24/7",
+        "Cinema Channels",
+        "Argentina",
+        "Bolivia",
+        "Brasil",
+        "Canadá",
+        "República Dominicana",
+        "Chile",
+        "Colombia",
+        "Centroamérica",
+        "Costa Rica",
+        "España",
+        "Ecuador",
+        "El Salvador",
+        "Honduras",
+        "Panamá",
+        "Paraguay",
+        "México",
+        "Perú",
+        "Puerto Rico",
+        "Uruguay",
+        "US Channels",
+        "Venezuela",
+        "Italia",
+        "Adultos",
+    )
+
+    /** Playlist / API aliases → preferred display name. */
+    private val aliases: Map<String, String> = mapOf(
+        "cine premium" to "Premium Español",
+        "premium espanol" to "Premium Español",
+        "premium español" to "Premium Español",
+        "cinema channel" to "Cinema Channels",
+        "cinema channels" to "Cinema Channels",
+        "republica dominicana" to "República Dominicana",
+        "república dominicana" to "República Dominicana",
+        "rep. dominicana" to "República Dominicana",
+        "canada" to "Canadá",
+        "canadá" to "Canadá",
+        "mexico" to "México",
+        "méxico" to "México",
+        "peru" to "Perú",
+        "perú" to "Perú",
+        "panama" to "Panamá",
+        "panamá" to "Panamá",
+        "musica" to "Música",
+        "música" to "Música",
+        "espana" to "España",
+        "españa" to "España",
+        "centroamerica" to "Centroamérica",
+        "centroamérica" to "Centroamérica",
+        "hd+(265)" to "HD+(265)",
+        "hd+ (265)" to "HD+(265)",
+        "full hd" to "Full HD",
+        "copa mundial" to "Copa Mundial",
+        "deportes" to "Deportes",
+        "sports" to "Deportes",
+        "adulto" to "Adultos",
+        "adultos" to "Adultos",
+        "adultos +18" to "Adultos",
+        "adultos+18" to "Adultos",
+        "adult" to "Adultos",
+        "xxx" to "Adultos",
+    )
+
+    private val preferredIndex: Map<String, Int> =
+        preferredLiveOrder.mapIndexed { i, name -> normalize(name) to i }.toMap()
+
+    fun isAdultLabel(label: String?): Boolean {
+        val value = label?.trim().orEmpty()
+        if (value.isEmpty()) return false
+        return adultRegex.containsMatchIn(value)
+    }
+
+    fun isAdultItem(item: CatalogItem): Boolean =
+        isAdultLabel(item.resolveCategory()) ||
+            isAdultLabel(item.resolveTitle()) ||
+            isAdultLabel(item.group) ||
+            isAdultLabel(item.category)
+
+    fun canonicalLabel(label: String): String {
+        val raw = label.trim()
+        if (raw.isEmpty()) return raw
+        aliases[normalize(raw)]?.let { return it }
+        preferredLiveOrder.firstOrNull { normalize(it) == normalize(raw) }?.let { return it }
+        return raw
+    }
+
+    fun isPreferredLabel(label: String?): Boolean {
+        val canon = canonicalLabel(label.orEmpty())
+        return preferredIndex.containsKey(normalize(canon))
+    }
+
+    fun sortCategories(categories: List<Category>): List<Category> {
+        if (categories.isEmpty()) return categories
+        val byCanon = LinkedHashMap<String, Category>()
+        for (cat in categories) {
+            val canon = canonicalLabel(cat.label())
+            if (canon.isBlank()) continue
+            if (!isPreferredLabel(canon)) continue
+            byCanon.putIfAbsent(
+                normalize(canon),
+                Category(id = canon, name = canon, title = canon, count = cat.count)
+            )
+        }
+        return preferredLiveOrder.mapNotNull { name -> byCanon[normalize(name)] }
+    }
+
+    /** Primera categoría no-adulta (Adultos nunca abre primero). */
+    fun defaultCategory(categories: List<Category>): String? =
+        sortCategories(categories).firstOrNull { !isAdultLabel(it.label()) }?.label()
+            ?: sortCategories(categories).firstOrNull()?.label()
+
+    fun preferredLiveItems(items: List<CatalogItem>): List<CatalogItem> =
+        items.filter { isPreferredLabel(it.resolveCategory()) }
+            .ifEmpty { items.filterNot { isAdultItem(it) }.ifEmpty { items } }
+
+    /**
+     * Limpia títulos de canal para la UI:
+     * - Quita resolución: `(1080p)`, `(720p)`, `(HD)`, …
+     * - Quita país/región entre paréntesis: `(España)`, `(México)`, …
+     * - Quita etiquetas `[Geo-blocked]`, `[Not 24/7]`, …
+     * - Quita banderas emoji
+     * - Title Case: "sport xtra" → "Sport Xtra"
+     */
+    fun cleanChannelTitle(raw: String): String {
+        var t = raw.trim()
+        if (t.isEmpty()) return t
+        t = t.replace(bracketTagRegex, "")
+        t = t.replace(resolutionParenRegex, "")
+        t = t.replace(countryParenRegex, "")
+        // Paréntesis residuales que solo son resolución/país sueltos
+        t = t.replace(junkParenRegex, "")
+        t = t.replace(flagEmojiRegex, "")
+        t = t.replace(Regex("""\s*[|·]\s*$"""), "")
+        t = t.replace(Regex("""\s{2,}"""), " ").trim()
+        if (t.isEmpty()) return raw.trim()
+        return toTitleCase(t)
+    }
+
+    private fun toTitleCase(value: String): String {
+        val lowerWords = setOf("de", "del", "la", "las", "el", "los", "y", "e", "en", "a", "al", "por", "vs", "and", "the", "of")
+        val keepUpper = setOf(
+            "hd", "sd", "uhd", "fhd", "hdr", "tv", "nba", "nfl", "mlb", "nhl", "ufc", "ppv",
+            "espn", "cnn", "bbc", "fox", "hbo", "amc", "mtv", "tnt", "usa", "uk", "us", "uefa",
+            "fifa", "f1", "nba", "ok", "fm", "am", "hd+", "4k", "8k"
+        )
+        val parts = value.split(Regex("\\s+"))
+        return parts.mapIndexed { index, rawWord ->
+            val word = rawWord.trim()
+            if (word.isEmpty()) return@mapIndexed word
+            val letters = word.filter { it.isLetter() }
+            val lower = word.lowercase()
+            // Siglas cortas conocidas o ≤3 letras todas mayúsculas → conservar/MAYÚSCULAS
+            if (keepUpper.contains(lower) || (letters.length in 2..3 && word == word.uppercase() && letters.isNotEmpty())) {
+                return@mapIndexed word.uppercase()
+            }
+            if (word.any { it == '+' || it == '/' || it == '&' }) {
+                return@mapIndexed word.split(Regex("(?<=[+\\/&])|(?=[+\\/&])")).joinToString("") { token ->
+                    if (token.length <= 1) token
+                    else token.lowercase().replaceFirstChar { ch -> ch.titlecase() }
+                }
+            }
+            if (index > 0 && lowerWords.contains(lower)) return@mapIndexed lower
+            lower.replaceFirstChar { ch -> ch.titlecase() }
+        }.joinToString(" ")
+    }
+
+    private fun normalize(value: String): String =
+        value.trim().lowercase()
+            .replace('á', 'a').replace('é', 'e').replace('í', 'i')
+            .replace('ó', 'o').replace('ú', 'u').replace('ü', 'u')
+            .replace('ñ', 'n')
+
+    private val bracketTagRegex = Regex("""\s*\[[^\]]*\]""")
+    private val resolutionParenRegex = Regex(
+        """\s*\((?:\d{3,4}\s*[pPiI]|SD|HD|FHD|UHD|4K|8K|HEVC|H\.?\s*265|H\.?\s*264|HDR)\)""",
+        RegexOption.IGNORE_CASE
+    )
+    private val countryParenRegex = Regex(
+        """\s*\((?:España|Espana|Spain|México|Mexico|Argentina|Colombia|Chile|Perú|Peru|Brasil|Brazil|Venezuela|Bolivia|Ecuador|Uruguay|Paraguay|Honduras|Guatemala|Nicaragua|Panamá|Panama|Costa Rica|República Dominicana|Republica Dominicana|Puerto Rico|El Salvador|Italia|Italy|Canadá|Canada|USA|US|UK|FR|DE|LAT|LATAM|EUA|EE\.?\s*UU\.?)\)""",
+        RegexOption.IGNORE_CASE
+    )
+    private val junkParenRegex = Regex(
+        """\s*\((?:Geo-?blocked|Not\s*24/?7|24/?7|Offline|Backup|Alt|Mirror)\)""",
+        RegexOption.IGNORE_CASE
+    )
+    private val flagEmojiRegex = Regex("""[\x{1F1E6}-\x{1F1FF}]{2}""")
+}

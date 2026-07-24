@@ -1,0 +1,80 @@
+total=10489 alive=6773 dead=3716 elapsed=82.7s
+--- dead by group ---
+  474 dead /  1670 alive  Cine y Series
+  315 dead /     1 alive  Canales 24/7
+  304 dead /   424 alive  Deportes
+  252 dead /   187 alive  España
+  219 dead /   141 alive  Chile
+  177 dead /   106 alive  México
+  164 dead /  1117 alive  US Channels
+  140 dead /   713 alive  Noticias
+  134 dead /    64 alive  República Dominicana
+  133 dead /   143 alive  Brasil
+  124 dead /     0 alive  Premium Español
+  121 dead /   703 alive  Música
+  117 dead /    62 alive  Colombia
+  115 dead /   340 alive  Cultura
+  103 dead /   250 alive  Infantil
+   97 dead /    35 alive  Ecuador
+   94 dead /   102 alive  Perú
+   72 dead /     4 alive  Eventos PPV
+   64 dead /   109 alive  Argentina
+   63 dead /    66 alive  Adultos
+   59 dead /    34 alive  Religioso
+   55 dead /     9 alive  Cinema Channels
+   44 dead /     7 alive  Centroamérica
+   42 dead /    43 alive  Bolivia
+   35 dead /    46 alive  Costa Rica
+   32 dead /     0 alive  Uruguay
+   30 dead /     6 alive  Panamá
+   29 dead /    18 alive  Puerto Rico
+   23 dead /    21 alive  El Salvador
+   23 dead /    38 alive  Honduras
+   21 dead /    26 alive  Venezuela
+   19 dead /    32 alive  Paraguay
+    9 dead /   165 alive  Italia
+    7 dead /    83 alive  Canadá
+    2 dead /     2 alive  MLB PASS
+    2 dead /     4 alive  NBA PASS
+    2 dead /     2 alive  NFL PASS
+--- sample dead ---
+HTTP 404             | MLB Network (USA) (🇺🇸) | https://fl2.moveonjoy.com/MLB_NETWORK/index.m3u8
+ReadError:           | USA-MLB Network (L)(720) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/84672.m3u8
+ReadError:           | DEPORTES - NBA U (M)(720) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/9598.m3u8
+ReadError:           | USA-NBA TV (L)(720) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/10821.m3u8
+HTTP 404             | NFL Network (USA) (🇺🇸) | https://fl2.moveonjoy.com/NFL_NETWORK/index.m3u8
+ReadError:           | USA-NFL Network (L)(720) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/10828.m3u8
+ReadError:           | Belgian | 05:25 AM | ROYAL ANTWERP VS ANDERLECHT (L) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/118233.m3u8
+ReadError:           | Concacaf | 22:00 Hrs | Cruz Azul vs Tigres UANL (L) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/118239.m3u8
+ReadError:           | Conf | 13:00 Hrs | Djurgården vs Chelsea (L) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/118238.m3u8
+ReadError:           | Conf | 13:00 Hrs | Real Betis vs Fiorentina (L) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/118237.m3u8
+ReadError:           | CONFERENCE | 14:00 Betis vs Fiorentina - 01/05 (Z) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/118253.m3u8
+ReadError:           | CONFERENCE | 14:00 Djurgården vs Chelsea - 01/05 (Z) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/118255.m3u8
+ReadError:           | ■■■ CONFERENCE LEAGUE ■■■ | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/118252.m3u8
+ReadError:           | DEPORTES - UFC Fight PASS (T)(720) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/9611.m3u8
+ReadError:           | DEPORTES - UFC (L)(720) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/9610.m3u8
+ReadError:           | E Leag | 13:00 Hrs | Athletic Club vs Manchester United (L) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/118235.m3u8
+ReadError:           | E Leag | 13:00 Hrs | Tottenham vs Bodø / Glimt (L) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/118234.m3u8
+ReadError:           | EPL | 12:30 Hrs | Nottingham Forest vs Brentford (L) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/118236.m3u8
+ReadError:           | ES | DAZN 1 | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/94464.m3u8
+ReadError:           | ES: Dazn 1 BAR FHD | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/103713.m3u8
+ReadError:           | ES: Dazn 2 BAR (TV) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/103714.m3u8
+ReadError:           | ES | DAZN 2 HD (L) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/94465.m3u8
+ReadError:           | ES: Dazn 2 (TV)(1080) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/103710.m3u8
+ReadError:           | ES: Dazn 3 (TV)(1080) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/103711.m3u8
+ReadError:           | ES: Dazn 4 (TV) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/103712.m3u8
+ReadError:           | ES | DAZN F1 (L) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/94466.m3u8
+ReadError:           | ES: Dazn La Liga 1 (TV)(1080) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/103708.m3u8
+ReadError:           | ES: Dazn La Liga 1 (TV)(720) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/103707.m3u8
+ReadError:           | ES: Dazn La Liga 2 (TV)(1080) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/103709.m3u8
+ReadError:           | ES | Dazn La Liga HD | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/94467.m3u8
+ReadError:           | ES: LaLiga BAR 2 (TV) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/103700.m3u8
+ReadError:           | ES: LaLiga BAR 3 (TV) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/103701.m3u8
+ReadError:           | ES: LaLiga BAR (TV) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/103699.m3u8
+ReadError:           | ES: Liga Hypermotion 2 (TV) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/103705.m3u8
+ReadError:           | ES: Liga Hypermotion 3 (TV) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/103706.m3u8
+ReadError:           | ES: Liga Hypermotion (TV) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/103704.m3u8
+ReadError:           | ES: M. LaLiga (TV)(1080) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/103698.m3u8
+ReadError:           | ES: M. LaLiga (TV) (4K) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/103697.m3u8
+ReadError:           | ES: M. LaLiga (TV)(Fibra Multi-Comentaristas) | http://tv.masterplaytv.club:8080/live/mgwleor/4lhLaPDAOh/103696.m3u8
+HTTP 403             | ETB Eventos 1 (España) (🇪🇸) | https://multimedia.eitb.eus/live-content/oka1hd-hls/master.m3u8
