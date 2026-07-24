@@ -111,8 +111,8 @@ final class CatalogStore: ObservableObject {
             .map { $0 }
     }
 
-    private fun apply(_ list: [Channel], source: String) {
-        let filtered = list.compactMap { ch ->
+    private func apply(_ list: [Channel], source: String) {
+        let filtered = list.compactMap { ch -> Channel? in
             let group = CatalogRules.canonicalLabel(ch.group)
             guard CatalogRules.isPreferredLabel(group) else { return nil }
             return Channel(
