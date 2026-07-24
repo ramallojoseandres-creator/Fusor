@@ -1,81 +1,83 @@
 package com.senal.tv.data.api
 
-import com.senal.tv.data.model.CatalogResponse
-import com.senal.tv.data.model.FavoriteRequest
-import com.senal.tv.data.model.HealthResponse
 import com.senal.tv.data.model.LoginRequest
 import com.senal.tv.data.model.LoginResponse
-import com.senal.tv.data.model.MeResponse
-import com.senal.tv.data.model.PlaybackResponse
-import com.senal.tv.data.model.SearchResponse
-import kotlinx.serialization.json.JsonElement
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
-import retrofit2.http.Query
 
 /**
- * APIs TV del panel SEÑAL (VPS):
- * - GET  /api/health
- * - POST /api/auth/login
- * - GET  /api/me
- * - GET  /api/catalog
- *
- * Headers: Authorization: Bearer <token> + X-Device-Id: <id>
+ * Auth JWT. El catálogo se sincroniza por separado vía
+ * GET /api/catalog (JWT + X-Device-Id) → caché M3U en disco.
  */
 interface SenalApi {
-
-    @GET("api/health")
-    suspend fun health(): HealthResponse
 
     @POST("api/auth/login")
     suspend fun login(@Body body: LoginRequest): LoginResponse
 
-    @GET("api/me")
-    suspend fun me(): MeResponse
+    @POST("api/auth/change-password")
+    suspend fun changePassword(@Body body: ChangePasswordRequest): ChangePasswordResponse
 
-    /** Catálogo autenticado. `type` es opcional (servidor 2.x puede devolver todo). */
-    @GET("api/catalog")
-    suspend fun catalog(
-        @Query("type") type: String? = null,
-        @Query("category") category: String? = null,
-        @Query("page") page: Int? = null,
-        @Query("limit") limit: Int? = null,
-        @Query("offset") offset: Int? = null,
-        @Query("q") q: String? = null
-    ): CatalogResponse
-
-    /** Variante path-style por compatibilidad con paneles antiguos. */
-    @GET("api/catalog/{type}")
-    suspend fun catalogByPath(
-        @Path("type") type: String,
-        @Query("category") category: String? = null,
-        @Query("page") page: Int? = null,
-        @Query("limit") limit: Int? = null
-    ): CatalogResponse
-
-    @GET("api/search")
-    suspend fun search(
-        @Query("q") query: String,
-        @Query("limit") limit: Int = 40
-    ): SearchResponse
-
-    @POST("api/playback/{id}")
-    suspend fun playback(
+    @PATCH("api/admin/users/{id}")
+    suspend fun patchUser(
         @Path("id") id: String,
-        @Body body: Map<String, String> = emptyMap()
-    ): PlaybackResponse
+        @Body body: PatchUserRequest
+    ): ChangePasswordResponse
 
-    @GET("api/favorites")
-    suspend fun favorites(): JsonElement
+    /** Public (or auth) banner/news messages for the home screen. */
+    @GET("api/banner")
+    suspend fun banner(): BannerResponse
+}
 
-    @POST("api/favorites")
-    suspend fun addFavorite(@Body body: FavoriteRequest): JsonElement
+@kotlinx.serialization.Serializable
+data class ChangePasswordRequest(
+    val currentPassword: String,
+    val newPassword: String,
+    val oldPassword: String? = null,
+    val password: String? = null
+)
 
-    @GET("api/history")
-    suspend fun history(): JsonElement
+@kotlinx.serialization.Serializable
+data class PatchUserRequest(
+    val password: String? = null,
+    val active: Boolean? = null
+)
 
-    @GET("api/continue")
-    suspend fun continueWatching(): JsonElement
+@kotlinx.serialization.Serializable
+data class ChangePasswordResponse(
+    val ok: Boolean? = null,
+    val success: Boolean? = null,
+    val error: String? = null,
+    val message: String? = null
+)
+
+@kotlinx.serialization.Serializable
+data class BannerResponse(
+    val items: List<BannerItem> = emptyList(),
+    val title: String? = null,
+    val body: String? = null,
+    val message: String? = null,
+    val enabled: Boolean? = null
+)
+
+@kotlinx.serialization.Serializable
+data class BannerItem(
+    val id: String? = null,
+    val title: String? = null,
+    val body: String? = null,
+    val message: String? = null,
+    val imageUrl: String? = null,
+    val image: String? = null,
+    val active: Boolean? = true
+) {
+    fun headline(): String = title?.trim().orEmpty()
+        .ifBlank { message?.trim().orEmpty() }
+        .ifBlank { "SEÑAL" }
+
+    fun text(): String = body?.trim().orEmpty()
+        .ifBlank { message?.trim().orEmpty() }
+
+    fun art(): String? = imageUrl?.takeIf { it.isNotBlank() } ?: image?.takeIf { it.isNotBlank() }
 }

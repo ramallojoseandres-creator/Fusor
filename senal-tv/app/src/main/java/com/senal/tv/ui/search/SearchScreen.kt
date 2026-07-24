@@ -115,12 +115,18 @@ fun SearchScreen(
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     items(results, key = { it.resolveId() }) { item ->
-                        PosterCard(item = item, onClick = {
-                            scope.launch {
-                                container.libraryRepository.markHistory(item)
-                                onPlay(item)
+                        PosterCard(
+                            item = item,
+                            onClick = {
+                                scope.launch {
+                                    container.libraryRepository.markHistory(item)
+                                    onPlay(item)
+                                }
+                            },
+                            onLongClick = {
+                                scope.launch { container.libraryRepository.toggleFavorite(item) }
                             }
-                        })
+                        )
                     }
                 }
                 else -> EmptyState("La búsqueda es instantánea")

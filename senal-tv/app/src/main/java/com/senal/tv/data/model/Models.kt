@@ -9,86 +9,40 @@ data class LoginRequest(
     val username: String,
     val password: String,
     val deviceId: String,
-    val deviceName: String = "SEÑAL TV",
+    val deviceName: String = "SENAL TV",
     val platform: String = "android-tv"
 )
 
 @Serializable
 data class LoginResponse(
-    val ok: Boolean? = null,
     val token: String? = null,
     val accessToken: String? = null,
     val jwt: String? = null,
     val error: String? = null,
-    val message: String? = null,
     val user: UserInfo? = null
 ) {
     fun resolveToken(): String? = token ?: accessToken ?: jwt
-    fun resolveError(): String? = message?.takeIf { it.isNotBlank() } ?: error?.takeIf { it.isNotBlank() }
 }
 
 @Serializable
 data class UserInfo(
     val id: String? = null,
     val username: String? = null,
-    val name: String? = null,
     val role: String? = null,
-    val expiresAt: String? = null,
-    val active: Boolean? = null,
-    val bouquetId: String? = null
-) {
-    fun displayName(): String = username ?: name ?: id.orEmpty()
-}
-
-@Serializable
-data class HealthResponse(
-    val ok: Boolean? = null,
-    val service: String? = null,
-    val version: String? = null,
-    val panel: Boolean? = null,
-    val db: String? = null,
-    val time: String? = null,
-    val error: String? = null,
-    val message: String? = null
-) {
-    fun isHealthy(): Boolean = ok != false && error.isNullOrBlank()
-}
-
-@Serializable
-data class MeResponse(
-    val ok: Boolean? = null,
-    val user: UserInfo? = null,
-    val username: String? = null,
-    val id: String? = null,
-    val role: String? = null,
-    val expiresAt: String? = null,
-    val error: String? = null,
-    val message: String? = null
-) {
-    fun resolveUser(): UserInfo? = user ?: run {
-        val name = username?.takeIf { it.isNotBlank() } ?: return null
-        UserInfo(id = id, username = name, role = role, expiresAt = expiresAt)
-    }
-
-    fun resolveError(): String? = message?.takeIf { it.isNotBlank() } ?: error?.takeIf { it.isNotBlank() }
-}
+    val expiresAt: String? = null
+)
 
 @Serializable
 data class ApiError(
-    val ok: Boolean? = null,
     val error: String? = null,
     val message: String? = null
-) {
-    fun resolveMessage(): String? = message?.takeIf { it.isNotBlank() } ?: error?.takeIf { it.isNotBlank() }
-}
+)
 
 @Serializable
 data class CatalogResponse(
     val items: List<CatalogItem>? = null,
     val channels: List<CatalogItem>? = null,
-    val live: List<CatalogItem>? = null,
     val movies: List<CatalogItem>? = null,
-    val vod: List<CatalogItem>? = null,
     val series: List<CatalogItem>? = null,
     val data: List<CatalogItem>? = null,
     val results: List<CatalogItem>? = null,
@@ -97,11 +51,10 @@ data class CatalogResponse(
     val limit: Int? = null,
     val total: Int? = null,
     val hasMore: Boolean? = null,
-    val nextPage: Int? = null,
-    val ok: Boolean? = null
+    val nextPage: Int? = null
 ) {
     fun resolveItems(): List<CatalogItem> =
-        items ?: channels ?: live ?: movies ?: vod ?: series ?: data ?: results ?: emptyList()
+        items ?: channels ?: movies ?: series ?: data ?: results ?: emptyList()
 
     fun resolveHasMore(requestedLimit: Int): Boolean {
         hasMore?.let { return it }
@@ -141,14 +94,7 @@ data class CatalogItem(
     val category: String? = null,
     val categoryId: String? = null,
     val group: String? = null,
-    val groupTitle: String? = null,
     val type: String? = null,
-    val url: String? = null,
-    val streamUrl: String? = null,
-    val playbackUrl: String? = null,
-    val src: String? = null,
-    val link: String? = null,
-    val stream: String? = null,
     val year: Int? = null,
     val duration: Int? = null,
     val durationSeconds: Int? = null,
@@ -165,20 +111,21 @@ data class CatalogItem(
     val currentProgram: String? = null,
     val nextProgram: String? = null,
     val nowPlaying: ProgramInfo? = null,
-    val nextPlaying: ProgramInfo? = null
+    val nextPlaying: ProgramInfo? = null,
+    /** Direct stream from local M3U (no server playback hop). */
+    val url: String? = null,
+    val streamUrl: String? = null,
+    val userAgent: String? = null
 ) {
     fun resolveId(): String = id ?: mongoId ?: streamId ?: name.hashCode().toString()
     fun resolveTitle(): String = title ?: name ?: "Sin título"
     fun resolveLogo(): String? = logo ?: poster ?: cover ?: image ?: icon
     fun resolvePoster(): String? = poster ?: cover ?: image ?: logo ?: icon
     fun resolveNumber(): Int? = number ?: channelNumber
-    fun resolveCategory(): String = category ?: group ?: groupTitle ?: "General"
+    fun resolveCategory(): String = category ?: group ?: "General"
     fun resolveSynopsis(): String = synopsis ?: plot ?: description.orEmpty()
     fun resolveGenre(): String = genre ?: genres?.joinToString(", ").orEmpty()
-    fun resolveStreamUrl(): String? =
-        sequenceOf(url, streamUrl, playbackUrl, src, link, stream)
-            .mapNotNull { it?.trim()?.takeIf(String::isNotEmpty) }
-            .firstOrNull()
+    fun resolveStreamUrl(): String? = streamUrl ?: url
     fun resolveDurationMinutes(): Int? {
         duration?.let { return if (it > 300) it / 60 else it }
         durationSeconds?.let { return it / 60 }

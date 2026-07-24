@@ -2,33 +2,40 @@
 
 Aplicación IPTV premium para **Android TV**, **Google TV**, **Fire TV Stick**, **Nvidia Shield** y **Xiaomi TV Box**.
 
+Versión **1.8.5** = UI/experiencia **1.8.4** + rutas del panel 2.x corregidas.
+
 ## Características
 
-- Identidad visual SEÑAL (sin logos ni colores de terceros)
-- Login JWT contra API REST SEÑAL (`X-Device-Id` en todas las peticiones)
-- Catálogo cargado **una vez** (memoria + disco) y canales al instante
-- TV en vivo, películas, series, búsqueda, favoritos
-- Reproductor Media3/ExoPlayer (usa URL del catálogo sin esperar `/api/playback`)
-- Solo landscape · Android 7+ (API 24)
+- Navegación 100% D-Pad (Leanback / Compose TV)
+- Login JWT contra API SEÑAL
+- Catálogo: **una descarga** `GET /api/catalog` → caché en disco; luego sin espera de red
+- Playback directo desde las URLs del catálogo
+- TV en vivo con categorías + paginación
+- Favoritos, historial y continuar viendo (Room, locales)
+- Reproductor Media3/ExoPlayer
 
-## API (VPS)
+## Rutas del panel (VPS)
 
 Base: `http://185.192.20.245:3000/`
 
-| Uso | Método | Endpoint |
-|-----|--------|----------|
+| Uso | Método | Ruta |
+|-----|--------|------|
 | Health | GET | `/api/health` |
 | Login TV | POST | `/api/auth/login` |
-| Sesión | GET | `/api/me` |
-| Contenido | GET | `/api/catalog` |
+| Catálogo | GET | `/api/catalog` |
 
 Headers: `Authorization: Bearer <token>` + `X-Device-Id: <id>`
 
-## Build
+> `/playlist.m3u` ya no entrega la lista en el panel 2.x (sirve el admin HTML).
+
+## Build (GitHub Actions)
+
+1. **Actions** → **Build SEÑAL TV APK**
+2. Descarga el artefacto **SenalTV-apk** → `SenalTV.apk`
+
+## Build local
 
 ```bash
 cd senal-tv
-./gradlew :app:assembleDebug
+./gradlew :app:assembleTvDebug
 ```
-
-APK: `app/build/outputs/apk/debug/app-debug.apk` · versión `2.1.0`

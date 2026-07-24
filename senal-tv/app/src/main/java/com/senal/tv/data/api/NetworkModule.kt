@@ -2,6 +2,7 @@ package com.senal.tv.data.api
 
 import android.os.Build
 import com.senal.tv.BuildConfig
+import com.senal.tv.ServerConfig
 import com.senal.tv.data.local.TokenStore
 import kotlinx.serialization.json.Json
 import okhttp3.Interceptor
@@ -20,37 +21,28 @@ object NetworkModule {
         explicitNulls = false
     }
 
-    /** OkHttp only allows header values in U+0020..U+007E. */
-    private fun asciiHeader(value: String, fallback: String = "unknown"): String {
-        val cleaned = buildString(value.length) {
-            for (c in value) {
-                append(if (c in '\u0020'..'\u007e') c else '?')
-            }
-        }.trim()
-        return cleaned.ifBlank { fallback }
-    }
-
     fun createApi(tokenStore: TokenStore): SenalApi {
         val authInterceptor = Interceptor { chain ->
             val original = chain.request()
-            // Never block the calling thread; device id is warmed at app start.
-            val deviceId = tokenStore.peekDeviceId() ?: "senal-tv-pending"
-            val fingerprint = asciiHeader(
-                "${Build.MANUFACTURER}-${Build.MODEL}"
-            ).take(80)
             val builder = original.newBuilder()
                 .header("Accept", "application/json")
-                .header("X-Device-Id", asciiHeader(deviceId, "senal-tv-pending"))
-                // ASCII only — "SEÑAL" (Ñ) crashes OkHttp header validation.
-                .header("X-Device-Name", "SENAL TV")
-                .header("X-Device-Platform", "android-tv")
-                .header("X-Device-Fingerprint", fingerprint)
+            // Header values must be ASCII (OkHttp). Device id is UUID-safe.
+            tokenStore.peekDeviceId()?.takeIf { it.isNotBlank() }?.let {
+                builder.header("X-Device-Id", it)
+            }
+            builder.header("X-Device-Name", "SENAL TV")
+            builder.header("X-Device-Platform", "android-tv")
+            val fingerprint = "${Build.MANUFACTURER}-${Build.MODEL}"
+                .replace(Regex("[^\\x20-\\x7E]"), "?")
+                .take(80)
+            if (fingerprint.isNotBlank()) {
+                builder.header("X-Device-Fingerprint", fingerprint)
+            }
 
             val token = tokenStore.cachedToken
             if (!token.isNullOrBlank()) {
                 builder.header("Authorization", "Bearer $token")
             }
-
             chain.proceed(builder.build())
         }
 
@@ -64,7 +56,7 @@ object NetworkModule {
 
         val client = OkHttpClient.Builder()
             .connectTimeout(20, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
+            .readTimeout(45, TimeUnit.SECONDS)
             .writeTimeout(20, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
             .addInterceptor(authInterceptor)
@@ -72,7 +64,7 @@ object NetworkModule {
             .build()
 
         return Retrofit.Builder()
-            .baseUrl(BuildConfig.API_BASE_URL)
+            .baseUrl(ServerConfig.baseUrl())
             .client(client)
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()

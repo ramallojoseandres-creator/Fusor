@@ -14,6 +14,8 @@ private val Context.tokenDataStore by preferencesDataStore("senal_secure_prefs")
 class TokenStore(private val context: Context) {
     private val keyToken = stringPreferencesKey("jwt")
     private val keyUsername = stringPreferencesKey("username_display")
+    private val keyUserId = stringPreferencesKey("user_id")
+    private val keyRole = stringPreferencesKey("user_role")
     private val keyDeviceId = stringPreferencesKey("device_id")
 
     @Volatile
@@ -21,7 +23,20 @@ class TokenStore(private val context: Context) {
         private set
 
     @Volatile
-    private var cachedDeviceId: String? = null
+    var cachedRole: String? = null
+        private set
+
+    @Volatile
+    var cachedUserId: String? = null
+        private set
+
+    @Volatile
+    var cachedUsername: String? = null
+        private set
+
+    @Volatile
+    var cachedDeviceId: String? = null
+        private set
 
     val tokenFlow: Flow<String?> = context.tokenDataStore.data.map { it[keyToken] }
 
@@ -29,34 +44,60 @@ class TokenStore(private val context: Context) {
         runBlocking {
             val prefs = context.tokenDataStore.data.first()
             cachedToken = prefs[keyToken]
+            cachedRole = prefs[keyRole]
+            cachedUserId = prefs[keyUserId]
+            cachedUsername = prefs[keyUsername]
             cachedDeviceId = prefs[keyDeviceId]
         }
     }
 
-    suspend fun saveSession(token: String, username: String) {
-        if (token.isBlank()) return
+    /** Device id ya en memoria (sin I/O). Null solo en el primer arranque. */
+    fun peekDeviceId(): String? = cachedDeviceId?.takeIf { it.isNotBlank() }
+
+    val isAdmin: Boolean
+        get() {
+            val role = cachedRole?.trim().orEmpty()
+            return role.equals("MASTER", ignoreCase = true) ||
+                role.equals("ADMIN", ignoreCase = true) ||
+                role.equals("admin", ignoreCase = true)
+        }
+
+    suspend fun saveSession(
+        token: String,
+        username: String,
+        userId: String? = null,
+        role: String? = null
+    ) {
         context.tokenDataStore.edit {
             it[keyToken] = token
             it[keyUsername] = username
+            if (!userId.isNullOrBlank()) it[keyUserId] = userId else it.remove(keyUserId)
+            if (!role.isNullOrBlank()) it[keyRole] = role else it.remove(keyRole)
         }
         cachedToken = token
+        cachedUsername = username
+        cachedUserId = userId
+        cachedRole = role
     }
 
     suspend fun clear() {
         context.tokenDataStore.edit {
             it.remove(keyToken)
             it.remove(keyUsername)
+            it.remove(keyUserId)
+            it.remove(keyRole)
         }
         cachedToken = null
+        cachedUsername = null
+        cachedUserId = null
+        cachedRole = null
     }
 
     suspend fun username(): String? =
         context.tokenDataStore.data.first()[keyUsername]
 
-    fun peekDeviceId(): String? = cachedDeviceId
-
     suspend fun deviceId(): String {
-        cachedDeviceId?.takeIf { it.isNotBlank() }?.let { return it }
+        peekDeviceId()?.let { return it }
         val existing = context.tokenDataStore.data.first()[keyDeviceId]
         if (!existing.isNullOrBlank()) {
             cachedDeviceId = existing

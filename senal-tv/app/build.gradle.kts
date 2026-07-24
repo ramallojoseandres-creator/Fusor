@@ -13,15 +13,58 @@ android {
     defaultConfig {
         applicationId = "com.senal.tv"
         minSdk = 24
-        targetSdk = 35
-        versionCode = 23
-        versionName = "2.1.0"
+        targetSdk = 34
+        versionCode = 185
+        versionName = "1.8.5"
+        // ─── SEÑAL server (cambiar IP/puerto aquí) ───
+        buildConfigField("String", "SERVER_IP", "\"185.192.20.245\"")
+        buildConfigField("int", "SERVER_PORT", "3000")
         buildConfigField("String", "API_BASE_URL", "\"http://185.192.20.245:3000/\"")
+        buildConfigField("boolean", "IS_TABLET", "false")
         vectorDrawables.useSupportLibrary = true
+    }
+
+    flavorDimensions += "device"
+    productFlavors {
+        /** Fire TV + Android TV (Leanback). ARM only — sticks/boxes reales. */
+        create("tv") {
+            dimension = "device"
+            applicationId = "com.senal.tv"
+            versionCode = 185
+            versionName = "1.8.5"
+            buildConfigField("boolean", "IS_TABLET", "false")
+            ndk {
+                // Fire Stick / Android TV boxes: ARM. Sin x86 para APK más liviana.
+                abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+            }
+        }
+        /** Galaxy Tab A8 SM-X200 (10.5" táctil) y tablets similares. */
+        create("tablet") {
+            dimension = "device"
+            applicationId = "com.senal.tablet"
+            versionCode = 1201
+            versionName = "1.20.1-x200"
+            buildConfigField("boolean", "IS_TABLET", "true")
+            buildConfigField("String", "TABLET_MODEL", "\"SM-X200\"")
+            ndk {
+                abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+            }
+        }
+    }
+
+    signingConfigs {
+        create("release") {
+            val debugStore = file(System.getProperty("user.home") + "/.android/debug.keystore")
+            storeFile = debugStore
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
