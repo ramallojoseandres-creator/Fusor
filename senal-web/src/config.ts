@@ -21,5 +21,5 @@ export const CATALOG_URL = `${assetBase}catalog/lista_fusionada.m3u.gz`
 export const MOVIES_VOD_URL = `${assetBase}vod/daniel65_peliculas.m3u.gz`
 export const SERIES_VOD_URL = `${assetBase}vod/daniel65_series.m3u.gz`
 export const APP_NAME = 'SEÑAL Web'
-export const APP_VERSION = '1.9.2'
+export const APP_VERSION = '1.9.3'
 export const PLATFORM = 'web'
