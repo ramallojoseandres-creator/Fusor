@@ -120,29 +120,40 @@ class AuthRepository(
 }
 
 /**
- * Catálogo local (EN VIVO desde M3U SEÑAL) + PELÍCULAS remotas (iptv-org).
+ * Catálogo local EN VIVO (M3U SEÑAL) + VOD Daniel65 (películas / series).
  */
 class CatalogRepository(
     private val playlist: LocalPlaylistStore,
-    private val remoteMovies: com.senal.tv.data.local.RemoteMoviesStore? = null
+    private val danielVod: com.senal.tv.data.local.DanielVodStore? = null
 ) {
     suspend fun categories(type: String): List<Category> = withContext(Dispatchers.IO) {
-        playlist.categories(type)
+        when (type.lowercase()) {
+            "movie", "movies", "vod" ->
+                danielVod?.categories(com.senal.tv.data.local.DanielVodStore.Kind.MOVIES)
+                    ?: playlist.categories(type)
+            "series", "show", "shows" ->
+                danielVod?.categories(com.senal.tv.data.local.DanielVodStore.Kind.SERIES)
+                    ?: playlist.categories(type)
+            else -> playlist.categories(type)
+        }
     }
 
     /** Categories with optional adult filter for parental lock. */
     suspend fun categories(type: String, hideAdults: Boolean): List<Category> {
         val all = categories(type)
+        val sorted = when (type.lowercase()) {
+            "movie", "movies", "vod", "series", "show", "shows" -> all
+            else -> com.senal.tv.util.CatalogRules.sortCategories(all)
+        }
         return if (!hideAdults) {
-            com.senal.tv.util.CatalogRules.sortCategories(all)
+            sorted
         } else {
-            com.senal.tv.util.CatalogRules.sortCategories(all)
-                .filterNot { com.senal.tv.util.CatalogRules.isAdultLabel(it.label()) }
+            sorted.filterNot { com.senal.tv.util.CatalogRules.isAdultLabel(it.label()) }
         }
     }
 
     suspend fun get(id: String): CatalogItem? = withContext(Dispatchers.IO) {
-        playlist.get(id) ?: remoteMovies?.get(id)
+        playlist.get(id) ?: danielVod?.get(id)
     }
 
     suspend fun page(
@@ -152,20 +163,34 @@ class CatalogRepository(
         limit: Int = 60
     ): CatalogResponse = withContext(Dispatchers.IO) {
         val kind = type.lowercase()
-        if ((kind == "movie" || kind == "movies" || kind == "vod") && remoteMovies != null) {
-            remoteMovies.page(page = page, limit = limit)
-        } else {
-            playlist.page(type = type, category = category, page = page, limit = limit)
+        when {
+            (kind == "movie" || kind == "movies" || kind == "vod") && danielVod != null ->
+                danielVod.page(
+                    kind = com.senal.tv.data.local.DanielVodStore.Kind.MOVIES,
+                    category = category,
+                    page = page,
+                    limit = limit
+                )
+            (kind == "series" || kind == "show" || kind == "shows") && danielVod != null ->
+                danielVod.page(
+                    kind = com.senal.tv.data.local.DanielVodStore.Kind.SERIES,
+                    category = category,
+                    page = page,
+                    limit = limit
+                )
+            else -> playlist.page(type = type, category = category, page = page, limit = limit)
         }
     }
 
     suspend fun search(query: String): List<CatalogItem> = withContext(Dispatchers.IO) {
-        playlist.search(query)
+        val live = playlist.search(query)
+        val vod = danielVod?.search(query, com.senal.tv.data.local.DanielVodStore.Kind.ALL).orEmpty()
+        (live + vod).distinctBy { it.resolveId() }.take(100)
     }
 
     suspend fun playback(id: String): PlaybackResponse = withContext(Dispatchers.IO) {
         runCatching { playlist.playback(id) }.getOrElse {
-            remoteMovies?.playback(id) ?: throw it
+            danielVod?.playback(id) ?: throw it
         }
     }
 

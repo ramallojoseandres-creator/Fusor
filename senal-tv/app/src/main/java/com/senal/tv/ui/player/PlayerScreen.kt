@@ -276,7 +276,7 @@ fun PlayerScreen(
                 startPlayback(url, playback.headers.orEmpty())
             }
             .onFailure {
-                // Películas iptv-org / URLs directas en el CatalogItem
+                // VOD Daniel / URLs directas en el CatalogItem
                 val direct = current.resolveStreamUrl()
                 if (!direct.isNullOrBlank()) {
                     startPlayback(direct, emptyMap())
