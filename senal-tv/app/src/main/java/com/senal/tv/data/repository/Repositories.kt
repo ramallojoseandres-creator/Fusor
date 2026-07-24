@@ -64,6 +64,7 @@ class AuthRepository(
             runCatching { api.me().resolveUser() }.getOrNull()?.let { user ->
                 tokenStore.saveSession(token, user.displayName().ifBlank { display })
             }
+            Unit
         }.recoverCatching { err ->
             throw friendlyHttp(err, fallback = "No se pudo iniciar sesión")
         }
