@@ -55,34 +55,28 @@ private fun SenalRoot() {
     val token by container.authRepository.tokenFlow.collectAsState(initial = container.tokenStore.cachedToken)
     var route by remember { mutableStateOf<AppRoute>(AppRoute.Splash) }
     var splashDone by remember { mutableStateOf(false) }
-    var sessionChecked by remember { mutableStateOf(false) }
 
-    LaunchedEffect(splashDone) {
-        if (!splashDone || sessionChecked) return@LaunchedEffect
-        if (!token.isNullOrBlank()) {
-            container.authRepository.validateSession()
-        }
-        sessionChecked = true
+    // Navigate immediately after splash (do not block on /api/me).
+    LaunchedEffect(token, splashDone) {
+        if (!splashDone) return@LaunchedEffect
         route = when {
-            container.tokenStore.cachedToken.isNullOrBlank() -> AppRoute.Login
+            token.isNullOrBlank() -> AppRoute.Login
+            route is AppRoute.Player -> route
             else -> AppRoute.Home
         }
     }
 
-    LaunchedEffect(token, splashDone, sessionChecked) {
-        if (!splashDone || !sessionChecked) return@LaunchedEffect
-        route = when {
-            token.isNullOrBlank() -> AppRoute.Login
-            route is AppRoute.Player -> route
-            route is AppRoute.Login && !token.isNullOrBlank() -> AppRoute.Home
-            else -> route
-        }
+    // Validate JWT in background; clears token on 401/403.
+    LaunchedEffect(splashDone, token) {
+        if (!splashDone || token.isNullOrBlank()) return@LaunchedEffect
+        container.authRepository.validateSession()
     }
 
     when (val current = route) {
         AppRoute.Splash -> SplashScreen(
             onFinished = {
                 splashDone = true
+                route = if (token.isNullOrBlank()) AppRoute.Login else AppRoute.Home
             }
         )
         AppRoute.Login -> LoginScreen(

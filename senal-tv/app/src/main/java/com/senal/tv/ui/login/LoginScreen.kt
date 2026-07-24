@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -37,7 +38,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.material3.Text
 import com.senal.tv.BuildConfig
 import com.senal.tv.data.repository.AuthRepository
 import com.senal.tv.ui.components.BrandMark
@@ -51,6 +51,7 @@ import com.senal.tv.ui.theme.LocalSenalTypography
 import com.senal.tv.ui.theme.Teal
 import com.senal.tv.ui.theme.TextMuted
 import com.senal.tv.ui.theme.TextPrimary
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -68,7 +69,6 @@ fun LoginScreen(
     val userFocus = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
-        userFocus.requestFocus()
         authRepository.health()
             .onSuccess { health ->
                 serverOk = health.isHealthy()
@@ -83,6 +83,11 @@ fun LoginScreen(
                 serverOk = false
                 serverStatus = it.message ?: "Sin conexión con el VPS"
             }
+    }
+
+    LaunchedEffect(Unit) {
+        delay(64)
+        runCatching { userFocus.requestFocus() }
     }
 
     fun submit() {
@@ -131,7 +136,7 @@ fun LoginScreen(
                     value = username,
                     onValueChange = { username = it; error = null },
                     label = "Usuario",
-                    modifier = Modifier.focusRequester(userFocus),
+                    focusRequester = userFocus,
                     imeAction = ImeAction.Next,
                     enabled = !loading
                 )
@@ -219,7 +224,8 @@ private fun TvTextField(
     isPassword: Boolean = false,
     imeAction: ImeAction = ImeAction.Next,
     onDone: (() -> Unit)? = null,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    focusRequester: FocusRequester? = null
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         Text(text = label, style = LocalSenalTypography.current.caption, color = BrandOrange)
@@ -238,6 +244,7 @@ private fun TvTextField(
             ),
             keyboardActions = KeyboardActions(onDone = { onDone?.invoke() }),
             modifier = Modifier
+                .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
                 .fillMaxWidth()
                 .background(ColorField, RoundedCornerShape(16.dp))
                 .padding(horizontal = 18.dp, vertical = 16.dp),
