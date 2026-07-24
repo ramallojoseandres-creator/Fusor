@@ -61,8 +61,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
-import androidx.tv.material3.ClickableSurfaceDefaults
-import androidx.tv.material3.Surface
+import com.senal.tv.ui.components.SenalClickable
 import coil.compose.AsyncImage
 import com.senal.tv.AppContainer
 import com.senal.tv.R
@@ -244,7 +243,9 @@ private fun SenalHomeHub(
 
         LaunchedEffect(Unit) {
             delay(160)
-            runCatching { vivoFocus.requestFocus() }
+            if (!DeviceUi.isTouchBuild) {
+                runCatching { vivoFocus.requestFocus() }
+            }
             when (val st = container.appUpdater.check()) {
                 is com.senal.tv.update.UpdateStatus.Available -> updateAvailable = st
                 else -> Unit
@@ -309,9 +310,9 @@ private fun SenalHomeHub(
                     val available = updateAvailable
                     if (available != null) {
                         var updFocused by remember { mutableStateOf(false) }
-                        Surface(
+                        SenalClickable(
                             onClick = {
-                                if (updateBusy) return@Surface
+                                if (updateBusy) return@SenalClickable
                                 scope.launch {
                                     updateBusy = true
                                     updateMsg = "Descargando v${available.remoteName}…"
@@ -326,12 +327,11 @@ private fun SenalHomeHub(
                                 }
                             },
                             modifier = Modifier.onFocusChanged { updFocused = it.isFocused },
-                            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(6.dp)),
-                            colors = ClickableSurfaceDefaults.colors(
-                                containerColor = if (updFocused) SignalCyanHot else SignalCyan,
-                                focusedContainerColor = SignalCyanHot
-                            ),
-                            scale = ClickableSurfaceDefaults.scale(focusedScale = 1f)
+                            shape = RoundedCornerShape(6.dp),
+                            containerColor = if (updFocused) SignalCyanHot else SignalCyan,
+                            focusedContainerColor = SignalCyanHot,
+                            pressedContainerColor = SignalCyanHot,
+                            onFocusedChange = { updFocused = it }
                         ) {
                             Text(
                                 text = if (updateBusy) "…" else "Actualizar v${available.remoteName}",
@@ -373,15 +373,13 @@ private fun SenalHomeHub(
                 )
                 Spacer(Modifier.height(10.dp))
                 var continueFocused by remember { mutableStateOf(false) }
-                Surface(
+                SenalClickable(
                     onClick = { onOpen(HomeSection.LIVE) },
                     modifier = Modifier.onFocusChanged { continueFocused = it.isFocused },
-                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(0.dp)),
-                    colors = ClickableSurfaceDefaults.colors(
-                        containerColor = Color.Transparent,
-                        focusedContainerColor = Color.Transparent
-                    ),
-                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1f)
+                    shape = RoundedCornerShape(0.dp),
+                    containerColor = Color.Transparent,
+                    focusedContainerColor = Color.Transparent,
+                    onFocusedChange = { continueFocused = it }
                 ) {
                     Text(
                         text = buildAnnotatedString {
@@ -410,7 +408,7 @@ private fun SenalHomeHub(
 
             Spacer(Modifier.height(if (compact) 30.dp else 40.dp))
 
-            val tileH = if (DeviceUi.isTabletBuild) 108.dp else if (compact) 96.dp else 110.dp
+            val tileH = if (DeviceUi.isTouchBuild) 108.dp else if (compact) 96.dp else 110.dp
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -516,15 +514,14 @@ private fun HubNavTile(
 ) {
     var focused by remember { mutableStateOf(false) }
 
-    Surface(
+    SenalClickable(
         onClick = onClick,
         modifier = modifier.onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (focused) SignalCyan else Color.White.copy(0.10f),
-            focusedContainerColor = SignalCyan
-        ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f)
+        shape = RoundedCornerShape(14.dp),
+        containerColor = if (focused) SignalCyan else Color.White.copy(0.10f),
+        focusedContainerColor = SignalCyan,
+        pressedContainerColor = SignalCyan,
+        onFocusedChange = { focused = it }
     ) {
         Column(
             Modifier

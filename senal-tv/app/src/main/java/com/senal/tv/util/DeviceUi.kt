@@ -7,13 +7,15 @@ import androidx.compose.ui.unit.dp
 import com.senal.tv.BuildConfig
 
 /**
- * Perfil UI para Galaxy Tab A8 (SM-X200) y tablets similares.
- * Pantalla típica: 10.5" · 1920×1200 · 16:10 · táctil.
+ * Perfil UI: TV (D-pad) vs tablet/móvil (táctil).
  */
 object DeviceUi {
     val isTabletBuild: Boolean get() = BuildConfig.IS_TABLET
 
-    /** Flujo hub primero: no autoplay al último canal. */
+    /** Phone + tablet flavors — finger taps instead of Leanback focus. */
+    val isTouchBuild: Boolean get() = BuildConfig.IS_TOUCH
+
+    /** Hub primero: no autoplay al último canal. */
     val autoPlayLastChannelDefault: Boolean get() = false
 }
 
@@ -31,12 +33,12 @@ data class TabletLayout(
 fun rememberTabletLayout(): TabletLayout {
     val cfg = LocalConfiguration.current
     val widest = maxOf(cfg.screenWidthDp, cfg.screenHeightDp)
-    val isTabletScreen = DeviceUi.isTabletBuild || widest >= 900
+    val isTabletScreen = DeviceUi.isTouchBuild || widest >= 900
     return if (isTabletScreen) {
         TabletLayout(
             isTablet = true,
-            padH = 36.dp,
-            padV = 20.dp,
+            padH = 28.dp,
+            padV = 16.dp,
             tileHeight = 100.dp,
             sideWeight = 0.36f,
             channelRowHeight = 56.dp,

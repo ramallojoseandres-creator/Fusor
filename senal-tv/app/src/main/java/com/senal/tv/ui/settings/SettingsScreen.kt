@@ -44,8 +44,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.tv.material3.ClickableSurfaceDefaults
-import androidx.tv.material3.Surface
+import com.senal.tv.ui.components.SenalClickable
 import com.senal.tv.AppContainer
 import com.senal.tv.BuildConfig
 import com.senal.tv.data.local.AppSettings
@@ -311,18 +310,16 @@ private fun SettingsGridTile(
     modifier: Modifier = Modifier
 ) {
     var focused by remember { mutableStateOf(false) }
-    Surface(
+    SenalClickable(
         onClick = onClick,
         modifier = modifier
             .height(110.dp)
             .senalFocusable(focused = focused, scaleFocused = 1.06f, cornerRadius = 14.dp)
             .onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color.Transparent,
-            focusedContainerColor = Color.Transparent
-        ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f)
+        shape = RoundedCornerShape(14.dp),
+        containerColor = Color.Transparent,
+        focusedContainerColor = Color.Transparent,
+        onFocusedChange = { focused = it }
     ) {
         Box(
             Modifier

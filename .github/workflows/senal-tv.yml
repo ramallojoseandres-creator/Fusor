@@ -68,25 +68,28 @@ jobs:
             ls -lh senal-tv/app/src/main/assets/catalog/ || true
           fi
 
-      - name: Build debug APK
+      - name: Build debug APKs (TV + Mobile)
         working-directory: senal-tv
         run: |
           chmod +x gradlew
-          ./gradlew :app:assembleTvDebug --no-daemon --stacktrace
+          ./gradlew :app:assembleTvDebug :app:assembleMobileDebug --no-daemon --stacktrace
 
-      - name: Prepare APK
+      - name: Prepare APKs
         run: |
           mkdir -p dist
           cp senal-tv/app/build/outputs/apk/tv/debug/app-tv-debug.apk dist/SenalTV.apk
-          # Validate package can be parsed
+          cp senal-tv/app/build/outputs/apk/mobile/debug/app-mobile-debug.apk dist/SenalMobile.apk
           unzip -t dist/SenalTV.apk >/dev/null
-          ls -lh dist/SenalTV.apk
+          unzip -t dist/SenalMobile.apk >/dev/null
+          ls -lh dist/
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: SenalTV-apk
-          path: dist/SenalTV.apk
+          path: |
+            dist/SenalTV.apk
+            dist/SenalMobile.apk
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
@@ -98,12 +101,16 @@ jobs:
           tag_name: senal-tv-${{ github.run_number }}
           name: SEÑAL TV build ${{ github.run_number }}
           body: |
-            APK debug listo para instalar en Android TV / Fire TV.
+            APKs listos:
 
-            1. Descarga **SenalTV.apk** (no el .zip de Actions)
-            2. Cópialo al TV (Downloader, USB, adb, etc.)
-            3. Instálalo permitiendo orígenes desconocidos
-          files: dist/SenalTV.apk
+            - **SenalTV.apk** — Android TV / Fire TV (mando)
+            - **SenalMobile.apk** — tablet / teléfono (táctil)
+
+            1. Descarga el APK correcto (no el .zip de Actions)
+            2. Instálalo permitiendo orígenes desconocidos
+          files: |
+            dist/SenalTV.apk
+            dist/SenalMobile.apk
           draft: false
           prerelease: true
           generate_release_notes: false

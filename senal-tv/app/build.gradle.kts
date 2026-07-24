@@ -21,6 +21,7 @@ android {
         buildConfigField("int", "SERVER_PORT", "3000")
         buildConfigField("String", "API_BASE_URL", "\"http://185.192.20.245:3000/\"")
         buildConfigField("boolean", "IS_TABLET", "false")
+        buildConfigField("boolean", "IS_TOUCH", "false")
         vectorDrawables.useSupportLibrary = true
     }
 
@@ -33,6 +34,7 @@ android {
             versionCode = 192
             versionName = "1.8.12"
             buildConfigField("boolean", "IS_TABLET", "false")
+            buildConfigField("boolean", "IS_TOUCH", "false")
             ndk {
                 // Fire Stick / Android TV boxes: ARM. Sin x86 para APK más liviana.
                 abiFilters += listOf("armeabi-v7a", "arm64-v8a")
@@ -42,10 +44,23 @@ android {
         create("tablet") {
             dimension = "device"
             applicationId = "com.senal.tablet"
-            versionCode = 1201
-            versionName = "1.20.1-x200"
+            versionCode = 1202
+            versionName = "1.20.2-x200"
             buildConfigField("boolean", "IS_TABLET", "true")
+            buildConfigField("boolean", "IS_TOUCH", "true")
             buildConfigField("String", "TABLET_MODEL", "\"SM-X200\"")
+            ndk {
+                abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+            }
+        }
+        /** Teléfonos y tablets — UI táctil (sin Leanback). */
+        create("mobile") {
+            dimension = "device"
+            applicationId = "com.senal.mobile"
+            versionCode = 1901
+            versionName = "1.9.0-mobile"
+            buildConfigField("boolean", "IS_TABLET", "true")
+            buildConfigField("boolean", "IS_TOUCH", "true")
             ndk {
                 abiFilters += listOf("armeabi-v7a", "arm64-v8a")
             }

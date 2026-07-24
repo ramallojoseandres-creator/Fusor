@@ -68,8 +68,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
-import androidx.tv.material3.ClickableSurfaceDefaults
-import androidx.tv.material3.Surface
+import com.senal.tv.ui.components.SenalClickable
 import coil.compose.AsyncImage
 import com.senal.tv.AppContainer
 import com.senal.tv.data.model.CatalogItem
@@ -656,7 +655,7 @@ private fun GuideRow(
             if (requestFocus) runCatching { fr.requestFocus() }
         }
     }
-    Surface(
+    SenalClickable(
         onClick = onClick,
         onLongClick = onLongClick,
         modifier = Modifier
@@ -666,16 +665,18 @@ private fun GuideRow(
                 focused = it.isFocused
                 if (it.isFocused) onFocused?.invoke()
             },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = when {
-                focused -> BrandOrange
-                selected -> BrandOrange.copy(alpha = 0.28f)
-                else -> Color.White.copy(alpha = 0.05f)
-            },
-            focusedContainerColor = BrandOrangeHot
-        ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f)
+        shape = RoundedCornerShape(8.dp),
+        containerColor = when {
+            focused -> BrandOrange
+            selected -> BrandOrange.copy(alpha = 0.28f)
+            else -> Color.White.copy(alpha = 0.05f)
+        },
+        focusedContainerColor = BrandOrangeHot,
+        pressedContainerColor = BrandOrangeHot,
+        onFocusedChange = {
+            focused = it
+            if (it) onFocused?.invoke()
+        }
     ) {
         Text(
             text = label,

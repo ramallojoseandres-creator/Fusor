@@ -46,14 +46,14 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.tv.material3.ClickableSurfaceDefaults
-import androidx.tv.material3.Surface
 import com.senal.tv.R
 import com.senal.tv.data.repository.AuthRepository
 import com.senal.tv.ui.components.SenalBrandText
+import com.senal.tv.ui.components.SenalClickable
 import com.senal.tv.ui.theme.LiveGreen
 import com.senal.tv.ui.theme.SignalCyan
 import com.senal.tv.ui.theme.SignalCyanHot
+import com.senal.tv.util.DeviceUi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -82,7 +82,9 @@ fun LoginScreen(
     }
 
     LaunchedEffect(Unit) {
-        userFocus.requestFocus()
+        if (!DeviceUi.isTouchBuild) {
+            runCatching { userFocus.requestFocus() }
+        }
         while (true) {
             clock = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
             delay(15_000)
@@ -162,8 +164,8 @@ fun LoginScreen(
         Column(
             modifier = Modifier
                 .align(Alignment.Center)
-                .widthIn(max = 460.dp)
-                .fillMaxWidth(0.4f)
+                .widthIn(max = if (DeviceUi.isTouchBuild) 520.dp else 460.dp)
+                .fillMaxWidth(if (DeviceUi.isTouchBuild) 0.88f else 0.4f)
                 .background(Color.Black.copy(alpha = 0.58f), RoundedCornerShape(18.dp))
                 .padding(horizontal = 36.dp, vertical = 34.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -312,17 +314,15 @@ private fun LoginField(
                 }
             )
             if (isPassword && onTogglePassword != null) {
-                Surface(
+                SenalClickable(
                     onClick = onTogglePassword,
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
-                        .size(32.dp),
-                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(4.dp)),
-                    colors = ClickableSurfaceDefaults.colors(
-                        containerColor = Color.Transparent,
-                        focusedContainerColor = SignalCyan.copy(0.2f)
-                    ),
-                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1f)
+                        .size(40.dp),
+                    shape = RoundedCornerShape(4.dp),
+                    containerColor = Color.Transparent,
+                    focusedContainerColor = SignalCyan.copy(0.2f),
+                    pressedContainerColor = SignalCyan.copy(0.25f)
                 ) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
@@ -350,19 +350,18 @@ private fun EnterButton(
         focused -> SignalCyanHot
         else -> SignalCyan
     }
-    Surface(
+    SenalClickable(
         onClick = onClick,
         enabled = enabled,
         modifier = Modifier
             .fillMaxWidth()
             .onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = fill,
-            focusedContainerColor = SignalCyanHot,
-            disabledContainerColor = SignalCyan.copy(alpha = 0.45f)
-        ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f)
+        shape = RoundedCornerShape(12.dp),
+        containerColor = fill,
+        focusedContainerColor = SignalCyanHot,
+        pressedContainerColor = SignalCyanHot,
+        disabledContainerColor = SignalCyan.copy(alpha = 0.45f),
+        onFocusedChange = { focused = it }
     ) {
         Box(
             Modifier

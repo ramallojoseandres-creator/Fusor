@@ -83,8 +83,7 @@ import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
-import androidx.tv.material3.ClickableSurfaceDefaults
-import androidx.tv.material3.Surface
+import com.senal.tv.ui.components.SenalClickable
 import coil.compose.AsyncImage
 import com.senal.tv.AppContainer
 import com.senal.tv.R
@@ -173,7 +172,9 @@ fun LiveTvScreen(
         guideVisibleRef.set(guideVisible)
         if (!guideVisible) {
             delay(40)
-            runCatching { rootFocus.requestFocus() }
+            if (!DeviceUi.isTouchBuild) {
+                runCatching { rootFocus.requestFocus() }
+            }
         }
     }
 
@@ -626,8 +627,8 @@ fun LiveTvScreen(
                         .fillMaxSize()
                         .padding(start = 16.dp, top = 16.dp, bottom = 16.dp, end = 16.dp)
                 ) {
-                    val catW = if (DeviceUi.isTabletBuild) 200.dp else 168.dp
-                    val chW = if (DeviceUi.isTabletBuild) 340.dp else 292.dp
+                    val catW = if (DeviceUi.isTouchBuild) 200.dp else 168.dp
+                    val chW = if (DeviceUi.isTouchBuild) 340.dp else 292.dp
                     Column(
                         modifier = Modifier
                             .width(catW)
@@ -664,20 +665,18 @@ fun LiveTvScreen(
                                 val active = label == (focusedCategory ?: selected)
                                 var catFocused by remember(label) { mutableStateOf(false) }
                                 val highlighted = active || catFocused
-                                Surface(
+                                SenalClickable(
                                     onClick = {
                                         focusedCategory = label
                                         selected = label
                                     },
-                                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(0.dp)),
-                                    colors = ClickableSurfaceDefaults.colors(
-                                        containerColor = when {
-                                            highlighted -> BrandOrange.copy(alpha = 0.92f)
-                                            else -> Color.Transparent
-                                        },
-                                        focusedContainerColor = BrandOrange.copy(alpha = 0.95f)
-                                    ),
-                                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
+                                    shape = RoundedCornerShape(0.dp),
+                                    containerColor = when {
+                                        highlighted -> BrandOrange.copy(alpha = 0.92f)
+                                        else -> Color.Transparent
+                                    },
+                                    focusedContainerColor = BrandOrange.copy(alpha = 0.95f),
+                                    pressedContainerColor = BrandOrange.copy(alpha = 0.95f),
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .then(
@@ -690,7 +689,14 @@ fun LiveTvScreen(
                                                 focusInChannels = false
                                                 focusedCategory = label
                                             }
+                                        },
+                                    onFocusedChange = { focused ->
+                                        catFocused = focused
+                                        if (focused) {
+                                            focusInChannels = false
+                                            focusedCategory = label
                                         }
+                                    }
                                 ) {
                                     Row(
                                         Modifier
@@ -1003,20 +1009,17 @@ private fun GuideChannelRow(
     val logo = remember(item.resolveId()) { item.resolveLogo() }
     val numberLabel = remember(item.resolveId()) { (item.resolveNumber() ?: "·").toString() }
 
-    Surface(
+    SenalClickable(
         onClick = onClick,
         onLongClick = onLongClick,
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(4.dp)),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = when {
-                focused -> BrandOrange.copy(alpha = 0.92f)
-                selected -> BrandOrange.copy(alpha = 0.28f)
-                else -> Color.Transparent
-            },
-            focusedContainerColor = BrandOrange
-        ),
-        // Foco plano (sin scale/glow): navegación D-pad más rápida.
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
+        shape = RoundedCornerShape(4.dp),
+        containerColor = when {
+            focused -> BrandOrange.copy(alpha = 0.92f)
+            selected -> BrandOrange.copy(alpha = 0.28f)
+            else -> Color.Transparent
+        },
+        focusedContainerColor = BrandOrange,
+        pressedContainerColor = BrandOrange,
         modifier = Modifier
             .fillMaxWidth()
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
@@ -1024,9 +1027,13 @@ private fun GuideChannelRow(
                 val now = it.isFocused
                 if (focused != now) focused = now
                 if (now) onFocused()
-            }
+            },
+        onFocusedChange = { now ->
+            if (focused != now) focused = now
+            if (now) onFocused()
+        }
     ) {
-        val rowPadV = if (DeviceUi.isTabletBuild) 10.dp else 6.dp
+        val rowPadV = if (DeviceUi.isTouchBuild) 12.dp else 6.dp
         Row(
             modifier = Modifier
                 .fillMaxWidth()

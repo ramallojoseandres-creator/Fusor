@@ -4,7 +4,6 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -44,10 +43,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.tv.material3.Border
-import androidx.tv.material3.ClickableSurfaceDefaults
-import androidx.tv.material3.Glow
-import androidx.tv.material3.Surface
 import coil.compose.AsyncImage
 import com.senal.tv.R
 import com.senal.tv.data.model.CatalogItem
@@ -145,42 +140,30 @@ fun FocusableButton(
     var focused by remember { mutableStateOf(false) }
     val radius = if (compact) 8.dp else 10.dp
     val hPad = if (compact) 12.dp else 16.dp
-    val vPad = if (compact) 8.dp else 10.dp
-    Surface(
+    val vPad = if (compact) 10.dp else 12.dp
+    SenalClickable(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier
             .senalFocusable(focused = focused, scaleFocused = FOCUS_SCALE_SOFT, cornerRadius = radius)
             .onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(radius)),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (primary) BrandOrange else GraphiteCard,
-            focusedContainerColor = if (primary) BrandOrangeHot else Color(0xFF1A2740),
-            pressedContainerColor = BrandOrange
-        ),
-        border = ClickableSurfaceDefaults.border(
-            focusedBorder = Border(
-                border = BorderStroke(2.dp, FocusWhite),
-                shape = RoundedCornerShape(radius)
+        shape = RoundedCornerShape(radius),
+        containerColor = if (primary) BrandOrange else GraphiteCard,
+        focusedContainerColor = if (primary) BrandOrangeHot else Color(0xFF1A2740),
+        pressedContainerColor = BrandOrange,
+        onFocusedChange = { focused = it }
+    ) {
+        Box(
+            modifier = Modifier.padding(horizontal = hPad, vertical = vPad),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = label,
+                style = LocalSenalTypography.current.button,
+                color = if (primary) Color.Black else TextPrimary
             )
-        ),
-        glow = ClickableSurfaceDefaults.glow(
-            focusedGlow = Glow(elevationColor = BrandOrange, elevation = 6.dp)
-        ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
-        content = {
-            Box(
-                modifier = Modifier.padding(horizontal = hPad, vertical = vPad),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = label,
-                    style = LocalSenalTypography.current.button,
-                    color = if (primary) Color.Black else TextPrimary
-                )
-            }
         }
-    )
+    }
 }
 
 /**
@@ -196,34 +179,31 @@ fun FocusColumnTile(
     modifier: Modifier = Modifier
 ) {
     var focused by remember { mutableStateOf(false) }
-    Surface(
+    SenalClickable(
         onClick = onClick,
         modifier = modifier
             .senalFocusable(focused = focused, scaleFocused = FOCUS_SCALE, cornerRadius = 12.dp)
             .onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color.Transparent,
-            focusedContainerColor = Color.Transparent
-        ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
-        content = {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                AsyncImage(
-                    model = if (focused) focusedRes else normalRes,
-                    contentDescription = label,
-                    contentScale = ContentScale.FillBounds,
-                    modifier = Modifier.fillMaxSize()
-                )
-                Text(
-                    text = label,
-                    style = LocalSenalTypography.current.button,
-                    color = FocusWhite,
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                )
-            }
+        shape = RoundedCornerShape(12.dp),
+        containerColor = Color.Transparent,
+        focusedContainerColor = Color.Transparent,
+        onFocusedChange = { focused = it }
+    ) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            AsyncImage(
+                model = if (focused) focusedRes else normalRes,
+                contentDescription = label,
+                contentScale = ContentScale.FillBounds,
+                modifier = Modifier.fillMaxSize()
+            )
+            Text(
+                text = label,
+                style = LocalSenalTypography.current.button,
+                color = FocusWhite,
+                modifier = Modifier.padding(horizontal = 8.dp)
+            )
         }
-    )
+    }
 }
 
 @Composable
@@ -235,34 +215,25 @@ fun ColorTile(
     height: Dp = 64.dp
 ) {
     var focused by remember { mutableStateOf(false) }
-    Surface(
+    SenalClickable(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
             .height(height)
             .senalFocusable(focused = focused, scaleFocused = FOCUS_SCALE, cornerRadius = 10.dp)
             .onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = color,
-            focusedContainerColor = color
-        ),
-        border = ClickableSurfaceDefaults.border(
-            focusedBorder = Border(
-                border = BorderStroke(2.dp, FocusWhite),
-                shape = RoundedCornerShape(10.dp)
-            )
-        ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
-        content = {
-            Box(
-                Modifier.fillMaxSize().padding(horizontal = 14.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                Text(text = label, style = LocalSenalTypography.current.button, color = FocusWhite)
-            }
+        shape = RoundedCornerShape(10.dp),
+        containerColor = color,
+        focusedContainerColor = color,
+        onFocusedChange = { focused = it }
+    ) {
+        Box(
+            Modifier.fillMaxSize().padding(horizontal = 14.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Text(text = label, style = LocalSenalTypography.current.button, color = FocusWhite)
         }
-    )
+    }
 }
 
 @Composable
@@ -298,66 +269,57 @@ fun PosterCard(
     onLongClick: (() -> Unit)? = null
 ) {
     var focused by remember { mutableStateOf(false) }
-    Surface(
+    SenalClickable(
         onClick = onClick,
         onLongClick = onLongClick,
         modifier = modifier
             .width(170.dp)
             .senalFocusable(focused = focused, scaleFocused = FOCUS_SCALE, cornerRadius = 16.dp)
             .onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = GraphiteCard,
-            focusedContainerColor = GraphiteCard
-        ),
-        border = ClickableSurfaceDefaults.border(
-            focusedBorder = Border(
-                border = BorderStroke(3.dp, FocusWhite),
-                shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(16.dp),
+        containerColor = GraphiteCard,
+        focusedContainerColor = GraphiteCard,
+        onFocusedChange = { focused = it }
+    ) {
+        Column {
+            AsyncImage(
+                model = item.resolvePoster(),
+                contentDescription = item.resolveTitle(),
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(2f / 3f)
+                    .background(Color(0xFF22222C))
             )
-        ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
-        content = {
-            Column {
-                AsyncImage(
-                    model = item.resolvePoster(),
-                    contentDescription = item.resolveTitle(),
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(2f / 3f)
-                        .background(Color(0xFF22222C))
+            if (showMeta) {
+                Text(
+                    text = item.resolveTitle(),
+                    style = LocalSenalTypography.current.body,
+                    color = TextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 12.dp)
                 )
-                if (showMeta) {
-                    Text(
-                        text = item.resolveTitle(),
-                        style = LocalSenalTypography.current.body,
-                        color = TextPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 12.dp)
+                Text(
+                    text = listOfNotNull(
+                        item.year?.toString(),
+                        formatDurationMinutes(item.resolveDurationMinutes()),
+                        formatRating(item.rating)
+                    ).joinToString(" · "),
+                    style = LocalSenalTypography.current.caption,
+                    color = TextMuted,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(
+                        start = 12.dp,
+                        end = 12.dp,
+                        bottom = 12.dp,
+                        top = 4.dp
                     )
-                    Text(
-                        text = listOfNotNull(
-                            item.year?.toString(),
-                            formatDurationMinutes(item.resolveDurationMinutes()),
-                            formatRating(item.rating)
-                        ).joinToString(" · "),
-                        style = LocalSenalTypography.current.caption,
-                        color = TextMuted,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(
-                            start = 12.dp,
-                            end = 12.dp,
-                            bottom = 12.dp,
-                            top = 4.dp
-                        )
-                    )
-                }
+                )
             }
         }
-    )
+    }
 }
 
 @Composable
@@ -367,71 +329,62 @@ fun ChannelCard(
     modifier: Modifier = Modifier
 ) {
     var focused by remember { mutableStateOf(false) }
-    Surface(
+    SenalClickable(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
             .senalFocusable(focused = focused, scaleFocused = FOCUS_SCALE_SOFT, cornerRadius = 10.dp)
             .onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (focused) FocusWhite else GraphiteCard,
-            focusedContainerColor = FocusWhite
-        ),
-        border = ClickableSurfaceDefaults.border(
-            focusedBorder = Border(
-                border = BorderStroke(2.dp, BrandOrange),
-                shape = RoundedCornerShape(10.dp)
+        shape = RoundedCornerShape(10.dp),
+        containerColor = if (focused) FocusWhite else GraphiteCard,
+        focusedContainerColor = FocusWhite,
+        onFocusedChange = { focused = it }
+    ) {
+        val titleColor = if (focused) Color.Black else TextPrimary
+        val muted = if (focused) Color.Black.copy(alpha = 0.65f) else TextMuted
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = (item.resolveNumber() ?: "·").toString(),
+                style = LocalSenalTypography.current.caption,
+                color = if (focused) BrandOrange else Teal,
+                modifier = Modifier.width(42.dp)
             )
-        ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
-        content = {
-            val titleColor = if (focused) Color.Black else TextPrimary
-            val muted = if (focused) Color.Black.copy(alpha = 0.65f) else TextMuted
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            AsyncImage(
+                model = item.resolveLogo(),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF101016)),
+                contentScale = ContentScale.Fit
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = (item.resolveNumber() ?: "·").toString(),
+                    text = item.resolveTitle(),
+                    style = LocalSenalTypography.current.body,
+                    color = titleColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = item.resolveNow().ifBlank { "EPG no disponible" },
                     style = LocalSenalTypography.current.caption,
-                    color = if (focused) BrandOrange else Teal,
-                    modifier = Modifier.width(42.dp)
-                )
-                AsyncImage(
-                    model = item.resolveLogo(),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF101016)),
-                    contentScale = ContentScale.Fit
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = item.resolveTitle(),
-                        style = LocalSenalTypography.current.body,
-                        color = titleColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = item.resolveNow().ifBlank { "EPG no disponible" },
-                        style = LocalSenalTypography.current.caption,
-                        color = muted,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                Box(
-                    Modifier
-                        .size(8.dp)
-                        .background(Color(0xFF22C55E), RoundedCornerShape(50))
+                    color = muted,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
+            Box(
+                Modifier
+                    .size(8.dp)
+                    .background(Color(0xFF22C55E), RoundedCornerShape(50))
+            )
         }
-    )
+    }
 }
 
 @Composable
