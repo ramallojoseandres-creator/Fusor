@@ -34,10 +34,76 @@ enum CatalogRules {
         pattern: #"(?i)(\+| )?18\+?|adult|adulto|adultos|xxx|porn|porno|erotic|erotica|nsfw|onlyfans|playboy"#
     )
 
-    private static let preferred: [String] = [
-        "deportes", "noticias", "cultura", "documentales", "series 24/7",
-        "series", "películas", "peliculas", "infantil", "música", "musica",
-        "variados", "latino", "españa", "mexico", "méxico", "estados unidos"
+    /// Orden pedido: Deportes NO entre las primeras (antes de Adultos).
+    static let preferredLiveOrder: [String] = [
+        "Copa Mundial",
+        "MLB PASS",
+        "NBA PASS",
+        "NFL PASS",
+        "Eventos PPV",
+        "Full HD",
+        "HD+(265)",
+        "Cine y Series",
+        "Cultura",
+        "Infantil",
+        "Noticias",
+        "Religioso",
+        "Música",
+        "Premium Español",
+        "Canales 24/7",
+        "Cinema Channels",
+        "Argentina",
+        "Bolivia",
+        "Brasil",
+        "Canadá",
+        "República Dominicana",
+        "Chile",
+        "Colombia",
+        "Centroamérica",
+        "Costa Rica",
+        "España",
+        "Ecuador",
+        "El Salvador",
+        "Honduras",
+        "Panamá",
+        "Paraguay",
+        "México",
+        "Perú",
+        "Puerto Rico",
+        "Uruguay",
+        "US Channels",
+        "Venezuela",
+        "Italia",
+        "Deportes",
+        "Adultos",
+    ]
+
+    private static let aliases: [String: String] = [
+        "cine premium": "Premium Español",
+        "premium espanol": "Premium Español",
+        "premium español": "Premium Español",
+        "cinema channel": "Cinema Channels",
+        "cinema channels": "Cinema Channels",
+        "republica dominicana": "República Dominicana",
+        "república dominicana": "República Dominicana",
+        "canada": "Canadá",
+        "canadá": "Canadá",
+        "mexico": "México",
+        "méxico": "México",
+        "peru": "Perú",
+        "perú": "Perú",
+        "panama": "Panamá",
+        "panamá": "Panamá",
+        "musica": "Música",
+        "música": "Música",
+        "espana": "España",
+        "españa": "España",
+        "centroamerica": "Centroamérica",
+        "centroamérica": "Centroamérica",
+        "deportes": "Deportes",
+        "sports": "Deportes",
+        "adulto": "Adultos",
+        "adultos": "Adultos",
     ]
 
     static func isAdult(_ text: String) -> Bool {
@@ -57,30 +123,46 @@ enum CatalogRules {
             || hay.contains("cine") || hay.contains("movie") || hay.contains("vod")
     }
 
+    static func normalize(_ value: String) -> String {
+        value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            .replacingOccurrences(of: "á", with: "a")
+            .replacingOccurrences(of: "é", with: "e")
+            .replacingOccurrences(of: "í", with: "i")
+            .replacingOccurrences(of: "ó", with: "o")
+            .replacingOccurrences(of: "ú", with: "u")
+            .replacingOccurrences(of: "ü", with: "u")
+            .replacingOccurrences(of: "ñ", with: "n")
+    }
+
+    static func canonicalLabel(_ label: String) -> String {
+        let raw = label.trimmingCharacters(in: .whitespacesAndNewlines)
+        if raw.isEmpty { return raw }
+        let key = normalize(raw)
+        if let alias = aliases[key] { return alias }
+        if let hit = preferredLiveOrder.first(where: { normalize($0) == key }) { return hit }
+        return raw
+    }
+
+    static func isPreferredLabel(_ label: String) -> Bool {
+        let canon = canonicalLabel(label)
+        return preferredLiveOrder.contains { normalize($0) == normalize(canon) }
+    }
+
     static func sortCategories(_ cats: [CategoryInfo]) -> [CategoryInfo] {
-        let unique = Dictionary(grouping: cats, by: { $0.name.lowercased() })
-            .compactMap { $0.value.first }
-        let normal = unique.filter { !isAdult($0.name) }
-        let adults = unique.filter { isAdult($0.name) }
-        let ranked = normal.sorted { a, b in
-            let ia = preferredIndex(a.name)
-            let ib = preferredIndex(b.name)
-            if ia != ib { return ia < ib }
-            return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
+        var byCanon: [String: CategoryInfo] = [:]
+        for cat in cats {
+            let canon = canonicalLabel(cat.name)
+            guard isPreferredLabel(canon) else { continue }
+            let key = normalize(canon)
+            if byCanon[key] == nil {
+                byCanon[key] = CategoryInfo(id: canon, name: canon, count: cat.count)
+            }
         }
-        return ranked + adults
+        return preferredLiveOrder.compactMap { byCanon[normalize($0)] }
     }
 
     static func defaultCategory(_ cats: [CategoryInfo]) -> String? {
         sortCategories(cats).first { !isAdult($0.name) }?.name
             ?? sortCategories(cats).first?.name
-    }
-
-    private static func preferredIndex(_ label: String) -> Int {
-        let key = label.lowercased()
-        if let i = preferred.firstIndex(where: { key == $0 || key.contains($0) }) {
-            return i
-        }
-        return preferred.count + 1
     }
 }

@@ -52,13 +52,17 @@ class PlaylistSync(
      * Si la caché está plana (solo General), la descarta y usa el asset con categorías.
      */
     suspend fun loadLocalOnly(): SyncResult = withContext(Dispatchers.IO) {
+        val etag = runCatching { settingsStore.playlistEtag() }.getOrDefault("")
+        if (hasLocalCache() && !etag.contains(CATEGORY_ORDER_VERSION)) {
+            // Orden viejo (Deportes arriba / categorías de más) → forzar asset curado.
+            cacheFile.delete()
+        }
         if (hasLocalCache()) {
             val ok = runCatching { playlistStore.loadFromGzipFile(cacheFile) }
             if (ok.isSuccess && playlistStore.size() > 0) {
-                if (hasUsefulCategories()) {
+                if (hasUsefulCategories() && !deportesIsTooEarly()) {
                     return@withContext SyncResult("cache", playlistStore.size(), updated = false)
                 }
-                // Caché mala de /api/catalog sin grupos → borrar y usar asset.
                 cacheFile.delete()
             }
         }
@@ -168,6 +172,9 @@ class PlaylistSync(
         const val TEST_PLAYLIST_URL =
             "https://raw.githubusercontent.com/Duartegame/listas/main/canalesgratistvpro"
 
+        /** Sube esto al cambiar el orden/filtro de categorías para invalidar caché vieja. */
+        const val CATEGORY_ORDER_VERSION = "order:v7"
+
         private val genericGroups = setOf("general", "variados", "otros", "other", "uncategorized")
     }
 
@@ -184,6 +191,13 @@ class PlaylistSync(
         return real.size >= 2
     }
 
+    /** true si Deportes está entre las 8 primeras del sidebar (orden viejo). */
+    private fun deportesIsTooEarly(): Boolean {
+        val labels = playlistStore.liveCategoryLabels()
+        val idx = labels.indexOfFirst { it.equals("Deportes", ignoreCase = true) }
+        return idx in 0..7
+    }
+
     private suspend fun applyAssetAsCache(): SyncResult {
         return runCatching {
             playlistStore.loadFromAssetFallback()
@@ -196,14 +210,14 @@ class PlaylistSync(
             )
             context.assets.open(assetName).use { input ->
                 if (assetName.endsWith(".gz")) {
-                    input.copyTo(cacheFile.outputStream())
+                    cacheFile.outputStream().use { out -> input.copyTo(out) }
                 } else {
                     val bytes = input.readBytes()
                     writeGzipCache(bytes)
                 }
             }
             settingsStore.setPlaylistMeta(
-                etag = "asset:$assetName",
+                etag = "$CATEGORY_ORDER_VERSION:asset:$assetName",
                 syncedAt = System.currentTimeMillis(),
                 channels = playlistStore.size()
             )
@@ -254,7 +268,7 @@ class PlaylistSync(
         if (!hasUsefulCategories()) return null
 
         settingsStore.setPlaylistMeta(
-            etag = "api-catalog:${items.size}",
+            etag = "$CATEGORY_ORDER_VERSION:api-catalog:${items.size}",
             syncedAt = System.currentTimeMillis(),
             channels = playlistStore.size()
         )

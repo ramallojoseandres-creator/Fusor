@@ -111,9 +111,23 @@ final class CatalogStore: ObservableObject {
             .map { $0 }
     }
 
-    private func apply(_ list: [Channel], source: String) {
-        channels = list
-        categories = CatalogRules.sortCategories(buildCategories(from: list))
+    private fun apply(_ list: [Channel], source: String) {
+        let filtered = list.compactMap { ch ->
+            let group = CatalogRules.canonicalLabel(ch.group)
+            guard CatalogRules.isPreferredLabel(group) else { return nil }
+            return Channel(
+                id: ch.id,
+                number: ch.number,
+                name: ch.name,
+                logo: ch.logo,
+                group: group,
+                url: ch.url,
+                userAgent: ch.userAgent,
+                referrer: ch.referrer
+            )
+        }
+        channels = filtered
+        categories = CatalogRules.sortCategories(buildCategories(from: filtered))
         if selectedCategory == nil || !categories.contains(where: { $0.name == selectedCategory }) {
             selectedCategory = CatalogRules.defaultCategory(categories)
         }
