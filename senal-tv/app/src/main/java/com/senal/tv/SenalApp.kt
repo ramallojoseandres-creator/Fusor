@@ -82,6 +82,7 @@ class AppContainer(app: Application) {
         settingsStore = settingsStore
     )
     val networkMonitor = com.senal.tv.network.NetworkMonitor().also { it.start() }
+    val appUpdater = com.senal.tv.update.AppUpdater(app)
 
     /** Session unlock for parental PIN (resets on process death). */
     val adultsUnlockedSession = kotlinx.coroutines.flow.MutableStateFlow(false)

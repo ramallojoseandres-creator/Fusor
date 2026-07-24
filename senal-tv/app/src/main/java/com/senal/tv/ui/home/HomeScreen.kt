@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -36,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -82,6 +84,7 @@ import com.senal.tv.util.CatalogRules
 import com.senal.tv.util.DeviceUi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -226,10 +229,20 @@ private fun SenalHomeHub(
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val compact = maxWidth < 900.dp
         val vivoFocus = remember { FocusRequester() }
+        val scope = rememberCoroutineScope()
+        var updateAvailable by remember {
+            mutableStateOf<com.senal.tv.update.UpdateStatus.Available?>(null)
+        }
+        var updateBusy by remember { mutableStateOf(false) }
+        var updateMsg by remember { mutableStateOf<String?>(null) }
 
         LaunchedEffect(Unit) {
             delay(160)
             runCatching { vivoFocus.requestFocus() }
+            when (val st = container.appUpdater.check()) {
+                is com.senal.tv.update.UpdateStatus.Available -> updateAvailable = st
+                else -> Unit
+            }
         }
 
         // —— Vídeo a sangre ——
@@ -287,11 +300,58 @@ private fun SenalHomeHub(
                     fontWeight = FontWeight.Black,
                     letterSpacing = 6.sp
                 )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val available = updateAvailable
+                    if (available != null) {
+                        var updFocused by remember { mutableStateOf(false) }
+                        Surface(
+                            onClick = {
+                                if (updateBusy) return@Surface
+                                scope.launch {
+                                    updateBusy = true
+                                    updateMsg = "Descargando v${available.remoteName}…"
+                                    container.appUpdater.downloadAndInstall(available) { p ->
+                                        updateMsg = "Descargando… ${(p * 100).toInt()}%"
+                                    }.onSuccess {
+                                        updateMsg = "Confirma la instalación"
+                                    }.onFailure {
+                                        updateMsg = it.message ?: "Error al actualizar"
+                                    }
+                                    updateBusy = false
+                                }
+                            },
+                            modifier = Modifier.onFocusChanged { updFocused = it.isFocused },
+                            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(4.dp)),
+                            colors = ClickableSurfaceDefaults.colors(
+                                containerColor = if (updFocused) BrandOrangeHot else BrandOrange,
+                                focusedContainerColor = BrandOrangeHot
+                            ),
+                            scale = ClickableSurfaceDefaults.scale(focusedScale = 1f)
+                        ) {
+                            Text(
+                                text = if (updateBusy) "…" else "Actualizar v${available.remoteName}",
+                                color = Color.Black,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                            )
+                        }
+                        Spacer(Modifier.width(14.dp))
+                    }
+                    Text(
+                        text = clock.time,
+                        color = Color.White.copy(0.9f),
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+            updateMsg?.let { msg ->
                 Text(
-                    text = clock.time,
-                    color = Color.White.copy(0.9f),
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.SemiBold
+                    text = msg,
+                    color = BrandOrangeHot,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 6.dp)
                 )
             }
 

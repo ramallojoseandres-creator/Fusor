@@ -119,6 +119,32 @@ fun SettingsScreen(
                     else -> "Adultos"
                 }
                 val tiles = listOf(
+                    SettingsTile("App", "Actualizar", BrandOrangeHot) {
+                        scope.launch {
+                            error = null
+                            status = "Buscando APK en el servidor…"
+                            when (val st = container.appUpdater.check()) {
+                                is com.senal.tv.update.UpdateStatus.Available -> {
+                                    status = "Descargando v${st.remoteName}…"
+                                    container.appUpdater.downloadAndInstall(st) { p ->
+                                        status = "Descargando… ${(p * 100).toInt()}%"
+                                    }.onSuccess {
+                                        status = "Instala la actualización cuando te lo pida el sistema"
+                                    }.onFailure {
+                                        error = it.message ?: "No se pudo descargar el APK"
+                                        status = null
+                                    }
+                                }
+                                is com.senal.tv.update.UpdateStatus.UpToDate -> {
+                                    status = "Ya tienes la última · v${st.localName}"
+                                }
+                                is com.senal.tv.update.UpdateStatus.Unavailable -> {
+                                    error = st.reason
+                                    status = null
+                                }
+                            }
+                        }
+                    },
                     SettingsTile("Actualizar", "Lista VPS", BrandOrange) {
                         scope.launch {
                             error = null

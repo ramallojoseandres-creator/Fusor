@@ -27,4 +27,15 @@ object ServerConfig {
     /** Ruta correcta del panel 2.x (ya no sirve /playlist.m3u). */
     fun catalogUrl(): String = baseUrl() + "api/catalog"
     fun bannerUrl(): String = baseUrl() + "api/banner"
+
+    /**
+     * Carpeta de APKs en el VPS.
+     * El panel usa `/dowloads/` (así está en el servidor); también probamos `/downloads/`.
+     */
+    fun downloadsBases(): List<String> = listOf(
+        baseUrl() + "dowloads/",
+        baseUrl() + "downloads/",
+    )
+
+    fun updateManifestUrl(): String = downloadsBases().first() + "latest.json"
 }
