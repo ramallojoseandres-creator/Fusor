@@ -35,21 +35,32 @@ final class CatalogStore: ObservableObject {
         defer { isLoading = false }
 
         do {
-            if !forceNetwork, loaded, !channels.isEmpty {
+            if !forceNetwork, loaded, !channels.isEmpty, hasUsefulCategories(channels) {
                 return
             }
 
             if !forceNetwork, let disk = try? await Task.detached(priority: .userInitiated, operation: {
                 try PlaylistParser.parseDiskCache()
             }).value, !disk.isEmpty {
-                apply(disk, source: "cache")
-                return
+                if hasUsefulCategories(disk) {
+                    apply(disk, source: "cache")
+                    return
+                }
+                try? FileManager.default.removeItem(at: PlaylistParser.cacheFile)
             }
+
+            // Preferir lista embebida con categorías (como 1.8.4).
+            let bundled = try await Task.detached(priority: .userInitiated) {
+                try PlaylistParser.parseBundled()
+            }.value
 
             if let token, !token.isEmpty, let deviceId, !deviceId.isEmpty,
                forceNetwork || !PlaylistParser.hasDiskCache() {
-                let remote = try await CatalogAPI.fetchChannels(token: token, deviceId: deviceId)
-                if !remote.isEmpty {
+                if let remote = try? await CatalogAPI.fetchChannels(
+                    token: token,
+                    deviceId: deviceId,
+                    nameToGroup: CatalogAPI.nameToGroup(from: bundled)
+                ), !remote.isEmpty, hasUsefulCategories(remote) {
                     let m3u = CatalogAPI.toM3U(remote)
                     try? PlaylistParser.writeDiskCache(m3u: m3u)
                     apply(remote, source: "api/catalog")
@@ -57,17 +68,26 @@ final class CatalogStore: ObservableObject {
                 }
             }
 
-            if loaded, !channels.isEmpty { return }
-
-            let bundled = try await Task.detached(priority: .userInitiated) {
-                try PlaylistParser.parseBundled()
-            }.value
-            apply(bundled, source: "bundle")
+            if !bundled.isEmpty {
+                let m3u = CatalogAPI.toM3U(bundled)
+                try? PlaylistParser.writeDiskCache(m3u: m3u)
+                apply(bundled, source: "bundle")
+                return
+            }
         } catch {
             if channels.isEmpty {
                 loadError = error.localizedDescription
             }
         }
+    }
+
+    private func hasUsefulCategories(_ list: [Channel]) -> Bool {
+        let labels = Set(list.map { $0.group.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty })
+        if labels.count >= 3 { return true }
+        let generic: Set<String> = ["general", "variados", "otros", "other", "uncategorized"]
+        let real = labels.filter { !generic.contains($0.lowercased()) }
+        return real.count >= 2
     }
 
     func refreshFromServer(token: String, deviceId: String) async {
@@ -122,6 +142,7 @@ enum CatalogAPI {
         let series: [CatalogItemDTO]?
         let data: [CatalogItemDTO]?
         let results: [CatalogItemDTO]?
+        let categories: [CategoryDTO]?
         let page: Int?
         let limit: Int?
         let total: Int?
@@ -145,6 +166,12 @@ enum CatalogAPI {
         }
     }
 
+    private struct CategoryDTO: Decodable {
+        let id: String?
+        let name: String?
+        let title: String?
+    }
+
     private struct CatalogItemDTO: Decodable {
         let id: String?
         let _id: String?
@@ -159,7 +186,12 @@ enum CatalogAPI {
         let image: String?
         let icon: String?
         let category: String?
+        let categoryId: String?
+        let categoryName: String?
+        let categoryNameSnake: String?
         let group: String?
+        let groupTitle: String?
+        let groupTitleSnake: String?
         let type: String?
         let url: String?
         let streamUrl: String?
@@ -167,9 +199,11 @@ enum CatalogAPI {
 
         enum CodingKeys: String, CodingKey {
             case id, streamId, name, title, number, channelNumber
-            case logo, poster, cover, image, icon, category, group, type
-            case url, streamUrl, userAgent
+            case logo, poster, cover, image, icon, category, categoryId, categoryName
+            case group, groupTitle, type, url, streamUrl, userAgent
             case _id = "_id"
+            case categoryNameSnake = "category_name"
+            case groupTitleSnake = "group_title"
         }
 
         func resolveId() -> String {
@@ -181,7 +215,7 @@ enum CatalogAPI {
         }
 
         func resolveCategory() -> String {
-            let raw = category ?? group ?? "General"
+            let raw = category ?? categoryName ?? categoryNameSnake ?? group ?? groupTitle ?? groupTitleSnake ?? "General"
             return raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "General" : raw
         }
 
@@ -198,10 +232,41 @@ enum CatalogAPI {
         func resolveNumber() -> Int? { number ?? channelNumber }
     }
 
-    static func fetchChannels(token: String, deviceId: String) async throws -> [Channel] {
+    static func nameToGroup(from channels: [Channel]) -> [String: String] {
+        var map: [String: String] = [:]
+        for ch in channels {
+            let key = normalizeNameKey(ch.name)
+            if map[key] == nil { map[key] = ch.group }
+            let stripped = key.replacingOccurrences(
+                of: #"\s*\([^)]*\)\s*$"#,
+                with: "",
+                options: .regularExpression
+            ).trimmingCharacters(in: .whitespaces)
+            if !stripped.isEmpty, map[stripped] == nil { map[stripped] = ch.group }
+        }
+        return map
+    }
+
+    private static func normalizeNameKey(_ name: String) -> String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            .replacingOccurrences(of: "á", with: "a")
+            .replacingOccurrences(of: "é", with: "e")
+            .replacingOccurrences(of: "í", with: "i")
+            .replacingOccurrences(of: "ó", with: "o")
+            .replacingOccurrences(of: "ú", with: "u")
+            .replacingOccurrences(of: "ñ", with: "n")
+    }
+
+    static func fetchChannels(
+        token: String,
+        deviceId: String,
+        nameToGroup: [String: String] = [:]
+    ) async throws -> [Channel] {
         var all: [String: Channel] = [:]
         // Bulk first
-        if let bulk = try? await fetchPage(token: token, deviceId: deviceId, page: nil, limit: 20_000) {
+        if let bulk = try? await fetchPage(
+            token: token, deviceId: deviceId, page: nil, limit: 20_000, nameToGroup: nameToGroup
+        ) {
             for ch in bulk.channels { all[ch.id] = ch }
             if bulk.channels.count >= 50 && !bulk.hasMore {
                 return Array(all.values).sorted { $0.number < $1.number }
@@ -209,7 +274,9 @@ enum CatalogAPI {
         }
         var page = 1
         while page <= 40 {
-            let chunk = try await fetchPage(token: token, deviceId: deviceId, page: page, limit: 500)
+            let chunk = try await fetchPage(
+                token: token, deviceId: deviceId, page: page, limit: 500, nameToGroup: nameToGroup
+            )
             if chunk.channels.isEmpty { break }
             for ch in chunk.channels { all[ch.id] = ch }
             if !chunk.hasMore { break }
@@ -233,7 +300,8 @@ enum CatalogAPI {
         token: String,
         deviceId: String,
         page: Int?,
-        limit: Int?
+        limit: Int?,
+        nameToGroup: [String: String]
     ) async throws -> PageResult {
         var path = "/api/catalog"
         var query: [String] = []
@@ -265,23 +333,58 @@ enum CatalogAPI {
                 NSLocalizedDescriptionKey: err
             ])
         }
+        let catById: [String: String] = Dictionary(
+            uniqueKeysWithValues: (decoded.categories ?? []).compactMap { cat in
+                let id = cat.id?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                let label = (cat.name ?? cat.title ?? id).trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !id.isEmpty, !label.isEmpty else { return nil }
+                return (id, label)
+            }
+        )
         let items = decoded.resolveItems()
         let requested = limit ?? 20_000
         let channels = items.enumerated().compactMap { idx, item -> Channel? in
             guard let urlStr = item.resolveStreamUrl(), let url = URL(string: urlStr) else { return nil }
             let number = item.resolveNumber() ?? (idx + 1 + ((page ?? 1) - 1) * requested)
+            let title = item.resolveTitle()
+            let group = resolveGroup(item: item, title: title, catById: catById, nameToGroup: nameToGroup)
             return Channel(
                 id: item.resolveId(),
                 number: number,
-                name: item.resolveTitle(),
+                name: title,
                 logo: item.resolveLogo(),
-                group: item.resolveCategory(),
+                group: group,
                 url: url,
                 userAgent: item.userAgent,
                 referrer: nil
             )
         }
         return PageResult(channels: channels, hasMore: decoded.resolveHasMore(requestedLimit: requested))
+    }
+
+    private static func resolveGroup(
+        item: CatalogItemDTO,
+        title: String,
+        catById: [String: String],
+        nameToGroup: [String: String]
+    ) -> String {
+        let generic: Set<String> = ["general", "variados", "otros", "other", "uncategorized"]
+        var fromApi = item.resolveCategory()
+        if fromApi.lowercased() == "general", let cid = item.categoryId, let mapped = catById[cid] {
+            fromApi = mapped
+        }
+        if !fromApi.isEmpty && !generic.contains(fromApi.lowercased()) {
+            return fromApi
+        }
+        let key = normalizeNameKey(title)
+        if let g = nameToGroup[key] { return g }
+        let stripped = key.replacingOccurrences(
+            of: #"\s*\([^)]*\)\s*$"#,
+            with: "",
+            options: .regularExpression
+        ).trimmingCharacters(in: .whitespaces)
+        if let g = nameToGroup[stripped] { return g }
+        return fromApi.isEmpty ? "Variados" : fromApi
     }
 
     static func toM3U(_ channels: [Channel]) -> String {

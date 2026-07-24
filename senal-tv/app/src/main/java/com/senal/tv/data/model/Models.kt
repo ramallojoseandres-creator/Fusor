@@ -93,7 +93,12 @@ data class CatalogItem(
     val icon: String? = null,
     val category: String? = null,
     val categoryId: String? = null,
+    @SerialName("category_name") val categoryNameSnake: String? = null,
+    val categoryName: String? = null,
     val group: String? = null,
+    val groupTitle: String? = null,
+    @SerialName("group_title") val groupTitleSnake: String? = null,
+    val bouquet: String? = null,
     val type: String? = null,
     val year: Int? = null,
     val duration: Int? = null,
@@ -115,6 +120,10 @@ data class CatalogItem(
     /** Direct stream from local M3U (no server playback hop). */
     val url: String? = null,
     val streamUrl: String? = null,
+    val playbackUrl: String? = null,
+    val src: String? = null,
+    val link: String? = null,
+    val stream: String? = null,
     val userAgent: String? = null
 ) {
     fun resolveId(): String = id ?: mongoId ?: streamId ?: name.hashCode().toString()
@@ -122,10 +131,37 @@ data class CatalogItem(
     fun resolveLogo(): String? = logo ?: poster ?: cover ?: image ?: icon
     fun resolvePoster(): String? = poster ?: cover ?: image ?: logo ?: icon
     fun resolveNumber(): Int? = number ?: channelNumber
-    fun resolveCategory(): String = category ?: group ?: "General"
+    fun resolveCategory(): String =
+        sequenceOf(
+            category,
+            categoryName,
+            categoryNameSnake,
+            group,
+            groupTitle,
+            groupTitleSnake,
+            bouquet
+        ).mapNotNull { it?.trim()?.takeIf(String::isNotEmpty) }
+            .firstOrNull()
+            ?: "General"
+
+    fun resolveCategory(categoriesById: Map<String, String>): String {
+        val direct = resolveCategory()
+        if (!direct.equals("General", ignoreCase = true)) return direct
+        val id = categoryId?.trim().orEmpty()
+        if (id.isNotEmpty()) {
+            categoriesById[id]?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
+            categoriesById.entries.firstOrNull { it.key.equals(id, ignoreCase = true) }
+                ?.value?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
+        }
+        return direct
+    }
+
     fun resolveSynopsis(): String = synopsis ?: plot ?: description.orEmpty()
     fun resolveGenre(): String = genre ?: genres?.joinToString(", ").orEmpty()
-    fun resolveStreamUrl(): String? = streamUrl ?: url
+    fun resolveStreamUrl(): String? =
+        sequenceOf(url, streamUrl, playbackUrl, src, link, stream)
+            .mapNotNull { it?.trim()?.takeIf(String::isNotEmpty) }
+            .firstOrNull()
     fun resolveDurationMinutes(): Int? {
         duration?.let { return if (it > 300) it / 60 else it }
         durationSeconds?.let { return it / 60 }

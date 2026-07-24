@@ -32,6 +32,12 @@ class LocalPlaylistStore(private val context: Context) {
 
     fun size(): Int = all.size
 
+    /** Categorías live distintas tras cargar (para detectar caché plana "General"). */
+    fun liveCategoryCount(): Int = categoriesByType["live"]?.size ?: groupIndex.size
+
+    fun liveCategoryLabels(): List<String> =
+        categoriesByType["live"]?.map { it.label() } ?: groupIndex.keys.toList()
+
     suspend fun ensureLoaded() {
         if (loaded) return
         mutex.withLock {

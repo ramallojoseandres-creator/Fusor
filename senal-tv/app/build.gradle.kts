@@ -14,8 +14,8 @@ android {
         applicationId = "com.senal.tv"
         minSdk = 24
         targetSdk = 34
-        versionCode = 185
-        versionName = "1.8.5"
+        versionCode = 186
+        versionName = "1.8.6"
         // ─── SEÑAL server (cambiar IP/puerto aquí) ───
         buildConfigField("String", "SERVER_IP", "\"185.192.20.245\"")
         buildConfigField("int", "SERVER_PORT", "3000")
@@ -30,8 +30,8 @@ android {
         create("tv") {
             dimension = "device"
             applicationId = "com.senal.tv"
-            versionCode = 185
-            versionName = "1.8.5"
+            versionCode = 186
+            versionName = "1.8.6"
             buildConfigField("boolean", "IS_TABLET", "false")
             ndk {
                 // Fire Stick / Android TV boxes: ARM. Sin x86 para APK más liviana.
