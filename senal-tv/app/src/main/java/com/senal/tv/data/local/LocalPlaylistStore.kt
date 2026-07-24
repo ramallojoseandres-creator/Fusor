@@ -235,11 +235,14 @@ class LocalPlaylistStore(private val context: Context) {
                         val group = CatalogRules.canonicalLabel(rawGroup)
                         // Solo categorías pedidas; el resto se elimina con sus canales.
                         if (!CatalogRules.isPreferredLabel(group)) continue
+                        val displayName = CatalogRules.cleanChannelTitle(
+                            ext.name.ifBlank { "Canal $index" }
+                        )
                         val id = stableId(ext.tvgId, ext.name, url, index)
                         val entry = PlaylistEntry(
                             id = id,
                             number = index,
-                            name = ext.name.ifBlank { "Canal $index" },
+                            name = displayName.ifBlank { "Canal $index" },
                             logo = ext.logo,
                             group = group,
                             tvgId = ext.tvgId,

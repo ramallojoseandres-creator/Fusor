@@ -6,6 +6,7 @@ import com.senal.tv.ServerConfig
 import com.senal.tv.data.api.NetworkModule
 import com.senal.tv.data.model.CatalogItem
 import com.senal.tv.data.model.CatalogResponse
+import com.senal.tv.util.CatalogRules
 import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
@@ -70,49 +71,45 @@ class PlaylistSync(
     }
 
     /**
-     * Si ya hay caché útil → disco. Si no → asset / red.
+     * Si ya hay caché útil → disco. Si no → asset embebido.
      * [forceNetwork] solo para el botón manual de Ajustes.
      */
     suspend fun ensureCatalogReady(forceNetwork: Boolean = false): SyncResult = withContext(Dispatchers.IO) {
-        if (!forceNetwork && hasLocalCache()) {
-            val local = loadLocalOnly()
-            if (local.channels > 0 && hasUsefulCategories()) return@withContext local
+        if (!forceNetwork) {
+            return@withContext readyLocalCatalog()
         }
 
         val token = tokenStore.cachedToken
-        if (!token.isNullOrBlank() && (forceNetwork || !hasUsefulDiskOrMemory())) {
+        if (!token.isNullOrBlank()) {
             val net = downloadAndApply(token)
             if (net != null && hasUsefulCategories()) return@withContext net
-            // API sin categorías: quedarse con asset categorado.
             val asset = applyAssetAsCache()
             if (asset.channels > 0) return@withContext asset
             if (net != null) return@withContext net
             return@withContext SyncResult("none", 0, false, "No se pudo descargar la lista de canales")
         }
 
-        loadLocalOnly()
+        readyLocalCatalog()
     }
 
-    /** Primera vez: asset con categorías; si hay token, intenta enriquecer desde API. */
+    /** Primera vez (estilo Flujo): SOLO lista embebida — sin esperar al servidor. */
     suspend fun downloadFirstTimeIfNeeded(): SyncResult = withContext(Dispatchers.IO) {
         if (hasLocalCache()) {
             val local = loadLocalOnly()
             if (local.channels > 0 && hasUsefulCategories()) return@withContext local
         }
+        applyAssetAsCache()
+    }
 
-        // Base: lista embebida (grupos correctos, como 1.8.4).
-        val asset = applyAssetAsCache()
-        val token = tokenStore.cachedToken
-        if (!token.isNullOrBlank()) {
-            val net = downloadAndApply(token)
-            if (net != null && hasUsefulCategories()) return@withContext net
-            // Si la API llegó plana, restaurar asset.
-            if (!hasUsefulCategories()) {
-                return@withContext applyAssetAsCache()
-            }
+    /**
+     * Lista lista para usar YA (disco o asset). Nunca toca la red.
+     * Es lo que debe usarse tras el login (como Flujo).
+     */
+    suspend fun readyLocalCatalog(): SyncResult = withContext(Dispatchers.IO) {
+        if (playlistStore.size() > 0 && hasUsefulCategories()) {
+            return@withContext SyncResult("memory", playlistStore.size(), updated = false)
         }
-        if (asset.channels > 0) asset
-        else SyncResult("none", 0, false, "No se pudo cargar la lista de canales")
+        loadLocalOnly()
     }
 
     /** Solo Ajustes → Actualizar lista (sí usa red). */
@@ -173,7 +170,7 @@ class PlaylistSync(
             "https://raw.githubusercontent.com/Duartegame/listas/main/canalesgratistvpro"
 
         /** Sube esto al cambiar el orden/filtro de categorías para invalidar caché vieja. */
-        const val CATEGORY_ORDER_VERSION = "order:v8"
+        const val CATEGORY_ORDER_VERSION = "order:v9"
 
         private val genericGroups = setOf("general", "variados", "otros", "other", "uncategorized")
     }
@@ -329,7 +326,9 @@ class PlaylistSync(
         for (item in items) {
             val url = item.resolveStreamUrl()?.trim().orEmpty()
             if (url.isEmpty()) continue
-            val name = item.resolveTitle().replace('\n', ' ').trim().ifBlank { "Canal" }
+            val name = CatalogRules.cleanChannelTitle(
+                item.resolveTitle().replace('\n', ' ').trim().ifBlank { "Canal" }
+            )
             val group = resolveItemGroup(item, name, categoriesById, nameToGroup)
             val logo = item.resolveLogo().orEmpty()
             val id = item.resolveId().replace(',', ' ')

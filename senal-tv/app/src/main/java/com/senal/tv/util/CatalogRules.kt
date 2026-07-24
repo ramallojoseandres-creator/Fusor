@@ -153,9 +153,75 @@ object CatalogRules {
         items.filter { isPreferredLabel(it.resolveCategory()) }
             .ifEmpty { items.filterNot { isAdultItem(it) }.ifEmpty { items } }
 
+    /**
+     * Limpia títulos de canal para la UI:
+     * - Quita resolución: `(1080p)`, `(720p)`, `(HD)`, …
+     * - Quita país/región entre paréntesis: `(España)`, `(México)`, …
+     * - Quita etiquetas `[Geo-blocked]`, `[Not 24/7]`, …
+     * - Quita banderas emoji
+     * - Title Case: "sport xtra" → "Sport Xtra"
+     */
+    fun cleanChannelTitle(raw: String): String {
+        var t = raw.trim()
+        if (t.isEmpty()) return t
+        t = t.replace(bracketTagRegex, "")
+        t = t.replace(resolutionParenRegex, "")
+        t = t.replace(countryParenRegex, "")
+        // Paréntesis residuales que solo son resolución/país sueltos
+        t = t.replace(junkParenRegex, "")
+        t = t.replace(flagEmojiRegex, "")
+        t = t.replace(Regex("""\s*[|·]\s*$"""), "")
+        t = t.replace(Regex("""\s{2,}"""), " ").trim()
+        if (t.isEmpty()) return raw.trim()
+        return toTitleCase(t)
+    }
+
+    private fun toTitleCase(value: String): String {
+        val lowerWords = setOf("de", "del", "la", "las", "el", "los", "y", "e", "en", "a", "al", "por", "vs", "and", "the", "of")
+        val keepUpper = setOf(
+            "hd", "sd", "uhd", "fhd", "hdr", "tv", "nba", "nfl", "mlb", "nhl", "ufc", "ppv",
+            "espn", "cnn", "bbc", "fox", "hbo", "amc", "mtv", "tnt", "usa", "uk", "us", "uefa",
+            "fifa", "f1", "nba", "ok", "fm", "am", "hd+", "4k", "8k"
+        )
+        val parts = value.split(Regex("\\s+"))
+        return parts.mapIndexed { index, rawWord ->
+            val word = rawWord.trim()
+            if (word.isEmpty()) return@mapIndexed word
+            val letters = word.filter { it.isLetter() }
+            val lower = word.lowercase()
+            // Siglas cortas conocidas o ≤3 letras todas mayúsculas → conservar/MAYÚSCULAS
+            if (keepUpper.contains(lower) || (letters.length in 2..3 && word == word.uppercase() && letters.isNotEmpty())) {
+                return@mapIndexed word.uppercase()
+            }
+            if (word.any { it == '+' || it == '/' || it == '&' }) {
+                return@mapIndexed word.split(Regex("(?<=[+\\/&])|(?=[+\\/&])")).joinToString("") { token ->
+                    if (token.length <= 1) token
+                    else token.lowercase().replaceFirstChar { ch -> ch.titlecase() }
+                }
+            }
+            if (index > 0 && lowerWords.contains(lower)) return@mapIndexed lower
+            lower.replaceFirstChar { ch -> ch.titlecase() }
+        }.joinToString(" ")
+    }
+
     private fun normalize(value: String): String =
         value.trim().lowercase()
             .replace('á', 'a').replace('é', 'e').replace('í', 'i')
             .replace('ó', 'o').replace('ú', 'u').replace('ü', 'u')
             .replace('ñ', 'n')
+
+    private val bracketTagRegex = Regex("""\s*\[[^\]]*\]""")
+    private val resolutionParenRegex = Regex(
+        """\s*\((?:\d{3,4}\s*[pPiI]|SD|HD|FHD|UHD|4K|8K|HEVC|H\.?\s*265|H\.?\s*264|HDR)\)""",
+        RegexOption.IGNORE_CASE
+    )
+    private val countryParenRegex = Regex(
+        """\s*\((?:España|Espana|Spain|México|Mexico|Argentina|Colombia|Chile|Perú|Peru|Brasil|Brazil|Venezuela|Bolivia|Ecuador|Uruguay|Paraguay|Honduras|Guatemala|Nicaragua|Panamá|Panama|Costa Rica|República Dominicana|Republica Dominicana|Puerto Rico|El Salvador|Italia|Italy|Canadá|Canada|USA|US|UK|FR|DE|LAT|LATAM|EUA|EE\.?\s*UU\.?)\)""",
+        RegexOption.IGNORE_CASE
+    )
+    private val junkParenRegex = Regex(
+        """\s*\((?:Geo-?blocked|Not\s*24/?7|24/?7|Offline|Backup|Alt|Mirror)\)""",
+        RegexOption.IGNORE_CASE
+    )
+    private val flagEmojiRegex = Regex("""[\x{1F1E6}-\x{1F1FF}]{2}""")
 }

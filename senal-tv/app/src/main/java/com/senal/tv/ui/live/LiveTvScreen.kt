@@ -53,11 +53,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -92,16 +92,12 @@ import com.senal.tv.data.model.CatalogItem
 import com.senal.tv.data.model.Category
 import com.senal.tv.ui.theme.BrandOrange
 import com.senal.tv.ui.theme.BrandOrangeHot
-import com.senal.tv.ui.theme.ChannelGold
-import com.senal.tv.ui.theme.Graphite
 import com.senal.tv.ui.theme.LiveGreen
-import com.senal.tv.ui.theme.LiveRed
 import com.senal.tv.ui.theme.TextMuted
 import com.senal.tv.ui.theme.TextPrimary
 import com.senal.tv.util.CatalogRules
 import com.senal.tv.util.DeviceUi
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.math.abs
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -153,8 +149,25 @@ fun LiveTvScreen(
     val pageSize = 60
     val rootFocus = remember { FocusRequester() }
     val playingFocus = remember { FocusRequester() }
+    val categoryFocusRequesters = remember(categories) {
+        categories.associate { it.label() to FocusRequester() }
+    }
     val guideVisibleRef = remember { AtomicBoolean(true) }
     var guideFocusTick by remember { mutableIntStateOf(0) }
+    /** true = foco en lista de canales; false = foco en categorías. */
+    var focusInChannels by remember { mutableStateOf(false) }
+    /**
+     * Solo para restaurar foco al abrir la guía.
+     * NO sigue al canal en aire durante el preview (eso laggea y mueve el foco).
+     */
+    var restoreChannelId by remember { mutableStateOf<String?>(null) }
+
+    fun focusSelectedCategory() {
+        val cat = focusedCategory ?: selected ?: return
+        val requester = categoryFocusRequesters[cat] ?: return
+        focusInChannels = false
+        runCatching { requester.requestFocus() }
+    }
 
     LaunchedEffect(guideVisible) {
         guideVisibleRef.set(guideVisible)
@@ -181,27 +194,29 @@ fun LiveTvScreen(
         if (playError == null) hudVisible = false
     }
 
-    // BACK: cierra la guía → vuelve al home (no sale de la app).
+    // BACK: canales → categoría actual; categorías → cierra guía; sin guía → home.
     BackHandler {
-        if (guideVisible) {
-            guideVisible = false
-        } else {
-            onBack()
+        when {
+            guideVisible && focusInChannels -> focusSelectedCategory()
+            guideVisible -> guideVisible = false
+            else -> onBack()
         }
     }
 
     // Al abrir la guía: categoría del canal en aire + scroll + foco en ese canal (no en categorías).
-    LaunchedEffect(guideVisible, guideFocusTick, channels, playing?.resolveId()) {
+    LaunchedEffect(guideVisible, guideFocusTick, channels, restoreChannelId) {
         if (!guideVisible) return@LaunchedEffect
-        val id = playing?.resolveId() ?: return@LaunchedEffect
-        val cat = playing?.resolveCategory().orEmpty()
-        // Categorías usan Column+scroll (todas focusables); el scroll lo hace bringIntoView del foco.
+        val id = restoreChannelId ?: return@LaunchedEffect
         val idx = channels.indexOfFirst { it.resolveId() == id }
         if (idx >= 0) {
             runCatching { listState.scrollToItem(idx) }
             delay(90)
+            focusInChannels = true
             runCatching { playingFocus.requestFocus() }
         }
+        // Liberar el requester fijado para que el D-pad no pelee con el preview.
+        delay(120)
+        if (restoreChannelId == id) restoreChannelId = null
     }
 
     val player = remember {
@@ -267,6 +282,7 @@ fun LiveTvScreen(
                 selected = cat
             }
             focusedChannelId = ch.resolveId()
+            restoreChannelId = ch.resolveId()
         }
         guideVisible = true
         guideFocusTick++
@@ -320,10 +336,10 @@ fun LiveTvScreen(
         allowPlayback = true
     }
 
-    // Foco en categorías: solo actualiza highlight; la carga espera a que el D-pad se detenga.
+    // Foco en categorías: solo carga tras soltar el D-pad (evita saltos al pasar rápido).
     LaunchedEffect(focusedCategory) {
         val cat = focusedCategory ?: return@LaunchedEffect
-        delay(140)
+        delay(220)
         if (focusedCategory != cat) return@LaunchedEffect
         if (selected != cat) selected = cat
     }
@@ -361,11 +377,11 @@ fun LiveTvScreen(
         if (selected == category) loadingChannels = false
     }
 
-    // Preview al enfocar canal: debounce más largo para no pelear con el D-pad.
-    LaunchedEffect(focusedChannelId, guideVisible, channels) {
+    // Preview al enfocar canal: debounce largo — retunear ExoPlayer por cada flecha laggea la lista.
+    LaunchedEffect(focusedChannelId, guideVisible) {
         if (!guideVisible) return@LaunchedEffect
         val id = focusedChannelId ?: return@LaunchedEffect
-        delay(450)
+        delay(700)
         if (focusedChannelId != id) return@LaunchedEffect
         val channel = channels.firstOrNull { it.resolveId() == id } ?: return@LaunchedEffect
         if (playing?.resolveId() != id) {
@@ -486,6 +502,10 @@ fun LiveTvScreen(
                         code == android.view.KeyEvent.KEYCODE_DPAD_DOWN ||
                         code == android.view.KeyEvent.KEYCODE_CHANNEL_DOWN
                 when {
+                    isBack && guiding && focusInChannels -> {
+                        focusSelectedCategory()
+                        true
+                    }
                     isBack && guiding -> {
                         guideVisible = false
                         true
@@ -640,6 +660,7 @@ fun LiveTvScreen(
                             }
                             categories.forEach { category ->
                                 val label = category.label()
+                                val catRequester = categoryFocusRequesters[label]
                                 val active = label == (focusedCategory ?: selected)
                                 var catFocused by remember(label) { mutableStateOf(false) }
                                 val highlighted = active || catFocused
@@ -659,9 +680,14 @@ fun LiveTvScreen(
                                     scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
                                     modifier = Modifier
                                         .fillMaxWidth()
+                                        .then(
+                                            if (catRequester != null) Modifier.focusRequester(catRequester)
+                                            else Modifier
+                                        )
                                         .onFocusChanged { state ->
                                             catFocused = state.isFocused
                                             if (state.isFocused) {
+                                                focusInChannels = false
                                                 focusedCategory = label
                                             }
                                         }
@@ -717,37 +743,69 @@ fun LiveTvScreen(
                                 Text("Cargando canales…", color = TextMuted, modifier = Modifier.padding(8.dp))
                             channels.isEmpty() ->
                                 Text("Sin canales", color = TextMuted, modifier = Modifier.padding(8.dp))
-                            else -> LazyColumn(
-                                state = listState,
-                                verticalArrangement = Arrangement.spacedBy(2.dp),
-                                contentPadding = PaddingValues(bottom = 12.dp),
-                            ) {
-                                items(
-                                    channels,
-                                    key = { it.resolveId() },
-                                    contentType = { "ch" },
-                                ) { channel ->
-                                    val isOnAir = channel.resolveId() == playing?.resolveId()
-                                    GuideChannelRow(
-                                        item = channel,
-                                        selected = isOnAir,
-                                        focusRequester = if (isOnAir) playingFocus else null,
-                                        onFocused = { focusedChannelId = channel.resolveId() },
-                                        onClick = { confirmChannel(channel) },
-                                        onLongClick = {
-                                            scope.launch {
-                                                container.libraryRepository.toggleFavorite(channel)
+                            else -> {
+                                val exitToCategory = (focusedCategory ?: selected)?.let {
+                                    categoryFocusRequesters[it]
+                                }
+                                LazyColumn(
+                                    state = listState,
+                                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                                    contentPadding = PaddingValues(bottom = 12.dp),
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .then(
+                                            if (exitToCategory != null) {
+                                                Modifier.focusProperties {
+                                                    left = exitToCategory
+                                                    // Algunas TV mandan "Back" espacial como salir a la izquierda.
+                                                }
+                                            } else Modifier
+                                        )
+                                        .onPreviewKeyEvent { event ->
+                                            if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                                            val code = event.key.keyCode.toInt()
+                                            val isLeft =
+                                                event.key == Key.DirectionLeft ||
+                                                    code == android.view.KeyEvent.KEYCODE_DPAD_LEFT
+                                            if (isLeft) {
+                                                focusSelectedCategory()
+                                                true
+                                            } else {
+                                                false
                                             }
                                         }
-                                    )
-                                }
-                                if (loadingMore) {
-                                    item {
-                                        Text(
-                                            "Más canales…",
-                                            color = TextMuted,
-                                            modifier = Modifier.padding(12.dp)
+                                ) {
+                                    items(
+                                        channels,
+                                        key = { it.resolveId() },
+                                        contentType = { "ch" },
+                                    ) { channel ->
+                                        val id = channel.resolveId()
+                                        val isOnAir = id == playing?.resolveId()
+                                        GuideChannelRow(
+                                            item = channel,
+                                            selected = isOnAir,
+                                            focusRequester = if (id == restoreChannelId) playingFocus else null,
+                                            onFocused = {
+                                                focusInChannels = true
+                                                focusedChannelId = id
+                                            },
+                                            onClick = { confirmChannel(channel) },
+                                            onLongClick = {
+                                                scope.launch {
+                                                    container.libraryRepository.toggleFavorite(channel)
+                                                }
+                                            }
                                         )
+                                    }
+                                    if (loadingMore) {
+                                        item {
+                                            Text(
+                                                "Más canales…",
+                                                color = TextMuted,
+                                                modifier = Modifier.padding(12.dp)
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -940,7 +998,10 @@ private fun GuideChannelRow(
     focusRequester: FocusRequester? = null
 ) {
     var focused by remember { mutableStateOf(false) }
-    val epg = item.resolveNow().ifBlank { "No información" }
+    val title = remember(item.resolveId()) { item.resolveTitle() }
+    val epg = remember(item.resolveId()) { item.resolveNow().ifBlank { "No información" } }
+    val logo = remember(item.resolveId()) { item.resolveLogo() }
+    val numberLabel = remember(item.resolveId()) { (item.resolveNumber() ?: "·").toString() }
 
     Surface(
         onClick = onClick,
@@ -954,14 +1015,15 @@ private fun GuideChannelRow(
             },
             focusedContainerColor = BrandOrange
         ),
-        // Foco plano (sin graphicsLayer/glow): navegación D-pad más rápida.
+        // Foco plano (sin scale/glow): navegación D-pad más rápida.
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
         modifier = Modifier
             .fillMaxWidth()
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .onFocusChanged {
-                focused = it.isFocused
-                if (it.isFocused) onFocused()
+                val now = it.isFocused
+                if (focused != now) focused = now
+                if (now) onFocused()
             }
     ) {
         val rowPadV = if (DeviceUi.isTabletBuild) 10.dp else 6.dp
@@ -980,7 +1042,7 @@ private fun GuideChannelRow(
                 )
             } else {
                 Text(
-                    text = (item.resolveNumber() ?: "·").toString(),
+                    text = numberLabel,
                     color = Color.White.copy(0.9f),
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
@@ -995,19 +1057,28 @@ private fun GuideChannelRow(
                     .background(Color.White),
                 contentAlignment = Alignment.Center
             ) {
-                AsyncImage(
-                    model = item.resolveLogo(),
-                    contentDescription = null,
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(2.dp)
-                )
+                if (!logo.isNullOrBlank()) {
+                    AsyncImage(
+                        model = logo,
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(2.dp)
+                    )
+                } else {
+                    Text(
+                        channelInitials(item),
+                        color = Color.Black,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 11.sp
+                    )
+                }
             }
             Spacer(modifier = Modifier.width(8.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = item.resolveTitle(),
+                    text = title,
                     color = if (focused) Color.White else TextPrimary,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 13.sp,

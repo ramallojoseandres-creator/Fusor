@@ -31,12 +31,9 @@ class SenalApp : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
-        // Solo precarga desde DISCO (nunca descarga al abrir la app).
-        // La primera descarga ocurre en CatalogLoadingScreen tras el login.
+        // Precarga la lista embebida al arrancar (estilo Flujo): tras el login ya está lista.
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-            if (container.playlistSync.hasLocalCache()) {
-                runCatching { container.playlistSync.loadLocalOnly() }
-            }
+            runCatching { container.playlistSync.readyLocalCatalog() }
         }
     }
 

@@ -33,22 +33,17 @@ import com.senal.tv.ui.theme.TextMuted
 import com.senal.tv.ui.theme.TextPrimary
 
 /**
- * Puerta del catálogo:
- * - Si ya hay lista en disco → carga local y entra al home (rápido).
- * - Si es la primera vez → descarga UNA vez con mensaje
- *   «Cargando todos los canales…» y solo entonces deja usar la app.
+ * Puerta del catálogo estilo Flujo:
+ * - La lista va **dentro del APK** (asset) → carga local, sin servidor.
+ * - Solo la primera lectura del asset tarda un instante; luego disco/memoria.
+ * - «Actualizar lista» en Ajustes es lo único que usa red.
  */
 @Composable
 fun CatalogLoadingScreen(
     container: AppContainer,
     onReady: () -> Unit
 ) {
-    val hadCache = remember { container.playlistSync.hasLocalCache() }
-    var message by remember {
-        mutableStateOf(
-            if (hadCache) "Abriendo lista guardada…" else "Cargando todos los canales…"
-        )
-    }
+    var message by remember { mutableStateOf("Abriendo canales…") }
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(true) }
     var attempt by remember { mutableStateOf(0) }
@@ -56,33 +51,18 @@ fun CatalogLoadingScreen(
     LaunchedEffect(attempt) {
         busy = true
         error = null
-        val hasCache = container.playlistSync.hasLocalCache()
-        message = if (hasCache) {
-            "Abriendo lista guardada…"
-        } else {
-            "Cargando todos los canales…"
-        }
+        message = "Abriendo canales…"
 
-        val result = if (hasCache) {
-            container.playlistSync.loadLocalOnly()
-        } else {
-            container.playlistSync.downloadFirstTimeIfNeeded()
-        }
+        // Nunca espera al servidor aquí (Flujo = lista embebida).
+        val result = container.playlistSync.readyLocalCatalog()
 
         if (result.error != null || result.channels <= 0) {
-            val fallback = container.playlistSync.loadLocalOnly()
-            if (fallback.channels > 0 && fallback.error == null) {
-                busy = false
-                onReady()
-                return@LaunchedEffect
-            }
             busy = false
-            error = "Reconectando… ${result.error ?: "Sin respuesta del servidor"}"
-            message = "Reconectando…"
+            error = result.error ?: "No hay lista de canales en la app"
+            message = "Sin catálogo"
             return@LaunchedEffect
         }
 
-        message = "${result.channels} canales listos"
         busy = false
         onReady()
     }
@@ -112,11 +92,7 @@ fun CatalogLoadingScreen(
                     LoadingPulse(message)
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = if (hadCache || container.playlistSync.hasLocalCache()) {
-                            "Usa la copia guardada en este dispositivo"
-                        } else {
-                            "Solo la primera vez. Luego queda guardada."
-                        },
+                        text = "Lista en el dispositivo · sin esperar al servidor",
                         color = TextMuted,
                         fontSize = 13.sp
                     )

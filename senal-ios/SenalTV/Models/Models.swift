@@ -165,4 +165,56 @@ enum CatalogRules {
         sortCategories(cats).first { !isAdult($0.name) }?.name
             ?? sortCategories(cats).first?.name
     }
+
+    /// Limpia títulos: sin (1080p)/(España)/[tags]/flags; Title Case.
+    static func cleanChannelTitle(_ raw: String) -> String {
+        var t = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.isEmpty else { return t }
+        t = t.replacingOccurrences(of: #"\s*\[[^\]]*\]"#, with: "", options: .regularExpression)
+        t = t.replacingOccurrences(
+            of: #"\s*\((?:\d{3,4}\s*[pPiI]|SD|HD|FHD|UHD|4K|8K|HEVC|H\.?\s*265|H\.?\s*264|HDR)\)"#,
+            with: "",
+            options: [.regularExpression, .caseInsensitive]
+        )
+        t = t.replacingOccurrences(
+            of: #"\s*\((?:España|Espana|Spain|México|Mexico|Argentina|Colombia|Chile|Perú|Peru|Brasil|Brazil|Venezuela|Bolivia|Ecuador|Uruguay|Paraguay|Honduras|Guatemala|Nicaragua|Panamá|Panama|Costa Rica|República Dominicana|Republica Dominicana|Puerto Rico|El Salvador|Italia|Italy|Canadá|Canada|USA|US|UK|FR|DE|LAT|LATAM|EUA|EE\.?\s*UU\.?)\)"#,
+            with: "",
+            options: [.regularExpression, .caseInsensitive]
+        )
+        t = t.replacingOccurrences(
+            of: #"\s*\((?:Geo-?blocked|Not\s*24/?7|24/?7|Offline|Backup|Alt|Mirror)\)"#,
+            with: "",
+            options: [.regularExpression, .caseInsensitive]
+        )
+        t = t.replacingOccurrences(
+            of: #"[\u{1F1E6}-\u{1F1FF}]{2}"#,
+            with: "",
+            options: .regularExpression
+        )
+        t = t.replacingOccurrences(of: #"\s*[|·]\s*$"#, with: "", options: .regularExpression)
+        t = t.replacingOccurrences(of: #"\s{2,}"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if t.isEmpty { return raw.trimmingCharacters(in: .whitespacesAndNewlines) }
+        return toTitleCase(t)
+    }
+
+    private static func toTitleCase(_ value: String) -> String {
+        let lowerWords: Set<String> = ["de", "del", "la", "las", "el", "los", "y", "e", "en", "a", "al", "por", "vs", "and", "the", "of"]
+        let keepUpper: Set<String> = [
+            "hd", "sd", "uhd", "fhd", "hdr", "tv", "nba", "nfl", "mlb", "nhl", "ufc", "ppv",
+            "espn", "cnn", "bbc", "fox", "hbo", "amc", "mtv", "tnt", "usa", "uk", "us", "uefa",
+            "fifa", "f1", "ok", "fm", "am", "hd+", "4k", "8k"
+        ]
+        let parts = value.split(whereSeparator: \.isWhitespace).map(String.init)
+        return parts.enumerated().map { index, word in
+            let lower = word.lowercased()
+            let letters = word.filter(\.isLetter)
+            if keepUpper.contains(lower) || (letters.count >= 2 && letters.count <= 3 && word == word.uppercased() && !letters.isEmpty) {
+                return word.uppercased()
+            }
+            if index > 0 && lowerWords.contains(lower) { return lower }
+            guard let first = lower.first else { return lower }
+            return String(first).uppercased() + lower.dropFirst()
+        }.joined(separator: " ")
+    }
 }

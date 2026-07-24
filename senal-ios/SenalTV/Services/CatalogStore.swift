@@ -115,10 +115,11 @@ final class CatalogStore: ObservableObject {
         let filtered = list.compactMap { ch -> Channel? in
             let group = CatalogRules.canonicalLabel(ch.group)
             guard CatalogRules.isPreferredLabel(group) else { return nil }
+            let cleaned = CatalogRules.cleanChannelTitle(ch.name)
             return Channel(
                 id: ch.id,
                 number: ch.number,
-                name: ch.name,
+                name: cleaned.isEmpty ? ch.name : cleaned,
                 logo: ch.logo,
                 group: group,
                 url: ch.url,
@@ -573,19 +574,24 @@ enum PlaylistParser {
             }
             pending = nil
             index += 1
-            let group = ext.group.isEmpty ? "Variados" : ext.group
-            let name = ext.name.isEmpty ? "Canal \(index)" : ext.name
+            let group = CatalogRules.canonicalLabel(ext.group.isEmpty ? "Variados" : ext.group)
+            guard CatalogRules.isPreferredLabel(group) else {
+                pending = nil
+                continue
+            }
+            let rawName = ext.name.isEmpty ? "Canal \(index)" : ext.name
+            let name = CatalogRules.cleanChannelTitle(rawName)
             let id: String
             if !ext.tvgId.isEmpty {
                 id = "tvg:\(ext.tvgId)"
             } else {
-                id = "m3u:\(stableHash(name.lowercased())):\(index)"
+                id = "m3u:\(stableHash(rawName.lowercased())):\(index)"
             }
             out.append(
                 Channel(
                     id: id,
                     number: index,
-                    name: name,
+                    name: name.isEmpty ? "Canal \(index)" : name,
                     logo: ext.logo,
                     group: group,
                     url: stream,
