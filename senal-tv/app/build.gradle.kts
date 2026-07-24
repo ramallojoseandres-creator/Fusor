@@ -14,8 +14,8 @@ android {
         applicationId = "com.senal.tv"
         minSdk = 24
         targetSdk = 34
-        versionCode = 194
-        versionName = "1.8.14"
+        versionCode = 195
+        versionName = "1.8.15"
         // ─── SEÑAL server (cambiar IP/puerto aquí) ───
         buildConfigField("String", "SERVER_IP", "\"185.192.20.245\"")
         buildConfigField("int", "SERVER_PORT", "3000")
@@ -31,8 +31,8 @@ android {
         create("tv") {
             dimension = "device"
             applicationId = "com.senal.tv"
-            versionCode = 194
-            versionName = "1.8.14"
+            versionCode = 195
+            versionName = "1.8.15"
             buildConfigField("boolean", "IS_TABLET", "false")
             buildConfigField("boolean", "IS_TOUCH", "false")
             ndk {
@@ -104,6 +104,11 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    // Keep VOD playlists gzipped inside the APK (aapt2 otherwise decompresses .gz).
+    androidResources {
+        noCompress += listOf("gz")
     }
 
     packaging {

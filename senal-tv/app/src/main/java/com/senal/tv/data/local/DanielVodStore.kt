@@ -21,8 +21,9 @@ import kotlinx.coroutines.withContext
 class DanielVodStore(private val context: Context) {
 
     companion object {
-        private const val MOVIES_ASSET = "vod/daniel65_peliculas.m3u.gz"
-        private const val SERIES_ASSET = "vod/daniel65_series.m3u.gz"
+        // Plain .m3u: aapt2 auto-decompresses/renames `.gz` and breaks GZIPInputStream loading.
+        private const val MOVIES_ASSET = "vod/daniel65_peliculas.m3u"
+        private const val SERIES_ASSET = "vod/daniel65_series.m3u"
     }
 
     private val mutex = Mutex()
@@ -176,65 +177,115 @@ class DanielVodStore(private val context: Context) {
 
     private fun parseAsset(assetPath: String, type: String, idPrefix: String): List<CatalogItem> {
         val out = ArrayList<CatalogItem>(if (type == "series") 70_000 else 18_000)
-        context.assets.open(assetPath).use { raw ->
-            GZIPInputStream(raw).use { gz ->
-                BufferedReader(InputStreamReader(gz, Charsets.UTF_8), 64 * 1024).use { reader ->
-                    var pending: Ext? = null
-                    var pendingUa: String? = null
-                    var index = 0
-                    while (true) {
-                        val line = reader.readLine() ?: break
-                        val trimmed = line.trim()
-                        if (trimmed.isEmpty() || trimmed.startsWith("#EXTM3U")) continue
-                        when {
-                            trimmed.startsWith("#EXTINF", ignoreCase = true) -> {
-                                pending = parseExtInf(trimmed)
-                                pendingUa = pending.userAgent
-                            }
-                            trimmed.startsWith("#EXTVLCOPT:", ignoreCase = true) -> {
-                                val opt = trimmed.substringAfter(':')
-                                if (opt.startsWith("http-user-agent=", ignoreCase = true)) {
-                                    pendingUa = opt.substringAfter('=').trim().trim('"')
-                                }
-                            }
-                            trimmed.startsWith("#") -> Unit
-                            else -> {
-                                val ext = pending ?: continue
-                                if (!trimmed.startsWith("http", ignoreCase = true)) {
-                                    pending = null
-                                    pendingUa = null
-                                    continue
-                                }
-                                index++
-                                val title = CatalogRules.cleanChannelTitle(ext.name).ifBlank { ext.name }
-                                val group = ext.group.ifBlank { if (type == "series") "Series" else "Películas" }
-                                val id = "$idPrefix:$index"
-                                out += CatalogItem(
-                                    id = id,
-                                    streamId = id,
-                                    name = title,
-                                    title = title,
-                                    number = index,
-                                    channelNumber = index,
-                                    logo = ext.logo,
-                                    poster = ext.logo,
-                                    category = group,
-                                    group = group,
-                                    groupTitle = group,
-                                    type = type,
-                                    url = trimmed,
-                                    streamUrl = trimmed,
-                                    userAgent = pendingUa ?: ext.userAgent
-                                )
-                                pending = null
-                                pendingUa = null
-                            }
+        openM3uReader(assetPath).use { reader ->
+            var pending: Ext? = null
+            var pendingUa: String? = null
+            var index = 0
+            while (true) {
+                val line = reader.readLine() ?: break
+                val trimmed = line.trim()
+                if (trimmed.isEmpty() || trimmed.startsWith("#EXTM3U")) continue
+                when {
+                    trimmed.startsWith("#EXTINF", ignoreCase = true) -> {
+                        pending = parseExtInf(trimmed)
+                        pendingUa = pending.userAgent
+                    }
+                    trimmed.startsWith("#EXTVLCOPT:", ignoreCase = true) -> {
+                        val opt = trimmed.substringAfter(':')
+                        if (opt.startsWith("http-user-agent=", ignoreCase = true)) {
+                            pendingUa = opt.substringAfter('=').trim().trim('"')
                         }
+                    }
+                    trimmed.startsWith("#") -> Unit
+                    else -> {
+                        val ext = pending ?: continue
+                        if (!trimmed.startsWith("http", ignoreCase = true)) {
+                            pending = null
+                            pendingUa = null
+                            continue
+                        }
+                        index++
+                        val title = CatalogRules.cleanChannelTitle(ext.name).ifBlank { ext.name }
+                        val group = ext.group.ifBlank {
+                            if (type == "series") "Series" else "Películas"
+                        }
+                        val id = "$idPrefix:$index"
+                        out += CatalogItem(
+                            id = id,
+                            streamId = id,
+                            name = title,
+                            title = title,
+                            number = index,
+                            channelNumber = index,
+                            logo = ext.logo,
+                            poster = ext.logo,
+                            category = group,
+                            group = group,
+                            groupTitle = group,
+                            type = type,
+                            url = trimmed,
+                            streamUrl = trimmed,
+                            userAgent = pendingUa ?: ext.userAgent
+                        )
+                        pending = null
+                        pendingUa = null
                     }
                 }
             }
         }
+        if (out.isEmpty()) {
+            throw IllegalStateException("Lista VOD vacía ($assetPath)")
+        }
         return out
+    }
+
+    /**
+     * aapt2 often decompresses `.gz` assets and may rename them to `.m3u`.
+     * Try gzip / plain for `.gz` and `.m3u` names under `vod/`.
+     */
+    private fun openM3uReader(assetPath: String): BufferedReader {
+        val wantMovies = assetPath.contains("peliculas", ignoreCase = true)
+        val vodFiles = context.assets.list("vod").orEmpty().toList()
+        val preferred = buildList {
+            add(assetPath)
+            if (assetPath.endsWith(".gz", ignoreCase = true)) {
+                add(assetPath.removeSuffix(".gz").removeSuffix(".GZ"))
+            }
+            vodFiles.forEach { name ->
+                val n = name.lowercase()
+                val hit = n.contains("daniel65") && (
+                    (wantMovies && n.contains("pelicul")) ||
+                        (!wantMovies && n.contains("series"))
+                    )
+                if (hit) add("vod/$name")
+            }
+        }.distinct()
+
+        var lastError: Throwable? = null
+        for (path in preferred) {
+            // Gzip first (real .gz in APK when noCompress is set)
+            runCatching {
+                context.assets.open(path).use { raw ->
+                    val bytes = raw.readBytes()
+                    if (bytes.size >= 2 && bytes[0] == 0x1f.toByte() && bytes[1] == 0x8b.toByte()) {
+                        val text = GZIPInputStream(bytes.inputStream()).bufferedReader(Charsets.UTF_8).readText()
+                        if (text.contains("#EXTINF", ignoreCase = true)) {
+                            return BufferedReader(text.reader(), 64 * 1024)
+                        }
+                    } else {
+                        val text = bytes.toString(Charsets.UTF_8)
+                        if (text.contains("#EXTINF", ignoreCase = true)) {
+                            return BufferedReader(text.reader(), 64 * 1024)
+                        }
+                    }
+                }
+            }.onFailure { lastError = it }
+        }
+
+        throw IllegalStateException(
+            "No se pudo abrir VOD. Probado: ${preferred.joinToString()}. " +
+                "En vod/: ${vodFiles.joinToString()}. ${lastError?.message ?: ""}"
+        )
     }
 
     private data class Ext(

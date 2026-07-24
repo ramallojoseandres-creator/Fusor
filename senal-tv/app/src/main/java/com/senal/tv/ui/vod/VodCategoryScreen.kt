@@ -90,10 +90,23 @@ fun VodCategoryScreen(
             container.danielVodStore.ensureLoaded(kind)
             container.danielVodStore.categories(kind)
         }.onSuccess { cats ->
-            categories = cats
-            selected = cats.firstOrNull()?.label()
+            categories = cats.filter { label ->
+                val t = label.label()
+                t.isNotBlank() &&
+                    !t.contains(".m3u", ignoreCase = true) &&
+                    !t.contains("vod/", ignoreCase = true)
+            }
+            selected = categories.firstOrNull()?.label()
+            if (categories.isEmpty()) {
+                error = "No hay categorías en la lista VOD"
+            }
         }.onFailure {
-            error = it.message ?: "No se pudo cargar el catálogo"
+            val msg = it.message.orEmpty()
+            error = when {
+                msg.contains("vod/", ignoreCase = true) || msg.contains(".m3u", ignoreCase = true) ->
+                    "No se pudo cargar la lista de ${if (kind == DanielVodStore.Kind.SERIES) "series" else "películas"}"
+                else -> msg.ifBlank { "No se pudo cargar el catálogo" }
+            }
         }
         loadingCats = false
     }
