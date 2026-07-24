@@ -31,7 +31,7 @@ struct MainTabView: View {
             SettingsView()
                 .tabItem { Label("Ajustes", systemImage: "gearshape.fill") }
         }
-        .tint(SenalColors.violet)
+        .tint(SenalColors.teal)
     }
 }
 
@@ -40,48 +40,58 @@ struct LoginView: View {
     @State private var username = ""
     @State private var password = ""
 
+    private var clock: String {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        return f.string(from: Date())
+    }
+
     var body: some View {
         ZStack {
             SenalBackground()
-            VStack(spacing: 18) {
+            LinearGradient(
+                colors: [
+                    .black.opacity(0.55),
+                    .black.opacity(0.82),
+                    .black.opacity(0.94)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            Text(clock)
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.9))
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                .padding(.top, 28)
+                .padding(.trailing, 28)
+
+            VStack(spacing: 0) {
                 Text("SEÑAL")
-                    .font(.system(size: 44, weight: .black, design: .rounded))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [SenalColors.violet, SenalColors.teal],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .shadow(color: SenalColors.violet.opacity(0.5), radius: 18)
+                    .font(.system(size: 48, weight: .black))
+                    .tracking(8)
+                    .foregroundStyle(.white)
 
-                Text("Acceso de usuario · lista desde el panel")
-                    .font(.subheadline)
+                Text("Inicia sesión para ver en vivo")
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(SenalColors.muted)
+                    .padding(.top, 10)
 
-                VStack(spacing: 12) {
-                    TextField("Usuario", text: $username)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .padding()
-                        .background(SenalColors.card)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-
-                    SecureField("Contraseña", text: $password)
-                        .padding()
-                        .background(SenalColors.card)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                VStack(alignment: .leading, spacing: 22) {
+                    UnderlineLoginField(title: "Usuario", text: $username, isSecure: false)
+                    UnderlineLoginField(title: "Contraseña", text: $password, isSecure: true)
                 }
-                .foregroundStyle(SenalColors.text)
-                .padding(.horizontal, 28)
+                .padding(.top, 36)
+                .padding(.horizontal, 32)
 
                 if let err = session.errorMessage {
                     Text(err)
                         .font(.footnote)
                         .foregroundStyle(.red.opacity(0.9))
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 14)
+                        .padding(.horizontal, 28)
                 }
 
                 Button {
@@ -89,33 +99,57 @@ struct LoginView: View {
                 } label: {
                     Group {
                         if session.isBusy {
-                            ProgressView().tint(.white)
+                            ProgressView().tint(.black)
                         } else {
-                            Text("Entrar").fontWeight(.semibold)
+                            Text("ENTRAR")
+                                .font(.system(size: 16, weight: .black))
+                                .tracking(2)
                         }
                     }
                     .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(
-                        LinearGradient(
-                            colors: [SenalColors.violet, SenalColors.orange],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .padding(.vertical, 16)
+                    .foregroundStyle(.black)
+                    .background(SenalColors.teal)
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
                 }
                 .disabled(session.isBusy)
-                .padding(.horizontal, 28)
-
-                Text("Login + catálogo del panel SEÑAL.\nLa lista se descarga una vez y queda en el iPhone.")
-                    .font(.caption)
-                    .foregroundStyle(SenalColors.muted)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 8)
+                .padding(.horizontal, 32)
+                .padding(.top, 22)
             }
-            .padding(.vertical, 40)
+            .frame(maxWidth: 420)
+        }
+        .statusBarHidden(true)
+    }
+}
+
+private struct UnderlineLoginField: View {
+    let title: String
+    @Binding var text: String
+    var isSecure: Bool
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .tracking(1)
+                .foregroundStyle(focused ? SenalColors.teal : .white.opacity(0.55))
+            Group {
+                if isSecure {
+                    SecureField(title, text: $text)
+                } else {
+                    TextField(title, text: $text)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                }
+            }
+            .focused($focused)
+            .font(.system(size: 17, weight: .medium))
+            .foregroundStyle(.white)
+            .padding(.vertical, 8)
+            Rectangle()
+                .fill(focused ? SenalColors.teal : Color.white.opacity(0.35))
+                .frame(height: focused ? 2 : 1)
         }
     }
 }

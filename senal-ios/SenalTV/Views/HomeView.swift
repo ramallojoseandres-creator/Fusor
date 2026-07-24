@@ -3,125 +3,112 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject private var catalog: CatalogStore
 
-    private var preview: [Channel] {
+    private var previewChannel: Channel? {
         let cat = catalog.selectedCategory
-        return Array(catalog.channels(in: cat).prefix(24))
+        return catalog.channels(in: cat).first
     }
 
     var body: some View {
         NavigationStack {
             ZStack {
                 SenalBackground()
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 22) {
-                        header
-                        if catalog.isLoading {
-                            ProgressView("Cargando lista local…")
-                                .tint(SenalColors.violet)
-                                .frame(maxWidth: .infinity)
-                                .padding(.top, 40)
-                        } else if let err = catalog.loadError {
-                            Text(err).foregroundStyle(.red).padding()
-                        } else {
-                            Text("En vivo · \(catalog.selectedCategory ?? "General")")
-                                .font(.headline)
-                                .foregroundStyle(SenalColors.text)
-                                .padding(.horizontal)
 
-                            LazyVGrid(
-                                columns: [GridItem(.adaptive(minimum: 110), spacing: 12)],
-                                spacing: 12
-                            ) {
-                                ForEach(preview) { ch in
-                                    NavigationLink(value: ch) {
-                                        ChannelCard(channel: ch)
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                            .padding(.horizontal)
+                // Atmosphere gradient (phone has no live bleed player on hub).
+                LinearGradient(
+                    colors: [
+                        Color.black.opacity(0.2),
+                        Color.black.opacity(0.55),
+                        Color.black.opacity(0.9)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
 
-                            if !catalog.movieChannels.isEmpty {
-                                Text("Cine 24/7")
-                                    .font(.headline)
-                                    .foregroundStyle(SenalColors.text)
-                                    .padding(.horizontal)
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: 12) {
-                                        ForEach(catalog.movieChannels.prefix(20)) { ch in
-                                            NavigationLink(value: ch) {
-                                                ChannelCard(channel: ch, compact: true)
-                                            }
-                                            .buttonStyle(.plain)
-                                        }
-                                    }
-                                    .padding(.horizontal)
-                                }
-                            }
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("SEÑAL")
+                        .font(.system(size: 32, weight: .black))
+                        .tracking(6)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 12)
+
+                    Spacer()
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(previewChannel?.name ?? "SEÑAL · En vivo")
+                            .font(.system(size: 26, weight: .bold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                        Text("Continuar viendo")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(SenalColors.teal)
+                    }
+                    .padding(.horizontal, 20)
+
+                    HStack(spacing: 10) {
+                        HubLink(title: "VIVO", systemImage: "tv.fill", tint: SenalColors.blue) {
+                            LiveView()
+                        }
+                        HubLink(title: "PELÍCULAS", systemImage: "film.fill", tint: SenalColors.blueSoft) {
+                            MoviesView()
+                        }
+                        HubLink(title: "SERIES", systemImage: "play.rectangle.fill", tint: SenalColors.blueDeep) {
+                            SeriesPlaceholder()
+                        }
+                        HubLink(title: "AJUSTES", systemImage: "gearshape.fill", tint: SenalColors.teal) {
+                            SettingsView()
                         }
                     }
-                    .padding(.vertical)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 28)
+                    .padding(.bottom, 20)
                 }
             }
-            .navigationTitle("SEÑAL")
+            .navigationBarHidden(true)
             .navigationDestination(for: Channel.self) { ch in
                 PlayerView(channel: ch, neighbors: catalog.channels(in: ch.group))
             }
         }
     }
+}
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Tu TV")
-                .font(.system(size: 34, weight: .bold, design: .rounded))
-                .foregroundStyle(SenalColors.text)
-            Text("\(catalog.channels.count) canales · lista embebida")
-                .font(.subheadline)
-                .foregroundStyle(SenalColors.muted)
+private struct HubLink<Dest: View>: View {
+    let title: String
+    let systemImage: String
+    let tint: Color
+    @ViewBuilder let destination: () -> Dest
+
+    var body: some View {
+        NavigationLink {
+            destination()
+        } label: {
+            VStack(spacing: 8) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 18, weight: .semibold))
+                Text(title)
+                    .font(.system(size: 11, weight: .bold))
+                    .tracking(0.6)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(tint.opacity(0.85))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
         }
-        .padding(.horizontal)
-        .padding(.top, 8)
+        .buttonStyle(.plain)
     }
 }
 
-struct ChannelCard: View {
-    let channel: Channel
-    var compact: Bool = false
-
+private struct SeriesPlaceholder: View {
     var body: some View {
-        VStack(spacing: 8) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(SenalColors.card)
-                if let logo = channel.logo, let url = URL(string: logo) {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let img):
-                            img.resizable().scaledToFit().padding(10)
-                        default:
-                            Text(String(channel.name.prefix(1)))
-                                .font(.title.bold())
-                                .foregroundStyle(SenalColors.violet)
-                        }
-                    }
-                } else {
-                    Text(String(channel.name.prefix(1)))
-                        .font(.title.bold())
-                        .foregroundStyle(SenalColors.violet)
-                }
-            }
-            .frame(width: compact ? 100 : nil, height: compact ? 70 : 88)
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(SenalColors.violet.opacity(0.25), lineWidth: 1)
-            )
-
-            Text(channel.name)
-                .font(.caption)
-                .foregroundStyle(SenalColors.text)
-                .lineLimit(2)
-                .multilineTextAlignment(.center)
-                .frame(width: compact ? 100 : nil)
+        ZStack {
+            SenalBackground()
+            Text("Series próximamente")
+                .foregroundStyle(SenalColors.muted)
         }
+        .navigationTitle("Series")
     }
 }

@@ -148,9 +148,9 @@ struct SplashFallback: View {
                 Capsule()
                     .fill(cyan)
                     .frame(width: lineWidth, height: 2)
-                Text("TU VENTANA AL MUNDO")
-                    .font(.system(size: 16, weight: .bold))
-                    .tracking(3)
+                Text("Tu ventana al mundo")
+                    .font(.system(size: 16, weight: .medium))
+                    .tracking(2)
                     .foregroundStyle(cyan)
                     .opacity(tagOpacity)
             }

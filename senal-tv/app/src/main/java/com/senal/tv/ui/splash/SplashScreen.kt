@@ -26,7 +26,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -45,17 +44,13 @@ import androidx.media3.exoplayer.ExoPlayer
 import com.senal.tv.R
 import com.senal.tv.ui.theme.BrandTurquoise
 import com.senal.tv.ui.theme.Graphite
-import com.senal.tv.ui.theme.TextMuted
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlin.math.cos
 import kotlin.math.min
-import kotlin.math.sin
 
 /**
- * Bienvenida cinematográfica:
- * - Anillos / logo animados en Compose (sustituye el vídeo rudimentario)
- * - Música de apertura (splash_intro.ogg) como sonic logo
+ * Splash SEÑAL: marca héroe + un eslogan + onda de señal.
+ * Corto (~3.8 s) con sonic logo; sin UI extra.
  */
 @Composable
 fun SplashScreen(onFinished: () -> Unit) {
@@ -74,7 +69,7 @@ fun SplashScreen(onFinished: () -> Unit) {
             setMediaItem(
                 MediaItem.fromUri("android.resource://${context.packageName}/${R.raw.splash_intro}"),
             )
-            volume = 0.85f
+            volume = 0.8f
             prepare()
             playWhenReady = true
             repeatMode = Player.REPEAT_MODE_OFF
@@ -82,57 +77,49 @@ fun SplashScreen(onFinished: () -> Unit) {
     }
 
     DisposableEffect(Unit) {
-        onDispose {
-            musicPlayer.release()
-        }
+        onDispose { musicPlayer.release() }
     }
 
     val ringProgress = remember { Animatable(0f) }
-    val logoAlpha = remember { Animatable(0f) }
-    val logoScale = remember { Animatable(0.82f) }
+    val brandAlpha = remember { Animatable(0f) }
+    val brandScale = remember { Animatable(0.88f) }
     val sloganAlpha = remember { Animatable(0f) }
-    val glowPulse = remember { Animatable(0.35f) }
 
-    val infinite = rememberInfiniteTransition(label = "splashPulse")
-    val shimmer by infinite.animateFloat(
-        initialValue = 0.4f,
+    val infinite = rememberInfiniteTransition(label = "splash")
+    val pulse by infinite.animateFloat(
+        initialValue = 0.55f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1600, easing = FastOutSlowInEasing),
+            animation = tween(1400, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse,
         ),
-        label = "shimmer",
+        label = "pulse",
     )
     val spin by infinite.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(12000, easing = LinearEasing),
+            animation = tween(10_000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart,
         ),
         label = "spin",
     )
 
     LaunchedEffect(Unit) {
+        launch { ringProgress.animateTo(1f, tween(1600, easing = FastOutSlowInEasing)) }
         launch {
-            ringProgress.animateTo(1f, tween(2200, easing = FastOutSlowInEasing))
+            delay(180)
+            brandAlpha.animateTo(1f, tween(700, easing = FastOutSlowInEasing))
         }
         launch {
-            delay(350)
-            logoAlpha.animateTo(1f, tween(900, easing = FastOutSlowInEasing))
+            delay(180)
+            brandScale.animateTo(1f, tween(900, easing = FastOutSlowInEasing))
         }
         launch {
-            delay(350)
-            logoScale.animateTo(1f, tween(1100, easing = FastOutSlowInEasing))
+            delay(700)
+            sloganAlpha.animateTo(1f, tween(650, easing = FastOutSlowInEasing))
         }
-        launch {
-            delay(1100)
-            sloganAlpha.animateTo(1f, tween(900, easing = FastOutSlowInEasing))
-        }
-        launch {
-            glowPulse.animateTo(1f, tween(1800, easing = FastOutSlowInEasing))
-        }
-        delay(5800)
+        delay(3800)
         musicPlayer.stop()
         onFinished()
     }
@@ -143,9 +130,9 @@ fun SplashScreen(onFinished: () -> Unit) {
             .background(
                 Brush.radialGradient(
                     colors = listOf(
-                        Color(0xFF0A2A3A),
+                        Color(0xFF0B1E2E),
                         Graphite,
-                        Color(0xFF02060A),
+                        Color(0xFF010305),
                     ),
                 ),
             ),
@@ -154,67 +141,52 @@ fun SplashScreen(onFinished: () -> Unit) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val cx = size.width / 2f
             val cy = size.height / 2f
-            val maxR = min(size.width, size.height) * 0.42f
-            val teal = Color(0xFF00E5FF)
-            val soft = Color(0xFF00E5C8)
+            val maxR = min(size.width, size.height) * 0.38f
+            val teal = BrandTurquoise
 
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        teal.copy(alpha = 0.18f * glowPulse.value * shimmer),
+                        teal.copy(alpha = 0.14f * pulse),
                         Color.Transparent,
                     ),
                     center = Offset(cx, cy),
-                    radius = maxR * 1.15f,
+                    radius = maxR * 1.35f,
                 ),
-                radius = maxR * 1.15f,
+                radius = maxR * 1.35f,
                 center = Offset(cx, cy),
             )
 
-            for (i in 0 until 4) {
-                val t = ((ringProgress.value - i * 0.12f).coerceIn(0f, 1f))
-                val radius = maxR * (0.35f + i * 0.18f) * (0.55f + 0.45f * t)
-                val alpha = (0.55f - i * 0.1f) * t * shimmer
+            val t = ringProgress.value
+            for (i in 0 until 3) {
+                val radius = maxR * (0.48f + i * 0.22f) * (0.7f + 0.3f * t)
                 drawCircle(
-                    color = (if (i % 2 == 0) teal else soft).copy(alpha = alpha),
+                    color = teal.copy(alpha = (0.28f - i * 0.06f) * t * pulse),
                     radius = radius,
                     center = Offset(cx, cy),
-                    style = Stroke(width = (2.2f - i * 0.25f).dp.toPx()),
+                    style = Stroke(width = (2.4f - i * 0.4f).dp.toPx()),
                 )
             }
 
-            val arcR = maxR * 0.78f
-            val start = spin
+            val arcR = maxR * 0.86f
             drawArc(
-                color = teal.copy(alpha = 0.55f * ringProgress.value),
-                startAngle = start,
-                sweepAngle = 72f,
+                color = teal.copy(alpha = 0.7f * t),
+                startAngle = spin,
+                sweepAngle = 64f,
                 useCenter = false,
                 topLeft = Offset(cx - arcR, cy - arcR),
                 size = Size(arcR * 2, arcR * 2),
                 style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round),
             )
             drawArc(
-                color = soft.copy(alpha = 0.35f * ringProgress.value),
-                startAngle = start + 180f,
-                sweepAngle = 48f,
+                color = teal.copy(alpha = 0.35f * t),
+                startAngle = spin + 190f,
+                sweepAngle = 42f,
                 useCenter = false,
-                topLeft = Offset(cx - arcR * 0.92f, cy - arcR * 0.92f),
-                size = Size(arcR * 1.84f, arcR * 1.84f),
+                topLeft = Offset(cx - arcR * 0.9f, cy - arcR * 0.9f),
+                size = Size(arcR * 1.8f, arcR * 1.8f),
                 style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round),
             )
-
-            for (i in 0 until 6) {
-                val ang = Math.toRadians((spin + i * 60.0) % 360.0)
-                val r = maxR * 0.62f
-                val x = cx + (cos(ang) * r).toFloat()
-                val y = cy + (sin(ang) * r).toFloat()
-                drawCircle(
-                    color = teal.copy(alpha = 0.7f * ringProgress.value),
-                    radius = 3.5.dp.toPx(),
-                    center = Offset(x, y),
-                )
-            }
         }
 
         Column(
@@ -222,29 +194,28 @@ fun SplashScreen(onFinished: () -> Unit) {
             modifier = Modifier
                 .padding(horizontal = 48.dp)
                 .graphicsLayer {
-                    alpha = logoAlpha.value
-                    scaleX = logoScale.value
-                    scaleY = logoScale.value
+                    alpha = brandAlpha.value
+                    scaleX = brandScale.value
+                    scaleY = brandScale.value
                 },
         ) {
             Text(
                 text = "SEÑAL",
-                color = BrandTurquoise,
-                fontSize = 64.sp,
+                color = Color.White,
+                fontSize = 72.sp,
                 fontWeight = FontWeight.Black,
-                letterSpacing = 10.sp,
+                letterSpacing = 14.sp,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.alpha(0.92f + 0.08f * shimmer),
             )
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "TU VENTANA AL MUNDO",
-                color = TextMuted,
+                text = "Tu ventana al mundo",
+                color = BrandTurquoise.copy(alpha = 0.92f),
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Medium,
-                letterSpacing = 4.sp,
+                letterSpacing = 2.sp,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.alpha(sloganAlpha.value),
+                modifier = Modifier.graphicsLayer { alpha = sloganAlpha.value },
             )
         }
     }

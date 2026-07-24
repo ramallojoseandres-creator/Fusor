@@ -15,10 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -33,15 +30,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -52,19 +46,15 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.Canvas
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface
 import com.senal.tv.BuildConfig
 import com.senal.tv.R
 import com.senal.tv.data.repository.AuthRepository
-import com.senal.tv.ui.components.ErrorMessage
-import com.senal.tv.ui.focus.senalFocusable
-import com.senal.tv.ui.theme.BrandOrange
-import com.senal.tv.ui.theme.BrandOrangeHot
+import com.senal.tv.ui.theme.BrandTurquoise
+import com.senal.tv.ui.theme.BrandTurquoiseHot
 import com.senal.tv.ui.theme.LiveGreen
 import com.senal.tv.ui.theme.TextMuted
-import com.senal.tv.ui.theme.TextPrimary
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -72,7 +62,7 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Login estilo Flujo: collage de fondo, campos pill blancos, foco teal SEÑAL.
+ * Login SEÑAL: fondo a sangre, marca héroe, campos finos, CTA turquesa.
  */
 @Composable
 fun LoginScreen(
@@ -87,25 +77,21 @@ fun LoginScreen(
     val scope = rememberCoroutineScope()
     val userFocus = remember { FocusRequester() }
     var clock by remember {
-        mutableStateOf(
-            SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()) to
-                SimpleDateFormat("EEE. dd/MM/yyyy", Locale("es")).format(Date())
-        )
+        mutableStateOf(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()))
     }
 
     LaunchedEffect(Unit) {
         userFocus.requestFocus()
         while (true) {
-            clock = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()) to
-                SimpleDateFormat("EEE. dd/MM/yyyy", Locale("es")).format(Date())
-            delay(15_000)
+            clock = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+            delay(20_000)
         }
     }
 
     fun submit() {
         if (loading || success) return
         if (username.isBlank() || password.isBlank()) {
-            error = "Por favor ingrese la contraseña Y el usuario"
+            error = "Introduce usuario y contraseña"
             return
         }
         scope.launch {
@@ -115,7 +101,7 @@ fun LoginScreen(
             loading = false
             result.onSuccess {
                 success = true
-                delay(700)
+                delay(600)
                 onLoggedIn()
             }.onFailure {
                 val raw = it.message.orEmpty()
@@ -125,7 +111,7 @@ fun LoginScreen(
                         raw.contains("timeout", true) ||
                         raw.contains("Connection", true) ||
                         raw.contains("UnknownHost", true) ->
-                        "Reconectando… Comprueba el servidor (${com.senal.tv.ServerConfig.SERVER_IP})"
+                        "Sin conexión con el servidor"
                     else -> raw.ifBlank { "No se pudo iniciar sesión" }
                 }
             }
@@ -142,249 +128,232 @@ fun LoginScreen(
         Box(
             Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.72f))
+                .background(
+                    Brush.verticalGradient(
+                        0f to Color.Black.copy(0.55f),
+                        0.35f to Color.Black.copy(0.78f),
+                        0.7f to Color.Black.copy(0.88f),
+                        1f to Color.Black.copy(0.94f),
+                    )
+                )
+        )
+
+        // Top bar: clock only (brand lives in the hero stack).
+        Text(
+            text = clock,
+            color = Color.White.copy(0.9f),
+            fontSize = 22.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 28.dp, end = 40.dp)
         )
 
         Column(
-            Modifier
-                .fillMaxSize()
-                .padding(horizontal = 40.dp, vertical = 22.dp)
+            modifier = Modifier
+                .align(Alignment.Center)
+                .widthIn(max = 420.dp)
+                .fillMaxWidth(0.42f)
+                .padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Image(
-                        painter = painterResource(R.drawable.brand_logo_pill),
-                        contentDescription = "SEÑAL",
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier
-                            .height(34.dp)
-                            .widthIn(max = 140.dp)
-                    )
-                    Spacer(Modifier.width(10.dp))
+            Text(
+                text = "SEÑAL",
+                color = Color.White,
+                fontSize = 56.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 10.sp
+            )
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = "Inicia sesión para ver en vivo",
+                color = TextMuted,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Spacer(Modifier.height(36.dp))
+
+            UnderlineField(
+                value = username,
+                onValueChange = { username = it; error = null },
+                label = "Usuario",
+                modifier = Modifier.focusRequester(userFocus),
+                imeAction = ImeAction.Next
+            )
+            Spacer(Modifier.height(22.dp))
+            UnderlineField(
+                value = password,
+                onValueChange = { password = it; error = null },
+                label = "Contraseña",
+                isPassword = true,
+                imeAction = ImeAction.Done,
+                onDone = { submit() }
+            )
+
+            Spacer(Modifier.height(18.dp))
+            AnimatedVisibility(visible = error != null, enter = fadeIn(), exit = fadeOut()) {
+                error?.let {
                     Text(
-                        BuildConfig.VERSION_NAME,
-                        color = Color.White.copy(0.85f),
-                        fontSize = 14.sp
+                        text = it,
+                        color = Color(0xFFFF8A80),
+                        fontSize = 13.sp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp)
                     )
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    LoginWifi(Modifier.size(22.dp))
-                    Spacer(Modifier.width(12.dp))
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(
-                            clock.first,
-                            color = Color.White,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            clock.second.replaceFirstChar { it.uppercase() },
-                            color = Color.White.copy(0.75f),
-                            fontSize = 12.sp
-                        )
-                    }
                 }
             }
 
+            Spacer(Modifier.height(8.dp))
+            EnterButton(
+                label = when {
+                    success -> "Listo"
+                    loading -> "Conectando…"
+                    else -> "ENTRAR"
+                },
+                enabled = !loading && !success,
+                success = success,
+                onClick = { submit() }
+            )
+
+            Spacer(Modifier.height(20.dp))
+            Text(
+                text = "v${BuildConfig.VERSION_NAME}",
+                color = Color.White.copy(0.35f),
+                fontSize = 11.sp
+            )
+        }
+
+        if (success) {
             Box(
                 Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
+                    .fillMaxSize()
+                    .background(Color.Black.copy(0.45f)),
                 contentAlignment = Alignment.Center
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.widthIn(max = 420.dp).fillMaxWidth(0.42f)
-                ) {
-                    Text(
-                        text = "Por favor ingrese la contraseña Y el usuario",
-                        color = Color.White,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 16.sp
-                    )
-                    Spacer(Modifier.height(18.dp))
-
-                    FlujoPillField(
-                        value = username,
-                        onValueChange = { username = it; error = null },
-                        placeholder = "USUARIO",
-                        modifier = Modifier.focusRequester(userFocus),
-                        imeAction = ImeAction.Next
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    FlujoPillField(
-                        value = password,
-                        onValueChange = { password = it; error = null },
-                        placeholder = "CONTRASEÑA",
-                        isPassword = true,
-                        imeAction = ImeAction.Done,
-                        onDone = { submit() }
-                    )
-                    Spacer(Modifier.height(16.dp))
-
-                    AnimatedVisibility(visible = error != null, enter = fadeIn(), exit = fadeOut()) {
-                        error?.let {
-                            Column {
-                                ErrorMessage(it)
-                                Spacer(Modifier.height(10.dp))
-                            }
-                        }
-                    }
-
-                    FlujoLoginButton(
-                        label = when {
-                            success -> "ÉXITO"
-                            loading -> "CONECTANDO…"
-                            else -> "INICIAR SESIÓN"
-                        },
-                        enabled = !loading && !success,
-                        onClick = { submit() }
-                    )
-                }
-
-                if (success) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.align(Alignment.Center)
-                    ) {
-                        Box(
-                            Modifier
-                                .size(72.dp)
-                                .clip(CircleShape)
-                                .background(LiveGreen),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("✓", color = Color.White, fontSize = 36.sp, fontWeight = FontWeight.Bold)
-                        }
-                        Spacer(Modifier.height(10.dp))
-                        Text("Éxito", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
+                Text(
+                    "✓",
+                    color = LiveGreen,
+                    fontSize = 48.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
 }
 
 @Composable
-private fun FlujoPillField(
+private fun UnderlineField(
     value: String,
     onValueChange: (String) -> Unit,
-    placeholder: String,
+    label: String,
     modifier: Modifier = Modifier,
     isPassword: Boolean = false,
     imeAction: ImeAction = ImeAction.Next,
     onDone: (() -> Unit)? = null
 ) {
     var focused by remember { mutableStateOf(false) }
-    BasicTextField(
-        value = value,
-        onValueChange = onValueChange,
-        singleLine = true,
-        textStyle = TextStyle(
-            color = Color(0xFF1A1A1A),
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Medium
-        ),
-        cursorBrush = SolidColor(BrandOrange),
-        visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
-        keyboardOptions = KeyboardOptions(
-            keyboardType = if (isPassword) KeyboardType.Password else KeyboardType.Text,
-            imeAction = imeAction
-        ),
-        keyboardActions = KeyboardActions(onDone = { onDone?.invoke() }),
-        modifier = modifier
-            .fillMaxWidth()
-            .onFocusChanged { focused = it.isFocused }
-            .clip(RoundedCornerShape(50))
-            .background(Color.White)
-            .border(
-                width = if (focused) 2.5.dp else 0.dp,
-                color = if (focused) BrandOrange else Color.Transparent,
-                shape = RoundedCornerShape(50)
-            )
-            .padding(horizontal = 22.dp, vertical = 14.dp),
-        decorationBox = { inner ->
-            Box {
-                if (value.isEmpty()) {
-                    Text(
-                        placeholder,
-                        color = Color(0xFF9AA0A6),
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium
+    Column(modifier.fillMaxWidth()) {
+        Text(
+            text = label,
+            color = if (focused) BrandTurquoise else Color.White.copy(0.55f),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 1.sp
+        )
+        Spacer(Modifier.height(6.dp))
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            singleLine = true,
+            textStyle = TextStyle(
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium
+            ),
+            cursorBrush = SolidColor(BrandTurquoise),
+            visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = if (isPassword) KeyboardType.Password else KeyboardType.Text,
+                imeAction = imeAction
+            ),
+            keyboardActions = KeyboardActions(onDone = { onDone?.invoke() }),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { focused = it.isFocused }
+                .border(
+                    width = 0.dp,
+                    color = Color.Transparent,
+                    shape = RoundedCornerShape(0.dp)
+                )
+                .background(Color.Transparent)
+                .padding(vertical = 10.dp),
+            decorationBox = { inner ->
+                Column {
+                    Box(Modifier.fillMaxWidth()) {
+                        if (value.isEmpty()) {
+                            Text(
+                                label.lowercase().replaceFirstChar { it.uppercase() },
+                                color = Color.White.copy(0.28f),
+                                fontSize = 17.sp
+                            )
+                        }
+                        inner()
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(if (focused) 2.dp else 1.dp)
+                            .background(
+                                if (focused) BrandTurquoise else Color.White.copy(0.35f)
+                            )
                     )
                 }
-                inner()
             }
-        }
-    )
+        )
+    }
 }
 
 @Composable
-private fun FlujoLoginButton(
+private fun EnterButton(
     label: String,
     enabled: Boolean,
+    success: Boolean,
     onClick: () -> Unit
 ) {
     var focused by remember { mutableStateOf(false) }
+    val fill = when {
+        success -> LiveGreen
+        focused -> BrandTurquoiseHot
+        else -> BrandTurquoise
+    }
     Surface(
         onClick = onClick,
         enabled = enabled,
         modifier = Modifier
             .fillMaxWidth()
-            .senalFocusable(focused = focused, scaleFocused = 1.04f, cornerRadius = 50.dp)
             .onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(50)),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(4.dp)),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color(0xCC2A2A2A),
-            focusedContainerColor = BrandOrange.copy(alpha = 0.85f),
-            disabledContainerColor = Color(0x882A2A2A)
+            containerColor = fill.copy(alpha = 0.92f),
+            focusedContainerColor = BrandTurquoiseHot,
+            disabledContainerColor = BrandTurquoise.copy(alpha = 0.45f)
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
-        border = ClickableSurfaceDefaults.border(
-            focusedBorder = androidx.tv.material3.Border(
-                border = androidx.compose.foundation.BorderStroke(0.dp, Color.Transparent),
-                shape = RoundedCornerShape(50)
-            )
-        )
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f)
     ) {
         Box(
             Modifier
                 .fillMaxWidth()
-                .padding(vertical = 14.dp),
+                .padding(vertical = 16.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 label,
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontSize = 15.sp,
-                letterSpacing = 1.sp
-            )
-        }
-    }
-}
-
-@Composable
-private fun LoginWifi(modifier: Modifier = Modifier) {
-    Canvas(modifier) {
-        val c = Color.White
-        val cx = size.width / 2f
-        val cy = size.height * 0.78f
-        drawCircle(c, radius = size.minDimension * 0.08f, center = Offset(cx, cy))
-        for (i in 1..3) {
-            val r = size.minDimension * (0.18f + i * 0.18f)
-            drawArc(
-                color = c,
-                startAngle = 220f,
-                sweepAngle = 100f,
-                useCenter = false,
-                topLeft = Offset(cx - r, cy - r),
-                size = androidx.compose.ui.geometry.Size(r * 2, r * 2),
-                style = Stroke(width = 1.8.dp.toPx())
+                color = Color.Black,
+                fontWeight = FontWeight.Black,
+                fontSize = 16.sp,
+                letterSpacing = 2.sp
             )
         }
     }

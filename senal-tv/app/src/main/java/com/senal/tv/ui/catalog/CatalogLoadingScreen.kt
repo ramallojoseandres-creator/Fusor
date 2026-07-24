@@ -81,21 +81,21 @@ fun CatalogLoadingScreen(
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = "SEÑAL",
-                    color = BrandOrange,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 22.sp,
-                    letterSpacing = 3.sp
-                )
-                Spacer(modifier = Modifier.height(18.dp))
-                if (busy) {
-                    LoadingPulse(message)
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        text = "Lista en el dispositivo · sin esperar al servidor",
-                        color = TextMuted,
-                        fontSize = 13.sp
+                        text = "SEÑAL",
+                        color = Color.White,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 28.sp,
+                        letterSpacing = 6.sp
                     )
+                    Spacer(modifier = Modifier.height(14.dp))
+                    if (busy) {
+                        LoadingPulse(message)
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "Lista en el dispositivo",
+                            color = TextMuted,
+                            fontSize = 13.sp
+                        )
                 } else {
                     val err = error
                     if (err != null) {
