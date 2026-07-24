@@ -4,9 +4,14 @@
     android:height="180dp"
     android:viewportWidth="320"
     android:viewportHeight="180">
-    <path android:fillColor="#0B0B0F" android:pathData="M0,0h320v180h-320z"/>
-    <path android:fillColor="#7C3AED" android:pathData="M0,0h320v6h-320z"/>
-    <path android:fillColor="#14B8A6" android:pathData="M0,174h320v6h-320z"/>
-    <path android:fillColor="#FFFFFF" android:pathData="M42,70h28v40h-28z"/>
-    <path android:fillColor="#FFFFFF" android:pathData="M70,70l40,20 -40,20z"/>
+    <path android:fillColor="#06080C" android:pathData="M0,0h320v180h-320z"/>
+    <path android:fillColor="#2EE6C5" android:pathData="M0,0h320v5h-320z"/>
+    <path android:fillColor="#3D8BFF" android:pathData="M0,175h320v5h-320z"/>
+    <!-- Signal bars -->
+    <path android:fillColor="#2EE6C5" android:pathData="M48,95h14v40h-14z"/>
+    <path android:fillColor="#2EE6C5" android:pathData="M72,80h14v55h-14z"/>
+    <path android:fillColor="#2EE6C5" android:pathData="M96,62h14v73h-14z"/>
+    <path android:fillColor="#2EE6C5" android:pathData="M120,45h14v90h-14z"/>
+    <path android:fillColor="#F4F7FB" android:pathData="M160,68h140v18h-140z"/>
+    <path android:fillColor="#93A0B0" android:pathData="M160,96h90v12h-90z"/>
 </vector>

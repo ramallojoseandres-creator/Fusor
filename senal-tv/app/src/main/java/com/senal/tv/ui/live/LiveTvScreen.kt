@@ -41,7 +41,7 @@ import com.senal.tv.ui.components.SectionHeader
 import com.senal.tv.ui.theme.GraphiteCard
 import com.senal.tv.ui.theme.LocalSenalTypography
 import com.senal.tv.ui.theme.Teal
-import com.senal.tv.ui.theme.Violet
+import com.senal.tv.ui.theme.BrandAccent
 import com.senal.tv.util.CatalogRules
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -76,11 +76,12 @@ fun LiveTvScreen(
 
     LaunchedEffect(selected) {
         val category = selected ?: return@LaunchedEffect
-        loading = true
+        // Keep previous channels visible while swapping from cache (no long blank wait).
+        val keepExisting = channels.isNotEmpty()
+        if (!keepExisting) loading = true
         error = null
         page = 1
         hasMore = true
-        channels = emptyList()
         runCatching {
             container.catalogRepository.page(
                 type = "live",
@@ -93,6 +94,7 @@ fun LiveTvScreen(
             hasMore = response.resolveHasMore(pageSize)
         }.onFailure {
             error = it.message ?: "No se pudieron cargar los canales"
+            if (!keepExisting) channels = emptyList()
         }
         loading = false
     }
@@ -130,7 +132,7 @@ fun LiveTvScreen(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        SectionHeader("TV EN VIVO", "Categorías a la izquierda · canales bajo demanda")
+        SectionHeader("TV EN VIVO", "Categorías · canales desde lista local")
         if (error != null) {
             ErrorMessage(error!!)
         }
@@ -149,7 +151,7 @@ fun LiveTvScreen(
                         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
                         colors = ClickableSurfaceDefaults.colors(
                             containerColor = if (active) Teal.copy(alpha = 0.25f) else GraphiteCard,
-                            focusedContainerColor = Violet.copy(alpha = 0.35f)
+                            focusedContainerColor = BrandAccent.copy(alpha = 0.35f)
                         ),
                         modifier = Modifier.fillMaxWidth()
                     ) {

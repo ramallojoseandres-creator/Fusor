@@ -56,6 +56,13 @@ data class EpgCacheEntity(
     val updatedAt: Long
 )
 
+@Entity(tableName = "catalog_snapshot")
+data class CatalogSnapshotEntity(
+    @PrimaryKey val key: String,
+    val json: String,
+    val updatedAt: Long
+)
+
 @Dao
 interface FavoriteDao {
     @Query("SELECT * FROM favorites ORDER BY savedAt DESC")
@@ -111,6 +118,18 @@ interface CacheDao {
 
     @Query("SELECT * FROM epg_cache WHERE channelId = :id")
     suspend fun getEpg(id: String): EpgCacheEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun putSnapshot(item: CatalogSnapshotEntity)
+
+    @Query("SELECT * FROM catalog_snapshot WHERE key = :key")
+    suspend fun getSnapshot(key: String): CatalogSnapshotEntity?
+
+    @Query("DELETE FROM catalog_snapshot")
+    suspend fun clearSnapshots()
+
+    @Query("DELETE FROM category_cache")
+    suspend fun clearCategories()
 }
 
 @Database(
@@ -119,9 +138,10 @@ interface CacheDao {
         HistoryEntity::class,
         ContinueEntity::class,
         CategoryCacheEntity::class,
-        EpgCacheEntity::class
+        EpgCacheEntity::class,
+        CatalogSnapshotEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class SenalDatabase : RoomDatabase() {

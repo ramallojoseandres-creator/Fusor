@@ -4,7 +4,7 @@ import com.senal.tv.data.model.CatalogItem
 import com.senal.tv.data.model.Category
 
 /**
- * Live category order from the user's FLUJO reference screenshots.
+ * Preferred live category order for SEÑAL.
  * Anything outside [preferredLiveOrder] is dropped (category + channels).
  * Adultos is included last.
  */

@@ -45,7 +45,7 @@ import com.senal.tv.ui.components.ErrorMessage
 import com.senal.tv.ui.components.FocusableButton
 import com.senal.tv.ui.components.LoadingPulse
 import com.senal.tv.ui.components.SenalBackground
-import com.senal.tv.ui.theme.BrandOrange
+import com.senal.tv.ui.theme.BrandAccent
 import com.senal.tv.ui.theme.GraphiteCard
 import com.senal.tv.ui.theme.LocalSenalTypography
 import com.senal.tv.ui.theme.Teal
@@ -108,7 +108,10 @@ fun LoginScreen(
             }
             val result = authRepository.login(username, password)
             loading = false
-            result.onSuccess { onLoggedIn() }
+            result.onSuccess {
+                // Prefetch catalog right after login so Live opens instantly.
+                onLoggedIn()
+            }
                 .onFailure { error = it.message ?: "No se pudo iniciar sesión" }
         }
     }
@@ -201,7 +204,7 @@ private fun ServerStatusRow(label: String, ok: Boolean?) {
                 .background(
                     color = when (ok) {
                         true -> Teal
-                        false -> BrandOrange
+                        false -> BrandAccent
                         null -> TextMuted
                     },
                     shape = CircleShape
@@ -228,7 +231,7 @@ private fun TvTextField(
     focusRequester: FocusRequester? = null
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
-        Text(text = label, style = LocalSenalTypography.current.caption, color = BrandOrange)
+        Text(text = label, style = LocalSenalTypography.current.caption, color = BrandAccent)
         Spacer(Modifier.height(6.dp))
         BasicTextField(
             value = value,

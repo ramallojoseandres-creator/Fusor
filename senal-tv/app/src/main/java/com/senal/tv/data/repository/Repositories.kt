@@ -3,6 +3,7 @@ package com.senal.tv.data.repository
 import com.senal.tv.data.api.NetworkModule
 import com.senal.tv.data.api.SenalApi
 import com.senal.tv.data.local.CacheDao
+import com.senal.tv.data.local.CatalogSnapshotEntity
 import com.senal.tv.data.local.CategoryCacheEntity
 import com.senal.tv.data.local.ContinueDao
 import com.senal.tv.data.local.ContinueEntity
@@ -120,78 +121,81 @@ class CatalogRepository(
     private val api: SenalApi,
     private val cacheDao: CacheDao
 ) {
-    private val categoryMutex = Mutex()
+    private val loadMutex = Mutex()
+    private val refreshMutex = Mutex()
+
+    @Volatile private var snapshotItems: List<CatalogItem> = emptyList()
+    @Volatile private var snapshotLoadedAt: Long = 0L
     private val memoryCategories = mutableMapOf<String, List<Category>>()
     private val memoryPages = mutableMapOf<String, CatalogResponse>()
 
-    suspend fun categories(type: String): List<Category> = withContext(Dispatchers.IO) {
-        categoryMutex.withLock {
-            memoryCategories[type]?.let { return@withContext it }
-            // v6: hard-delete non-preferred categories (only user screenshot list + Adultos)
-            val cacheKey = "cat-v6-$type"
-            cacheDao.getCategory(cacheKey)?.let { cached ->
-                runCatching {
-                    NetworkModule.json.decodeFromString<List<Category>>(cached.json)
-                }.getOrNull()?.let {
-                    val ordered = CatalogRules.sortCategories(it)
-                    memoryCategories[type] = ordered
-                    return@withContext ordered
+    private val snapshotKey = "catalog-v1"
+    private val snapshotTtlMs = 12L * 60L * 60L * 1000L
+
+    fun isLoaded(): Boolean = snapshotItems.isNotEmpty()
+
+    /**
+     * Loads the full catalog once (memory → disk → network) so live/movies
+     * screens can page without waiting on the network.
+     */
+    suspend fun ensureCatalogLoaded(force: Boolean = false): Boolean = withContext(Dispatchers.IO) {
+        loadMutex.withLock {
+            if (!force && snapshotItems.isNotEmpty()) return@withContext true
+            if (!force) {
+                cacheDao.getSnapshot(snapshotKey)?.let { cached ->
+                    if (System.currentTimeMillis() - cached.updatedAt < snapshotTtlMs) {
+                        runCatching {
+                            NetworkModule.json.decodeFromString<List<CatalogItem>>(cached.json)
+                        }.getOrNull()?.takeIf { it.isNotEmpty() }?.let { items ->
+                            applySnapshot(items, cached.updatedAt)
+                            return@withContext true
+                        }
+                    }
                 }
             }
-            val derived = CatalogRules.sortCategories(discoverCategories(type))
-            memoryCategories[type] = derived
-            cacheDao.putCategory(
-                CategoryCacheEntity(
-                    key = cacheKey,
-                    json = NetworkModule.json.encodeToString(derived),
-                    updatedAt = System.currentTimeMillis()
+            val remote = downloadFullCatalog()
+            if (remote.isNotEmpty()) {
+                applySnapshot(remote, System.currentTimeMillis())
+                cacheDao.putSnapshot(
+                    CatalogSnapshotEntity(
+                        key = snapshotKey,
+                        json = NetworkModule.json.encodeToString(remote),
+                        updatedAt = snapshotLoadedAt
+                    )
                 )
-            )
-            derived
+                true
+            } else {
+                snapshotItems.isNotEmpty()
+            }
         }
     }
 
-    /**
-     * Prefer server `categories` when present; otherwise page through the catalog
-     * until exhaustion so the sidebar is complete (not only the first 100 rows).
-     * Non-preferred groups are discarded later by [CatalogRules.sortCategories].
-     */
-    private suspend fun discoverCategories(type: String): List<Category> {
-        val first = fetchCatalog(type = type, page = 1, limit = 200)
-        val fromApi = first.categories?.mapNotNull { cat ->
-            val label = cat.label().trim()
-            if (label.isBlank()) null else Category(id = cat.id ?: label, name = label, title = cat.title)
-        }.orEmpty()
-        if (fromApi.isNotEmpty()) return fromApi
+    fun refreshInBackground() {
+        // Prefer calling refreshInBackgroundSuspend() from a coroutine.
+    }
 
-        val labels = LinkedHashSet<String>()
-        fun absorb(response: CatalogResponse) {
-            response.resolveItems().forEach { item ->
-                val label = item.resolveCategory().trim()
-                if (label.isNotBlank() && CatalogRules.isPreferredLabel(label)) {
-                    labels += CatalogRules.canonicalLabel(label)
-                }
-            }
+    suspend fun refreshInBackgroundSuspend() = withContext(Dispatchers.IO) {
+        if (!refreshMutex.tryLock()) return@withContext
+        try {
+            ensureCatalogLoaded(force = true)
+        } finally {
+            refreshMutex.unlock()
         }
-        absorb(first)
-        var page = 1
-        var hasMore = first.resolveHasMore(200)
-        while (hasMore && page < 40) {
-            page += 1
-            val next = runCatching {
-                fetchCatalog(type = type, page = page, limit = 200)
-            }.getOrNull() ?: break
-            val items = next.resolveItems()
-            if (items.isEmpty()) break
-            absorb(next)
-            hasMore = next.resolveHasMore(200)
-        }
+    }
 
-        return labels
-            .map { Category(id = it, name = it) }
-            .ifEmpty {
-                CatalogRules.preferredLiveOrder.map { Category(id = it, name = it) }
-            }
+    suspend fun categories(type: String): List<Category> = withContext(Dispatchers.IO) {
+        ensureCatalogLoaded()
+        memoryCategories[type]?.let { return@withContext it }
+        val derived = CatalogRules.sortCategories(categoriesFromSnapshot(type))
+        memoryCategories[type] = derived
+        cacheDao.putCategory(
+            CategoryCacheEntity(
+                key = "cat-v7-$type",
+                json = NetworkModule.json.encodeToString(derived),
+                updatedAt = System.currentTimeMillis()
+            )
+        )
+        derived
     }
 
     suspend fun page(
@@ -200,85 +204,47 @@ class CatalogRepository(
         page: Int = 1,
         limit: Int = 60
     ): CatalogResponse = withContext(Dispatchers.IO) {
+        ensureCatalogLoaded()
         val key = "$type|${category.orEmpty()}|$page|$limit"
         memoryPages[key]?.let { return@withContext it }
-        val response = fetchCatalog(type, category, page, limit)
-        val typed = response.resolveItems().filter { item ->
-            when (type.lowercase()) {
-                "live", "tv", "channel" -> item.contentType() == ContentType.LIVE ||
-                    item.type.isNullOrBlank()
-                "movie", "vod", "film" -> item.contentType() == ContentType.MOVIE ||
-                    item.type.equals("movie", true) || item.type.equals("vod", true)
-                "series", "show" -> item.contentType() == ContentType.SERIES ||
-                    item.type.equals("series", true)
-                else -> true
-            }
-        }.let { list ->
-            // Si el servidor ya filtró por type, no descartar por heurística vacía.
-            if (list.isEmpty() && response.resolveItems().isNotEmpty() &&
-                response.resolveItems().none { !it.type.isNullOrBlank() }
-            ) {
-                response.resolveItems()
-            } else {
-                list.ifEmpty { response.resolveItems() }
-            }
-        }
-        val filtered = if (type.equals("live", ignoreCase = true)) {
-            val preferredOnly = typed.filter { item ->
-                val label = category?.takeIf { it.isNotBlank() } ?: item.resolveCategory()
-                CatalogRules.isPreferredLabel(label)
-            }
-            response.copy(
-                items = preferredOnly,
-                channels = preferredOnly,
-                data = preferredOnly,
-                results = preferredOnly
-            )
-        } else {
-            response.copy(
-                items = typed,
-                movies = if (type.equals("movie", true)) typed else response.movies,
-                series = if (type.equals("series", true)) typed else response.series,
-                data = typed,
-                results = typed
-            )
-        }
-        filtered.resolveItems().forEach { item ->
-            cacheDao.putEpg(
-                EpgCacheEntity(
-                    channelId = item.resolveId(),
-                    nowTitle = item.resolveNow().ifBlank { null },
-                    nextTitle = item.resolveNext().ifBlank { null },
-                    updatedAt = System.currentTimeMillis()
-                )
-            )
-        }
-        memoryPages[key] = filtered
-        if (memoryPages.size > 80) {
-            memoryPages.keys.take(20).forEach { memoryPages.remove(it) }
-        }
-        filtered
+
+        val filtered = filterSnapshot(type, category)
+        val from = ((page - 1) * limit).coerceAtLeast(0)
+        val slice = if (from >= filtered.size) emptyList() else filtered.drop(from).take(limit)
+        val hasMore = from + slice.size < filtered.size
+        val response = CatalogResponse(
+            items = slice,
+            channels = if (type.equals("live", true)) slice else null,
+            movies = if (type.equals("movie", true)) slice else null,
+            series = if (type.equals("series", true)) slice else null,
+            page = page,
+            limit = limit,
+            total = filtered.size,
+            hasMore = hasMore
+        )
+        memoryPages[key] = response
+        response
     }
 
     suspend fun search(query: String): List<CatalogItem> = withContext(Dispatchers.IO) {
         if (query.isBlank()) return@withContext emptyList()
+        ensureCatalogLoaded()
+        val q = query.trim().lowercase()
+        val local = snapshotItems.filter {
+            it.resolveTitle().lowercase().contains(q) ||
+                it.resolveCategory().lowercase().contains(q)
+        }
+        if (local.isNotEmpty()) return@withContext local.distinctBy { it.resolveId() }
         runCatching { api.search(query.trim()).resolveAll() }
-            .recoverCatching {
-                fetchCatalog(type = "live", q = query, limit = 30).resolveItems() +
-                    fetchCatalog(type = "movie", q = query, limit = 30).resolveItems() +
-                    fetchCatalog(type = "series", q = query, limit = 30).resolveItems()
-            }
             .getOrDefault(emptyList())
             .distinctBy { it.resolveId() }
     }
 
+    /** Prefer stream URL already in catalog — no wait on /api/playback for zapping. */
     suspend fun playback(id: String, fallbackItem: CatalogItem? = null): PlaybackResponse =
         withContext(Dispatchers.IO) {
-            val remote = runCatching { api.playback(id) }.getOrNull()
-            val remoteUrl = remote?.resolveUrl()
-            if (!remoteUrl.isNullOrBlank()) return@withContext remote!!
-
             val direct = fallbackItem?.resolveStreamUrl()
+                ?: snapshotItems.firstOrNull { it.resolveId() == id }?.resolveStreamUrl()
                 ?: memoryPages.values
                     .asSequence()
                     .flatMap { it.resolveItems().asSequence() }
@@ -286,20 +252,118 @@ class CatalogRepository(
                     ?.resolveStreamUrl()
 
             if (!direct.isNullOrBlank()) {
-                PlaybackResponse(
+                return@withContext PlaybackResponse(
                     url = direct,
-                    title = fallbackItem?.resolveTitle() ?: remote?.title,
-                    logo = fallbackItem?.resolveLogo() ?: remote?.logo,
-                    error = remote?.error
+                    title = fallbackItem?.resolveTitle(),
+                    logo = fallbackItem?.resolveLogo()
                 )
-            } else {
-                remote ?: error("Sin URL de reproducción")
             }
+
+            val remote = runCatching { api.playback(id) }.getOrNull()
+            val remoteUrl = remote?.resolveUrl()
+            if (!remoteUrl.isNullOrBlank()) return@withContext remote!!
+            remote ?: error("Sin URL de reproducción")
         }
 
     fun clearMemory() {
         memoryCategories.clear()
         memoryPages.clear()
+        snapshotItems = emptyList()
+        snapshotLoadedAt = 0L
+    }
+
+    suspend fun clearAllCaches() = withContext(Dispatchers.IO) {
+        clearMemory()
+        cacheDao.clearSnapshots()
+        cacheDao.clearCategories()
+    }
+
+    private fun applySnapshot(items: List<CatalogItem>, loadedAt: Long) {
+        snapshotItems = items
+        snapshotLoadedAt = loadedAt
+        memoryCategories.clear()
+        memoryPages.clear()
+    }
+
+    private fun categoriesFromSnapshot(type: String): List<Category> {
+        val labels = LinkedHashSet<String>()
+        filterSnapshot(type, category = null).forEach { item ->
+            val label = item.resolveCategory().trim()
+            if (label.isNotBlank()) {
+                if (!type.equals("live", true) || CatalogRules.isPreferredLabel(label)) {
+                    labels += CatalogRules.canonicalLabel(label)
+                }
+            }
+        }
+        return labels.map { Category(id = it, name = it) }.ifEmpty {
+            if (type.equals("live", true)) {
+                CatalogRules.preferredLiveOrder.map { Category(id = it, name = it) }
+            } else emptyList()
+        }
+    }
+
+    private fun filterSnapshot(type: String, category: String?): List<CatalogItem> {
+        val typed = snapshotItems.filter { item ->
+            when (type.lowercase()) {
+                "live", "tv", "channel" ->
+                    item.contentType() == ContentType.LIVE || item.type.isNullOrBlank()
+                "movie", "vod", "film" ->
+                    item.contentType() == ContentType.MOVIE ||
+                        item.type.equals("movie", true) || item.type.equals("vod", true)
+                "series", "show" ->
+                    item.contentType() == ContentType.SERIES || item.type.equals("series", true)
+                else -> true
+            }
+        }.let { list ->
+            if (list.isEmpty() && snapshotItems.isNotEmpty() &&
+                snapshotItems.none { !it.type.isNullOrBlank() }
+            ) snapshotItems else list.ifEmpty { snapshotItems }
+        }
+
+        val byCategory = if (category.isNullOrBlank()) {
+            typed
+        } else {
+            val wanted = CatalogRules.canonicalLabel(category)
+            typed.filter {
+                CatalogRules.canonicalLabel(it.resolveCategory()).equals(wanted, ignoreCase = true)
+            }
+        }
+
+        return if (type.equals("live", true)) {
+            byCategory.filter { CatalogRules.isPreferredLabel(it.resolveCategory()) }
+        } else {
+            byCategory
+        }
+    }
+
+    private suspend fun downloadFullCatalog(): List<CatalogItem> {
+        // Prefer a single dump from the panel.
+        val bulk = runCatching { api.catalog(limit = 20_000) }.getOrNull()
+        val bulkItems = bulk?.resolveItems().orEmpty()
+        if (bulkItems.size >= 50) {
+            return bulkItems.distinctBy { it.resolveId() }
+        }
+
+        val collected = LinkedHashMap<String, CatalogItem>()
+        fun absorb(response: CatalogResponse?) {
+            response?.resolveItems()?.forEach { collected[it.resolveId()] = it }
+        }
+        absorb(bulk)
+        listOf("live", "movie", "series").forEach { type ->
+            var page = 1
+            var hasMore = true
+            while (hasMore && page <= 30) {
+                val response = runCatching {
+                    fetchCatalog(type = type, page = page, limit = 200)
+                }.getOrNull() ?: break
+                val items = response.resolveItems()
+                if (items.isEmpty()) break
+                absorb(response)
+                hasMore = response.resolveHasMore(200)
+                page += 1
+            }
+        }
+        return collected.values.toList()
     }
 
     private suspend fun fetchCatalog(
@@ -321,7 +385,6 @@ class CatalogRepository(
         } catch (pathMissing: HttpException) {
             when (pathMissing.code()) {
                 404 -> api.catalogByPath(type = type, category = category, page = page, limit = limit)
-                // Algunos paneles 2.x exponen solo GET /api/catalog sin query type.
                 400, 422 -> api.catalog(category = category, page = page, limit = limit, q = q)
                 else -> throw pathMissing
             }

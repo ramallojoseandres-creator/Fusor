@@ -40,7 +40,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -49,9 +48,9 @@ import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Glow
 import androidx.tv.material3.Surface
 import coil.compose.AsyncImage
-import com.senal.tv.R
 import com.senal.tv.data.model.CatalogItem
-import com.senal.tv.ui.theme.BrandOrange
+import com.senal.tv.ui.theme.BrandAccent
+import com.senal.tv.ui.theme.BrandAccentHot
 import com.senal.tv.ui.theme.FocusWhite
 import com.senal.tv.ui.theme.Graphite
 import com.senal.tv.ui.theme.GraphiteCard
@@ -62,12 +61,12 @@ import com.senal.tv.ui.theme.TextPrimary
 import com.senal.tv.util.formatDurationMinutes
 import com.senal.tv.util.formatRating
 
-/** FLUJO focus scale — matches focus_scale_anim.xml (1.13). */
-const val FOCUS_SCALE = 1.13f
-const val FOCUS_SCALE_SOFT = 1.05f
+/** Soft TV focus scale for SEÑAL. */
+const val FOCUS_SCALE = 1.08f
+const val FOCUS_SCALE_SOFT = 1.04f
 
 @Composable
-fun rememberFlujoFocusModifier(focused: Boolean, big: Boolean = true): Modifier {
+fun rememberSenalFocusModifier(focused: Boolean, big: Boolean = true): Modifier {
     val target = if (focused) {
         if (big) FOCUS_SCALE else FOCUS_SCALE_SOFT
     } else {
@@ -75,25 +74,25 @@ fun rememberFlujoFocusModifier(focused: Boolean, big: Boolean = true): Modifier 
     }
     val scale by animateFloatAsState(
         targetValue = target,
-        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
-        label = "flujoFocus"
+        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+        label = "senalFocus"
     )
     val glow by animateFloatAsState(
         targetValue = if (focused) 1f else 0f,
-        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
-        label = "flujoGlow"
+        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+        label = "senalGlow"
     )
     return Modifier
         .graphicsLayer {
             scaleX = scale
             scaleY = scale
-            shadowElevation = if (focused) 24f else 0f
+            shadowElevation = if (focused) 18f else 0f
         }
         .drawBehind {
             if (glow > 0f) {
                 val pad = size.width * 0.02f
                 drawRoundRect(
-                    color = BrandOrange.copy(alpha = 0.35f * glow),
+                    color = BrandAccent.copy(alpha = 0.32f * glow),
                     cornerRadius = androidx.compose.ui.geometry.CornerRadius(18.dp.toPx()),
                     size = androidx.compose.ui.geometry.Size(size.width + pad * 2, size.height + pad * 2),
                     topLeft = Offset(-pad, -pad)
@@ -104,17 +103,32 @@ fun rememberFlujoFocusModifier(focused: Boolean, big: Boolean = true): Modifier 
 
 @Composable
 fun SenalBackground(content: @Composable () -> Unit) {
-    Box(modifier = Modifier.fillMaxSize()) {
-        androidx.compose.foundation.Image(
-            painter = painterResource(id = R.mipmap.main_bg),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
-        )
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        Color(0xFF0A1218),
+                        Color(0xFF06080C),
+                        Color(0xFF04060A)
+                    )
+                )
+            )
+    ) {
         Box(
             Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.45f))
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            BrandAccent.copy(alpha = 0.10f),
+                            Color.Transparent
+                        ),
+                        center = Offset(120f, 80f),
+                        radius = 900f
+                    )
+                )
         )
         content()
     }
@@ -123,12 +137,22 @@ fun SenalBackground(content: @Composable () -> Unit) {
 @Composable
 fun BrandMark(compact: Boolean = false) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        androidx.compose.foundation.Image(
-            painter = painterResource(id = R.mipmap.logo_new),
-            contentDescription = "SEÑAL",
-            modifier = Modifier.size(if (compact) 36.dp else 56.dp)
-        )
-        Spacer(modifier = Modifier.width(10.dp))
+        val barHeights = if (compact) listOf(12.dp, 18.dp, 24.dp, 28.dp) else listOf(18.dp, 26.dp, 34.dp, 40.dp)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
+            verticalAlignment = Alignment.Bottom
+        ) {
+            barHeights.forEach { h ->
+                Box(
+                    Modifier
+                        .width(if (compact) 5.dp else 7.dp)
+                        .height(h)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(BrandAccent)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(12.dp))
         Column {
             Text(
                 text = "SEÑAL",
@@ -137,13 +161,13 @@ fun BrandMark(compact: Boolean = false) {
                 } else {
                     LocalSenalTypography.current.brand
                 },
-                color = BrandOrange
+                color = TextPrimary
             )
             if (!compact) {
                 Text(
-                    text = "IPTV PREMIUM",
+                    text = "TV PREMIUM",
                     style = LocalSenalTypography.current.caption,
-                    color = TextMuted
+                    color = BrandAccent
                 )
             }
         }
@@ -163,13 +187,13 @@ fun FocusableButton(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier
-            .then(rememberFlujoFocusModifier(focused, big = false))
+            .then(rememberSenalFocusModifier(focused, big = false))
             .onFocusChanged { focused = it.isFocused },
         shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(14.dp)),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (primary) BrandOrange else GraphiteCard,
-            focusedContainerColor = if (primary) Color(0xFFFF6A00) else Color(0xFF23232E),
-            pressedContainerColor = BrandOrange
+            containerColor = if (primary) BrandAccent else GraphiteCard,
+            focusedContainerColor = if (primary) BrandAccentHot else Color(0xFF23232E),
+            pressedContainerColor = BrandAccent
         ),
         border = ClickableSurfaceDefaults.border(
             focusedBorder = Border(
@@ -178,7 +202,7 @@ fun FocusableButton(
             )
         ),
         glow = ClickableSurfaceDefaults.glow(
-            focusedGlow = Glow(elevationColor = BrandOrange, elevation = 14.dp)
+            focusedGlow = Glow(elevationColor = BrandAccent, elevation = 14.dp)
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
         content = {
@@ -190,49 +214,6 @@ fun FocusableButton(
                     text = label,
                     style = LocalSenalTypography.current.button,
                     color = if (primary) Color.Black else TextPrimary
-                )
-            }
-        }
-    )
-}
-
-/**
- * FLUJO-style horizontal category column (FocusColumView).
- * Uses real tile art + 1.13 spring zoom.
- */
-@Composable
-fun FocusColumnTile(
-    label: String,
-    normalRes: Int,
-    focusedRes: Int,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var focused by remember { mutableStateOf(false) }
-    Surface(
-        onClick = onClick,
-        modifier = modifier
-            .then(rememberFlujoFocusModifier(focused, big = true))
-            .onFocusChanged { focused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color.Transparent,
-            focusedContainerColor = Color.Transparent
-        ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
-        content = {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                AsyncImage(
-                    model = if (focused) focusedRes else normalRes,
-                    contentDescription = label,
-                    contentScale = ContentScale.FillBounds,
-                    modifier = Modifier.fillMaxSize()
-                )
-                Text(
-                    text = label,
-                    style = LocalSenalTypography.current.button,
-                    color = FocusWhite,
-                    modifier = Modifier.padding(horizontal = 8.dp)
                 )
             }
         }
@@ -253,7 +234,7 @@ fun ColorTile(
         modifier = modifier
             .fillMaxWidth()
             .height(height)
-            .then(rememberFlujoFocusModifier(focused, big = true))
+            .then(rememberSenalFocusModifier(focused, big = true))
             .onFocusChanged { focused = it.isFocused },
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
         colors = ClickableSurfaceDefaults.colors(
@@ -284,7 +265,7 @@ fun LoadingPulse(label: String = "Cargando…") {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        CircularProgressIndicator(color = BrandOrange, trackColor = BrandOrange.copy(alpha = 0.2f))
+        CircularProgressIndicator(color = BrandAccent, trackColor = BrandAccent.copy(alpha = 0.2f))
         Text(text = label, style = LocalSenalTypography.current.subtitle, color = TextMuted)
     }
 }
@@ -314,7 +295,7 @@ fun PosterCard(
         onClick = onClick,
         modifier = modifier
             .width(170.dp)
-            .then(rememberFlujoFocusModifier(focused, big = true))
+            .then(rememberSenalFocusModifier(focused, big = true))
             .onFocusChanged { focused = it.isFocused },
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
         colors = ClickableSurfaceDefaults.colors(
@@ -382,7 +363,7 @@ fun ChannelCard(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .then(rememberFlujoFocusModifier(focused, big = false))
+            .then(rememberSenalFocusModifier(focused, big = false))
             .onFocusChanged { focused = it.isFocused },
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
         colors = ClickableSurfaceDefaults.colors(
@@ -391,7 +372,7 @@ fun ChannelCard(
         ),
         border = ClickableSurfaceDefaults.border(
             focusedBorder = Border(
-                border = BorderStroke(2.dp, BrandOrange),
+                border = BorderStroke(2.dp, BrandAccent),
                 shape = RoundedCornerShape(14.dp)
             )
         ),
@@ -406,7 +387,7 @@ fun ChannelCard(
                 Text(
                     text = (item.resolveNumber() ?: "·").toString(),
                     style = LocalSenalTypography.current.caption,
-                    color = if (focused) BrandOrange else Teal,
+                    color = if (focused) BrandAccent else Teal,
                     modifier = Modifier.width(42.dp)
                 )
                 AsyncImage(
@@ -475,7 +456,7 @@ fun PulseBorder(active: Boolean, modifier: Modifier = Modifier, content: @Compos
     Box(
         modifier = modifier.border(
             width = 2.dp,
-            color = BrandOrange.copy(alpha = if (active) pulse.value else 0f),
+            color = BrandAccent.copy(alpha = if (active) pulse.value else 0f),
             shape = RoundedCornerShape(14.dp)
         )
     ) { content() }

@@ -107,7 +107,7 @@ fun SettingsScreen(
         FocusableButton(
             label = "Vaciar caché de catálogo",
             onClick = {
-                container.catalogRepository.clearMemory()
+                scope.launch { container.catalogRepository.clearAllCaches() }
             },
             primary = false
         )
@@ -117,7 +117,7 @@ fun SettingsScreen(
             onClick = {
                 scope.launch {
                     container.authRepository.logout()
-                    container.catalogRepository.clearMemory()
+                    container.catalogRepository.clearAllCaches()
                     onLogout()
                 }
             }

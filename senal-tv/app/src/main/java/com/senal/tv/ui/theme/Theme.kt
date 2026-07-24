@@ -12,27 +12,44 @@ import androidx.compose.ui.unit.sp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.darkColorScheme
 
-/** Near-black canvas used in Magis-style IPTV UIs. */
-val Graphite = Color(0xFF050508)
-val GraphiteElevated = Color(0xFF121218)
-val GraphiteCard = Color(0xFF18181F)
+/** SEÑAL dark canvas — cool charcoal, not Flujo black/orange. */
+val Graphite = Color(0xFF06080C)
+val GraphiteElevated = Color(0xFF10151C)
+val GraphiteCard = Color(0xFF161C24)
 
-/** Brand / focus accents from reference UX (orange) + brief accents. */
-val BrandOrange = Color(0xFFDC4800)
-val BrandOrangeHot = Color(0xFFFF6A00)
-val Violet = Color(0xFF7C3AED)
-val Teal = Color(0xFF14B8A6)
-val TilePurple = Color(0xFF8B5CF6)
-val TileCyan = Color(0xFF22D3EE)
-val TileGreen = Color(0xFF22C55E)
-val TileCoral = Color(0xFFFF6B7A)
+/** Primary: signal teal. Distinct from Flujo orange (#DC4800). */
+val BrandAccent = Color(0xFF2EE6C5)
+val BrandAccentHot = Color(0xFF5CF0D4)
+val BrandBlue = Color(0xFF3D8BFF)
+val FocusRing = Color(0xFFE8F1FF)
 val FocusWhite = Color(0xFFFFFFFF)
-val TextPrimary = Color(0xFFF7F7FB)
-val TextMuted = Color(0xFFA8AAB8)
-val Danger = Color(0xFFFF6B7A)
+val TextPrimary = Color(0xFFF4F7FB)
+val TextMuted = Color(0xFF93A0B0)
+val Danger = Color(0xFFFF5C6C)
+val Success = Color(0xFF2EE6C5)
+
+/** Tile accents for home sections (cool spectrum, no Flujo rainbow). */
+val TileLive = Color(0xFF1F6FEB)
+val TileMovies = Color(0xFF2EE6C5)
+val TileSeries = Color(0xFF5B8DEF)
+val TileFavorites = Color(0xFF3D8BFF)
+val TileSearch = Color(0xFF7AD7C8)
+
+@Deprecated("Use BrandAccent — kept only as compile alias during migration")
+val BrandOrange = BrandAccent
+@Deprecated("Use BrandAccentHot")
+val BrandOrangeHot = BrandAccentHot
+@Deprecated("Use BrandBlue")
+val Violet = BrandBlue
+@Deprecated("Use TileFavorites")
+val TilePurple = TileFavorites
+val Teal = BrandAccent
+val TileCyan = BrandAccentHot
+val TileGreen = Color(0xFF3DDC97)
+val TileCoral = Danger
 
 val SplashGradient = Brush.radialGradient(
-    colors = listOf(Color(0xFF1A1208), Graphite, Color(0xFF050508))
+    colors = listOf(Color(0xFF0C1A22), Graphite, Color(0xFF04060A))
 )
 
 data class SenalTypography(
@@ -85,15 +102,15 @@ data class SenalTypography(
 val LocalSenalTypography = staticCompositionLocalOf { SenalTypography() }
 
 private val SenalDarkScheme = darkColorScheme(
-    primary = BrandOrange,
+    primary = BrandAccent,
     onPrimary = Color.Black,
-    secondary = Teal,
+    secondary = BrandBlue,
     onSecondary = Graphite,
     background = Graphite,
     onBackground = TextPrimary,
     surface = GraphiteElevated,
     onSurface = TextPrimary,
-    border = BrandOrange.copy(alpha = 0.45f)
+    border = BrandAccent.copy(alpha = 0.45f)
 )
 
 @Composable

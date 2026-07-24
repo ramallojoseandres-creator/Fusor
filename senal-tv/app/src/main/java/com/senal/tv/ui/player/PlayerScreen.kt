@@ -55,13 +55,13 @@ import com.senal.tv.AppContainer
 import com.senal.tv.data.local.AppSettings
 import com.senal.tv.data.model.CatalogItem
 import com.senal.tv.ui.components.FocusableButton
-import com.senal.tv.ui.theme.BrandOrange
+import com.senal.tv.ui.theme.BrandAccent
 import com.senal.tv.ui.theme.Graphite
 import com.senal.tv.ui.theme.LocalSenalTypography
 import com.senal.tv.ui.theme.Teal
 import com.senal.tv.ui.theme.TextMuted
 import com.senal.tv.ui.theme.TextPrimary
-import com.senal.tv.ui.theme.Violet
+import com.senal.tv.ui.theme.BrandBlue
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -294,7 +294,7 @@ fun PlayerScreen(
         if (loading || buffering) {
             CircularProgressIndicator(
                 modifier = Modifier.align(Alignment.Center),
-                color = BrandOrange
+                color = BrandAccent
             )
         }
 
@@ -314,7 +314,7 @@ fun PlayerScreen(
                     .padding(28.dp)
             ) {
                 Column(modifier = Modifier.align(Alignment.TopStart)) {
-                    Text("SEÑAL", style = LocalSenalTypography.current.caption, color = BrandOrange)
+                    Text("SEÑAL", style = LocalSenalTypography.current.caption, color = BrandAccent)
                     Text(current.resolveTitle(), style = LocalSenalTypography.current.title, color = TextPrimary)
                     Text(
                         text = "AHORA  ·  ${current.resolveNow().ifBlank { current.resolveCategory() }}",
@@ -423,7 +423,7 @@ fun PlayerScreen(
                                 "EN VIVO"
                             },
                             style = LocalSenalTypography.current.caption,
-                            color = Violet
+                            color = BrandBlue
                         )
                         Text("${speed}x", style = LocalSenalTypography.current.caption, color = Teal)
                     }

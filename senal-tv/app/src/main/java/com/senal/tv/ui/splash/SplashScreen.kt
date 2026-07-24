@@ -35,14 +35,11 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.senal.tv.ui.theme.BrandOrange
+import com.senal.tv.ui.theme.BrandAccent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/**
- * Cinematic splash modeled on FLUJO's energy (lens flare + scale + glow),
- * branded as SEÑAL — not a static screen.
- */
+/** SEÑAL splash — signal pulse, no third-party branding. */
 @Composable
 fun SplashScreen(onFinished: () -> Unit) {
     val logoAlpha = remember { Animatable(0f) }
@@ -97,7 +94,7 @@ fun SplashScreen(onFinished: () -> Unit) {
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        BrandOrange.copy(alpha = 0.28f * glow.value * pulse),
+                        BrandAccent.copy(alpha = 0.28f * glow.value * pulse),
                         Color.Transparent
                     ),
                     center = Offset(cx, cy),
@@ -106,14 +103,14 @@ fun SplashScreen(onFinished: () -> Unit) {
                 radius = size.minDimension * 0.45f,
                 center = Offset(cx, cy)
             )
-            // Horizontal lens-flare streak (FLUJO signature)
+            // Signal sweep
             val y = cy + size.height * 0.08f
             val x = cx + flareX * size.width * 0.55f
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        Color(0xFFFFB347).copy(alpha = 0.85f * glow.value),
-                        BrandOrange.copy(alpha = 0.35f * glow.value),
+                        Color(0xFFB8FFF0).copy(alpha = 0.85f * glow.value),
+                        BrandAccent.copy(alpha = 0.35f * glow.value),
                         Color.Transparent
                     ),
                     center = Offset(x, y),
@@ -126,9 +123,9 @@ fun SplashScreen(onFinished: () -> Unit) {
                 brush = Brush.horizontalGradient(
                     colors = listOf(
                         Color.Transparent,
-                        BrandOrange.copy(alpha = 0.55f * glow.value * pulse),
-                        Color(0xFFFFE0B2).copy(alpha = 0.9f * glow.value),
-                        BrandOrange.copy(alpha = 0.55f * glow.value * pulse),
+                        BrandAccent.copy(alpha = 0.55f * glow.value * pulse),
+                        Color(0xFFB8FFF0).copy(alpha = 0.9f * glow.value),
+                        BrandAccent.copy(alpha = 0.55f * glow.value * pulse),
                         Color.Transparent
                     ),
                     startX = x - 420f,
@@ -148,7 +145,7 @@ fun SplashScreen(onFinished: () -> Unit) {
                     fontWeight = FontWeight.Black,
                     letterSpacing = 10.sp,
                     shadow = Shadow(
-                        color = BrandOrange.copy(alpha = 0.9f * glow.value),
+                        color = BrandAccent.copy(alpha = 0.9f * glow.value),
                         blurRadius = 28f * pulse
                     )
                 ),
@@ -167,14 +164,14 @@ fun SplashScreen(onFinished: () -> Unit) {
                     .alpha(tagAlpha.value)
                     .background(
                         Brush.horizontalGradient(
-                            listOf(Color.Transparent, BrandOrange, Color.Transparent)
+                            listOf(Color.Transparent, BrandAccent, Color.Transparent)
                         )
                     )
             )
             Spacer(Modifier.height(16.dp))
             Text(
-                text = "DISFRUTA SIN PREOCUPACIONES",
-                color = BrandOrange,
+                text = "TU SEÑAL, SIN ESPERAS",
+                color = BrandAccent,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
                 letterSpacing = 3.sp,
